@@ -103,3 +103,52 @@ elseif(TC_PLATFORM_RASPBIAN)
         pthread
     )
 endif()
+
+# =============================================================================
+# アイコン設定ヘルパー関数
+# =============================================================================
+# trussc_setup_icon(<target>)
+# - プロジェクトの icns/ フォルダに .icns があればそれを使用
+# - なければ TrussC のデフォルトアイコンを使用
+function(trussc_setup_icon TARGET_NAME)
+    if(NOT APPLE)
+        return()
+    endif()
+
+    # プロジェクトの icns/ フォルダを探す
+    set(PROJECT_ICNS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/icns")
+    file(GLOB PROJECT_ICNS_FILES "${PROJECT_ICNS_DIR}/*.icns")
+
+    # TrussC のデフォルトアイコン
+    set(DEFAULT_ICNS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/resources/default.icns")
+
+    if(PROJECT_ICNS_FILES)
+        # プロジェクト固有のアイコンを使用（最初の.icns）
+        list(GET PROJECT_ICNS_FILES 0 APP_ICNS)
+        get_filename_component(ICNS_NAME "${APP_ICNS}" NAME)
+        message(STATUS "[${TARGET_NAME}] Using custom icon: ${ICNS_NAME}")
+    elseif(EXISTS "${DEFAULT_ICNS}")
+        # デフォルトアイコンを使用
+        set(APP_ICNS "${DEFAULT_ICNS}")
+        get_filename_component(ICNS_NAME "${APP_ICNS}" NAME)
+        message(STATUS "[${TARGET_NAME}] Using default TrussC icon")
+    else()
+        # アイコンなし
+        message(STATUS "[${TARGET_NAME}] No icon found")
+        return()
+    endif()
+
+    # アイコンファイル名（パスなし）
+    get_filename_component(ICNS_FILENAME "${APP_ICNS}" NAME)
+
+    # バンドルにアイコンを設定
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE "${ICNS_FILENAME}"
+    )
+
+    # アイコンファイルをリソースとして追加
+    set_source_files_properties("${APP_ICNS}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+    target_sources(${TARGET_NAME} PRIVATE "${APP_ICNS}")
+endfunction()
