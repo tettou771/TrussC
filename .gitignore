@@ -69,14 +69,10 @@ _deps/
 # Examples
 # =============================================================================
 
-# examples 内のビルド成果物を除外
-examples/*/build/
-examples/*/bin/
-examples/*/out/
-examples/*/*.xcodeproj/
-examples/*/*.sln
-examples/*/*.vcxproj
-
-# ただし src/ と data/ は保持
-!examples/*/src/
-!examples/*/data/
+# examples 内のビルド成果物を除外（サブフォルダも含む）
+examples/**/build/
+examples/**/bin/
+examples/**/out/
+examples/**/*.xcodeproj/
+examples/**/*.sln
+examples/**/*.vcxproj

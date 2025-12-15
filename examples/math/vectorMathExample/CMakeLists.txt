@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # =============================================================================
 # TrussC を探す（examples/ 内から親ディレクトリを参照）
 # =============================================================================
-set(TRUSSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+set(TRUSSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 message(STATUS "[03_math] TrussC: ${TRUSSC_DIR}")
 
 # TrussC を追加

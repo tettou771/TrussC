@@ -51,14 +51,6 @@ constexpr int VERSION_PATCH = 1;
 // 数学定数は tcMath.h で定義: TAU, HALF_TAU, QUARTER_TAU, PI
 
 // ---------------------------------------------------------------------------
-// LoopMode
-// ---------------------------------------------------------------------------
-enum class LoopMode {
-    Game,   // 毎フレーム自動的にupdate/drawが呼ばれる（デフォルト）
-    Demand  // redraw()が呼ばれた時だけupdate/drawが呼ばれる（省電力モード）
-};
-
-// ---------------------------------------------------------------------------
 // 内部状態
 // ---------------------------------------------------------------------------
 namespace internal {
@@ -76,9 +68,28 @@ namespace internal {
     // 円の分割数（oFと同じデフォルト値）
     inline int circleResolution = 20;
 
-    // LoopMode
-    inline LoopMode loopMode = LoopMode::Game;
-    inline bool needsRedraw = true;
+    // ---------------------------------------------------------------------------
+    // Loop Architecture (Decoupled Update/Draw)
+    // ---------------------------------------------------------------------------
+
+    // Draw Loop 設定
+    inline bool drawVsyncEnabled = true;   // VSync 有効（デフォルト）
+    inline int drawTargetFps = 0;          // 0 = VSync使用, >0 = 固定FPS, <0 = 自動描画停止
+    inline bool needsRedraw = true;        // redraw() フラグ
+
+    // Update Loop 設定
+    inline bool updateSyncedToDraw = true; // true = draw直前にupdate（デフォルト）
+    inline int updateTargetFps = 0;        // 0 = syncedToDraw使用, >0 = 独立した固定Hz
+
+    // Update タイミング用
+    inline std::chrono::high_resolution_clock::time_point lastUpdateTime;
+    inline bool lastUpdateTimeInitialized = false;
+    inline double updateAccumulator = 0.0; // 独立Updateの蓄積時間
+
+    // Draw タイミング用（フレームスキップ）
+    inline std::chrono::high_resolution_clock::time_point lastDrawTime;
+    inline bool lastDrawTimeInitialized = false;
+    inline double drawAccumulator = 0.0;
 
     // マウス状態
     inline float mouseX = 0.0f;
@@ -986,23 +997,86 @@ inline int getMouseButton() {
 }
 
 // ---------------------------------------------------------------------------
-// LoopMode 制御
+// Loop Architecture (Decoupled Update/Draw)
 // ---------------------------------------------------------------------------
 
-// LoopModeを設定
-inline void setLoopMode(LoopMode mode) {
-    internal::loopMode = mode;
-    if (mode == LoopMode::Game) {
-        internal::needsRedraw = true;
+// --- Draw Loop 制御 ---
+
+// VSync を有効/無効にする（デフォルト: true）
+inline void setDrawVsync(bool enabled) {
+    internal::drawVsyncEnabled = enabled;
+    if (enabled) {
+        internal::drawTargetFps = 0;  // VSync時はFPS指定を無効化
+        internal::drawAccumulator = 0.0;  // アキュムレータリセット
     }
 }
 
-// 現在のLoopModeを取得
-inline LoopMode getLoopMode() {
-    return internal::loopMode;
+// 描画FPSを設定
+// n > 0: 固定FPS（VSyncは自動的にOFF）
+// n <= 0: 自動描画停止、redraw()呼び出し時のみ描画
+inline void setDrawFps(int fps) {
+    internal::drawTargetFps = fps;
+    internal::drawVsyncEnabled = false;  // FPS指定時は常にVSyncをOFF
 }
 
-// 再描画をリクエスト（Demandモードで使用）
+// 現在の描画FPS設定を取得
+inline int getDrawFps() {
+    return internal::drawTargetFps;
+}
+
+// VSync が有効かどうか
+inline bool isDrawVsync() {
+    return internal::drawVsyncEnabled;
+}
+
+// --- Update Loop 制御 ---
+
+// Update を Draw に同期するか設定（デフォルト: true）
+// true: update() は draw() の直前に1回呼ばれる
+// false: setUpdateFps() の設定に従う
+inline void syncUpdateToDraw(bool synced) {
+    internal::updateSyncedToDraw = synced;
+    if (synced) {
+        internal::updateTargetFps = 0;
+        internal::updateAccumulator = 0.0;  // アキュムレータリセット
+    }
+}
+
+// Update の Hz を設定（Draw とは独立）
+// n > 0: 指定した Hz で定期的に update() が呼ばれる
+// n <= 0: Update ループ停止（イベント駆動のみ）
+inline void setUpdateFps(int fps) {
+    internal::updateTargetFps = fps;
+    if (fps > 0) {
+        internal::updateSyncedToDraw = false;  // 独立Update時は同期をOFF
+    }
+}
+
+// 現在の Update Hz 設定を取得
+inline int getUpdateFps() {
+    return internal::updateTargetFps;
+}
+
+// Update が Draw に同期しているか
+inline bool isUpdateSyncedToDraw() {
+    return internal::updateSyncedToDraw;
+}
+
+// --- ヘルパー関数 ---
+
+// 固定FPSモードに設定（Draw + Update同期）
+inline void setFps(int fps) {
+    setDrawFps(fps);
+    syncUpdateToDraw(true);
+}
+
+// VSyncモードに設定（Draw + Update同期）
+inline void setVsync(bool enabled) {
+    setDrawVsync(enabled);
+    syncUpdateToDraw(true);
+}
+
+// 再描画をリクエスト（自動描画停止時に使用）
 inline void redraw() {
     internal::needsRedraw = true;
 }
@@ -1138,13 +1212,76 @@ namespace internal {
     }
 
     inline void _frame_cb() {
-        if (loopMode == LoopMode::Game || needsRedraw) {
+        auto now = std::chrono::high_resolution_clock::now();
+
+        // タイミング初期化
+        if (!lastUpdateTimeInitialized) {
+            lastUpdateTime = now;
+            lastUpdateTimeInitialized = true;
+        }
+        if (!lastDrawTimeInitialized) {
+            lastDrawTime = now;
+            lastDrawTimeInitialized = true;
+        }
+
+        // --- Update Loop 処理 ---
+        if (updateSyncedToDraw) {
+            // Draw に同期: 後で shouldDraw と連動
+        } else if (updateTargetFps > 0) {
+            // 独立した固定 Hz で Update
+            double updateInterval = 1.0 / updateTargetFps;
+            double elapsed = std::chrono::duration<double>(now - lastUpdateTime).count();
+            updateAccumulator += elapsed;
+            lastUpdateTime = now;
+
+            while (updateAccumulator >= updateInterval) {
+                if (appUpdateFunc) appUpdateFunc();
+                updateAccumulator -= updateInterval;
+            }
+        }
+        // updateTargetFps <= 0 の場合は Update しない（イベント駆動）
+
+        // --- Draw Loop 処理 ---
+        bool shouldDraw = false;
+
+        if (drawVsyncEnabled) {
+            // VSync: 毎フレーム描画（sokol_app がタイミング制御）
+            shouldDraw = true;
+        } else if (drawTargetFps > 0) {
+            // 固定FPS: フレームスキップで制御
+            double drawInterval = 1.0 / drawTargetFps;
+            double elapsed = std::chrono::duration<double>(now - lastDrawTime).count();
+            drawAccumulator += elapsed;
+            lastDrawTime = now;
+
+            if (drawAccumulator >= drawInterval) {
+                shouldDraw = true;
+                // 1回分だけ消費（複数フレーム溜まっても1回だけ描画）
+                drawAccumulator -= drawInterval;
+                // 溜まりすぎ防止
+                if (drawAccumulator > drawInterval) {
+                    drawAccumulator = 0.0;
+                }
+            }
+        } else {
+            // 自動描画停止: redraw() 時のみ描画
+            shouldDraw = needsRedraw;
+        }
+
+        if (shouldDraw) {
             beginFrame();
-            if (appUpdateFunc) appUpdateFunc();
+
+            // Update が Draw に同期している場合、ここで Update
+            if (updateSyncedToDraw && appUpdateFunc) {
+                appUpdateFunc();
+            }
+
             if (appDrawFunc) appDrawFunc();
             present();
             needsRedraw = false;
         }
+
+        // 前フレームのマウス位置を保存
         pmouseX = mouseX;
         pmouseY = mouseY;
     }
