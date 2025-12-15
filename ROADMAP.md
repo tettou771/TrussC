@@ -29,7 +29,7 @@ openFrameworks のサンプル構造を参考に、TrussC に必要なサンプ�
 - [ ] blendingExample - ブレンドモード
 
 ### 3d/ (優先度: 高)
-- [ ] easyCamExample - マウス操作カメラ
+- [x] easyCamExample - マウス操作カメラ
 - [ ] meshFromCameraExample - メッシュとカメラ
 - [ ] pointCloudExample - ポイントクラウド
 
@@ -48,7 +48,7 @@ openFrameworks のサンプル構造を参考に、TrussC に必要なサンプ�
 - [ ] customEventsExample - カスタムイベント
 
 ### gl/ (優先度: 低 - 上級者向け)
-- [ ] fboExample - フレームバッファオブジェクト
+- [x] fboExample - フレームバッファオブジェクト（screenshotExample として実装）
 - [ ] shaderExample - カスタムシェーダー
 - [ ] textureExample - テクスチャ操作
 - [ ] vboExample - 頂点バッファ
@@ -66,13 +66,13 @@ openFrameworks のサンプル構造を参考に、TrussC に必要なサンプ�
 ## 必要な機能（サンプル実装のための前提）
 
 ### 近い将来
-- [ ] ofTrueTypeFont 相当 - フォント描画
-- [ ] ofImage 相当 - 画像読み込み
-- [ ] ofEasyCam 相当 - 3Dカメラ操作
+- [ ] ofTrueTypeFont 相当 - フォント描画（作業中）
+- [x] ofImage 相当 - 画像読み込み
+- [x] ofEasyCam 相当 - 3Dカメラ操作
 - [ ] ofNoise 相当 - パーリンノイズ
 
 ### 中期
-- [ ] ofFbo 相当 - オフスクリーンレンダリング
+- [x] ofFbo 相当 - オフスクリーンレンダリング
 - [ ] ofShader 相当 - カスタムシェーダー
 - [ ] ofSoundPlayer 相当 - サウンド再生
 
