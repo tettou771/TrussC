@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tcBaseApp.h"  // tc::App, tc::Node, TrussC.h を含む
+#include <cstdio>       // snprintf
 
 // =============================================================================
 // 回転するコンテナノード
@@ -33,6 +34,10 @@ public:
         tc::drawLine(0, 0, 50, 0);
         tc::setColor(0.3f, 1.0f, 0.3f);  // Y軸 = 緑
         tc::drawLine(0, 0, 0, 50);
+
+        // タイトル（四角形の上部に表示）
+        tc::setColor(1.0f, 1.0f, 1.0f, 0.8f);
+        tc::drawBitmapString("Local Coord System", -size/2, -size/2 - 12);
     }
 };
 
@@ -50,12 +55,24 @@ public:
         float mx = getMouseX();
         float my = getMouseY();
 
+        // 親コンテナのサイズ（RotatingContainerのsize/2が境界）
+        float bound = 125.0f;  // コンテナサイズの半分程度
+        bool insideBox = (mx >= -bound && mx <= bound && my >= -bound && my <= bound);
+
         tc::setColor(r, g, b, 0.8f);
         tc::drawCircle(mx, my, radius);
 
         // 中心点
         tc::setColor(1.0f, 1.0f, 1.0f);
         tc::drawCircle(mx, my, 3);
+
+        // 四角形の中にいる時だけローカル座標を表示
+        if (insideBox) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "local: %.0f, %.0f", mx, my);
+            tc::setColor(1.0f, 1.0f, 1.0f, 0.9f);
+            tc::drawBitmapString(buf, mx, my);
+        }
     }
 };
 

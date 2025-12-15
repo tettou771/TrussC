@@ -2,6 +2,7 @@
 
 #include "tcBaseApp.h"
 #include <vector>
+#include <cstdio>   // snprintf
 
 class tcApp : public tc::App {
 public:

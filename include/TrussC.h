@@ -31,6 +31,9 @@
 // TrussC プラットフォーム固有機能
 #include "tcPlatform.h"
 
+// TrussC イベントシステム
+#include "tc/events/tcCoreEvents.h"
+
 // =============================================================================
 // trussc 名前空間
 // =============================================================================
@@ -546,10 +549,11 @@ inline void getBitmapStringBounds(const std::string& text, float& width, float& 
 inline void drawBitmapString(const std::string& text, float x, float y) {
     if (text.empty() || !internal::fontInitialized) return;
 
-    // 現在の行列から translate 成分を抽出
+    // ローカル座標をワールド座標に変換（行列全体を適用）
+    // Mat4は行優先: m[0],m[1]が1行目、m[3]=tx, m[7]=ty
     Mat4 currentMat = getCurrentMatrix();
-    float worldX = currentMat.m[12] + x;
-    float worldY = currentMat.m[13] + y;
+    float worldX = currentMat.m[0]*x + currentMat.m[1]*y + currentMat.m[3];
+    float worldY = currentMat.m[4]*x + currentMat.m[5]*y + currentMat.m[7];
 
     // 行列を保存して、translate のみの行列に切り替え
     pushMatrix();
@@ -617,10 +621,11 @@ inline void drawBitmapString(const std::string& text, float x, float y) {
 inline void drawBitmapString(const std::string& text, float x, float y, float scale) {
     if (text.empty() || !internal::fontInitialized) return;
 
-    // 現在の行列から translate 成分を抽出
+    // ローカル座標をワールド座標に変換（行列全体を適用）
+    // Mat4は行優先: m[0],m[1]が1行目、m[3]=tx, m[7]=ty
     Mat4 currentMat = getCurrentMatrix();
-    float worldX = currentMat.m[12] + x;
-    float worldY = currentMat.m[13] + y;
+    float worldX = currentMat.m[0]*x + currentMat.m[1]*y + currentMat.m[3];
+    float worldY = currentMat.m[4]*x + currentMat.m[5]*y + currentMat.m[7];
 
     // 行列を保存して、translate のみの行列に切り替え
     pushMatrix();
@@ -697,10 +702,11 @@ inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
     // パディング
     const float padding = 4.0f;
 
-    // 現在の行列から translate 成分を抽出
+    // ローカル座標をワールド座標に変換（行列全体を適用）
+    // Mat4は行優先: m[0],m[1]が1行目、m[3]=tx, m[7]=ty
     Mat4 currentMat = getCurrentMatrix();
-    float worldX = currentMat.m[12] + x;
-    float worldY = currentMat.m[13] + y;
+    float worldX = currentMat.m[0]*x + currentMat.m[1]*y + currentMat.m[3];
+    float worldY = currentMat.m[4]*x + currentMat.m[5]*y + currentMat.m[7];
 
     // 行列を保存
     pushMatrix();
@@ -1005,54 +1011,132 @@ namespace internal {
     }
 
     inline void _event_cb(const sapp_event* ev) {
+        // ev->mouse_x/y はフレームバッファ座標で届く
+        // pixelPerfectMode = true: そのまま使う（座標系=フレームバッファサイズ）
+        // pixelPerfectMode = false: DPIスケールで割って論理座標に変換
+        float scale = pixelPerfectMode ? 1.0f : (1.0f / sapp_dpi_scale());
+        bool hasModShift = (ev->modifiers & SAPP_MODIFIER_SHIFT) != 0;
+        bool hasModCtrl = (ev->modifiers & SAPP_MODIFIER_CTRL) != 0;
+        bool hasModAlt = (ev->modifiers & SAPP_MODIFIER_ALT) != 0;
+        bool hasModSuper = (ev->modifiers & SAPP_MODIFIER_SUPER) != 0;
+
         switch (ev->type) {
-            case SAPP_EVENTTYPE_KEY_DOWN:
+            case SAPP_EVENTTYPE_KEY_DOWN: {
+                // イベントシステムに通知
+                KeyEventArgs args;
+                args.key = ev->key_code;
+                args.isRepeat = ev->key_repeat;
+                args.shift = hasModShift;
+                args.ctrl = hasModCtrl;
+                args.alt = hasModAlt;
+                args.super = hasModSuper;
+                events().keyPressed.notify(args);
+
+                // 従来のコールバック（互換性）
                 if (!ev->key_repeat && appKeyPressedFunc) {
                     appKeyPressedFunc(ev->key_code);
                 }
                 break;
-            case SAPP_EVENTTYPE_KEY_UP:
+            }
+            case SAPP_EVENTTYPE_KEY_UP: {
+                KeyEventArgs args;
+                args.key = ev->key_code;
+                args.isRepeat = false;
+                args.shift = hasModShift;
+                args.ctrl = hasModCtrl;
+                args.alt = hasModAlt;
+                args.super = hasModSuper;
+                events().keyReleased.notify(args);
+
                 if (appKeyReleasedFunc) appKeyReleasedFunc(ev->key_code);
                 break;
+            }
             case SAPP_EVENTTYPE_MOUSE_DOWN: {
                 currentMouseButton = ev->mouse_button;
-                // ピクセルパーフェクトモードではDPIスケールを適用
-                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
                 mouseX = ev->mouse_x * scale;
                 mouseY = ev->mouse_y * scale;
                 mouseButton = ev->mouse_button;
                 mousePressed = true;
+
+                MouseEventArgs args;
+                args.x = mouseX;
+                args.y = mouseY;
+                args.button = ev->mouse_button;
+                args.shift = hasModShift;
+                args.ctrl = hasModCtrl;
+                args.alt = hasModAlt;
+                args.super = hasModSuper;
+                events().mousePressed.notify(args);
+
                 if (appMousePressedFunc) appMousePressedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
             }
             case SAPP_EVENTTYPE_MOUSE_UP: {
                 currentMouseButton = -1;
-                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
                 mouseX = ev->mouse_x * scale;
                 mouseY = ev->mouse_y * scale;
                 mouseButton = -1;
                 mousePressed = false;
+
+                MouseEventArgs args;
+                args.x = mouseX;
+                args.y = mouseY;
+                args.button = ev->mouse_button;
+                args.shift = hasModShift;
+                args.ctrl = hasModCtrl;
+                args.alt = hasModAlt;
+                args.super = hasModSuper;
+                events().mouseReleased.notify(args);
+
                 if (appMouseReleasedFunc) appMouseReleasedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
             }
             case SAPP_EVENTTYPE_MOUSE_MOVE: {
-                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
+                float prevX = mouseX;
+                float prevY = mouseY;
                 mouseX = ev->mouse_x * scale;
                 mouseY = ev->mouse_y * scale;
+
                 if (currentMouseButton >= 0) {
+                    MouseDragEventArgs args;
+                    args.x = mouseX;
+                    args.y = mouseY;
+                    args.deltaX = mouseX - prevX;
+                    args.deltaY = mouseY - prevY;
+                    args.button = currentMouseButton;
+                    events().mouseDragged.notify(args);
+
                     if (appMouseDraggedFunc) appMouseDraggedFunc((int)mouseX, (int)mouseY, currentMouseButton);
                 } else {
+                    MouseMoveEventArgs args;
+                    args.x = mouseX;
+                    args.y = mouseY;
+                    args.deltaX = mouseX - prevX;
+                    args.deltaY = mouseY - prevY;
+                    events().mouseMoved.notify(args);
+
                     if (appMouseMovedFunc) appMouseMovedFunc((int)mouseX, (int)mouseY);
                 }
                 break;
             }
-            case SAPP_EVENTTYPE_MOUSE_SCROLL:
+            case SAPP_EVENTTYPE_MOUSE_SCROLL: {
+                ScrollEventArgs args;
+                args.scrollX = ev->scroll_x;
+                args.scrollY = ev->scroll_y;
+                events().mouseScrolled.notify(args);
+
                 if (appMouseScrolledFunc) appMouseScrolledFunc(ev->scroll_x, ev->scroll_y);
                 break;
+            }
             case SAPP_EVENTTYPE_RESIZED: {
-                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
                 int w = static_cast<int>(ev->window_width * scale);
                 int h = static_cast<int>(ev->window_height * scale);
+
+                ResizeEventArgs args;
+                args.width = w;
+                args.height = h;
+                events().windowResized.notify(args);
+
                 if (appWindowResizedFunc) appWindowResizedFunc(w, h);
                 break;
             }

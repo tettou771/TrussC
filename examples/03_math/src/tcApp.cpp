@@ -61,9 +61,9 @@ void tcApp::draw() {
         case 3: drawParticleDemo(); break;
     }
 
-    // モード表示
-    tc::setColor(1.0f, 1.0f, 1.0f, 0.5f);
-    tc::drawRect(10, 10, 200, 30);
+    // 画面下部に操作説明
+    tc::setColor(0.5f, 0.5f, 0.5f);
+    tc::drawBitmapString("[SPACE] next mode  [Click] spawn particles (mode 3)  [ESC] quit", 20, tc::getWindowHeight() - 20);
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +81,9 @@ void tcApp::drawVec2Demo() {
 
     // 長さを表示
     float len = toMouse.length();
+
+    // 角度
+    float angle = toMouse.angle();
 
     // 中心から矢印を描画
     tc::setColor(0.3f, 0.8f, 0.3f);
@@ -106,7 +109,6 @@ void tcApp::drawVec2Demo() {
     tc::drawCircle(mouse.x, mouse.y, 8);
 
     // 角度を円弧で表示
-    float angle = toMouse.angle();
     tc::setColor(1.0f, 1.0f, 0.3f, 0.5f);
     int segments = 32;
     float arcLen = fmin(len, 80.0f);
@@ -117,6 +119,32 @@ void tcApp::drawVec2Demo() {
         tc::Vec2 p2 = center + tc::Vec2::fromAngle(a2, arcLen);
         tc::drawLine(p1.x, p1.y, p2.x, p2.y);
     }
+
+    // タイトルと説明
+    tc::setColor(1.0f, 1.0f, 1.0f);
+    tc::drawBitmapString("Mode 0: Vec2 Basic Operations", 20, 25);
+    tc::setColor(0.7f, 0.7f, 0.7f);
+    tc::drawBitmapString("Move mouse to see vector operations", 20, 45);
+
+    // ベクトル情報
+    char buf[128];
+    tc::setColor(0.3f, 0.8f, 0.3f);
+    snprintf(buf, sizeof(buf), "toMouse: (%.1f, %.1f)", toMouse.x, toMouse.y);
+    tc::drawBitmapString(buf, 20, 80);
+    snprintf(buf, sizeof(buf), "length: %.1f", len);
+    tc::drawBitmapString(buf, 20, 95);
+
+    tc::setColor(1.0f, 1.0f, 0.3f);
+    snprintf(buf, sizeof(buf), "angle: %.2f rad (%.1f deg)", angle, angle * 180.0f / tc::PI);
+    tc::drawBitmapString(buf, 20, 115);
+
+    tc::setColor(1.0f, 0.5f, 0.2f);
+    snprintf(buf, sizeof(buf), "normalized: (%.2f, %.2f)", dir.x, dir.y);
+    tc::drawBitmapString(buf, 20, 135);
+
+    tc::setColor(0.2f, 0.5f, 1.0f);
+    snprintf(buf, sizeof(buf), "perpendicular: (%.2f, %.2f)", perp.x / 50, perp.y / 50);
+    tc::drawBitmapString(buf, 20, 155);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +188,18 @@ void tcApp::drawRotationDemo() {
     // 中心
     tc::setColor(1.0f, 1.0f, 1.0f);
     tc::drawCircle(center.x, center.y, 5);
+
+    // タイトルと説明
+    tc::setColor(1.0f, 1.0f, 1.0f);
+    tc::drawBitmapString("Mode 1: Vec2 Rotation", 20, 25);
+    tc::setColor(0.7f, 0.7f, 0.7f);
+    tc::drawBitmapString("Vec2::fromAngle() creates vectors from angle", 20, 45);
+    tc::drawBitmapString("Vec2::rotated() rotates vectors around origin", 20, 60);
+
+    char buf[64];
+    tc::setColor(0.8f, 0.8f, 0.8f);
+    snprintf(buf, sizeof(buf), "time: %.1f sec", t);
+    tc::drawBitmapString(buf, 20, 90);
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +241,18 @@ void tcApp::drawLerpDemo() {
         tc::drawLine(followers[i - 1].x, followers[i - 1].y,
                     followers[i].x, followers[i].y);
     }
+
+    // タイトルと説明
+    tc::setColor(1.0f, 1.0f, 1.0f);
+    tc::drawBitmapString("Mode 2: Vec2 Lerp (Linear Interpolation)", 20, 25);
+    tc::setColor(0.7f, 0.7f, 0.7f);
+    tc::drawBitmapString("Move mouse - circles follow with easing", 20, 45);
+    tc::drawBitmapString("Vec2::lerp(target, amount) blends positions", 20, 60);
+
+    char buf[64];
+    tc::setColor(0.8f, 0.8f, 0.8f);
+    snprintf(buf, sizeof(buf), "followers: %zu", followers.size());
+    tc::drawBitmapString(buf, 20, 90);
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +268,18 @@ void tcApp::drawParticleDemo() {
     }
 
     drawParticles();
+
+    // タイトルと説明
+    tc::setColor(1.0f, 1.0f, 1.0f);
+    tc::drawBitmapString("Mode 3: Particle System with Vec2", 20, 25);
+    tc::setColor(0.7f, 0.7f, 0.7f);
+    tc::drawBitmapString("Click to spawn particles", 20, 45);
+    tc::drawBitmapString("Uses Vec2 for pos, vel, acc (physics)", 20, 60);
+
+    char buf[64];
+    tc::setColor(0.8f, 0.8f, 0.8f);
+    snprintf(buf, sizeof(buf), "particles: %zu", particles_.size());
+    tc::drawBitmapString(buf, 20, 90);
 }
 
 void tcApp::spawnParticle(float x, float y) {

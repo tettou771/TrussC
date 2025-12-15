@@ -85,8 +85,27 @@ void tcApp::draw() {
     tc::clear(0.1f, 0.1f, 0.15f);
 
     // グローバル座標でのマウス位置を表示
+    float gx = tc::getGlobalMouseX();
+    float gy = tc::getGlobalMouseY();
     tc::setColor(1.0f, 1.0f, 1.0f, 0.5f);
-    tc::drawCircle(tc::getGlobalMouseX(), tc::getGlobalMouseY(), 5);
+    tc::drawCircle(gx, gy, 5);
+
+    // 画面左上に説明を表示
+    tc::setColor(1.0f, 1.0f, 1.0f);
+    tc::drawBitmapString("Node System Demo - Local Coordinate Transformation", 20, 25);
+    tc::setColor(0.7f, 0.7f, 0.7f);
+    tc::drawBitmapString("Each box has its own local coordinate system.", 20, 45);
+    tc::drawBitmapString("Mouse position is transformed to local coords.", 20, 60);
+
+    // グローバルマウス座標
+    char buf[64];
+    snprintf(buf, sizeof(buf), "global: %.0f, %.0f", gx, gy);
+    tc::setColor(1.0f, 1.0f, 0.5f);
+    tc::drawBitmapString(buf, 20, 90);
+
+    // 操作説明
+    tc::setColor(0.5f, 0.5f, 0.5f);
+    tc::drawBitmapString("[SPACE] pause/resume rotation  [ESC] quit", 20, tc::getWindowHeight() - 20);
 
     // 子ノードはフレームワークが自動で描画する（この draw() の後に）
 }
