@@ -39,6 +39,7 @@ if(TC_PLATFORM_MACOS)
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.mm
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcPlatform_mac.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFbo_mac.mm
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
     )
 else()

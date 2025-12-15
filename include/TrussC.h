@@ -1524,6 +1524,9 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 // TrussC 画像
 #include "tc/graphics/tcImage.h"
 
+// TrussC FBO（オフスクリーンレンダリング）
+#include "tc/gl/tcFbo.h"
+
 // TrussC 3Dプリミティブ
 #include <map>
 #include "tc/3d/tcPrimitives.h"

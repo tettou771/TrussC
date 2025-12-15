@@ -43,6 +43,11 @@ public:
 
     // スレッド開始
     void start() {
+        // 前のスレッドが残っていたら停止して待機
+        if (isThreadRunning()) {
+            stop();
+        }
+        waitForThread(false);  // 古いスレッドが完全に終了するのを待つ
         startThread();
     }
 
