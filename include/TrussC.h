@@ -18,6 +18,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <chrono>
 
 // TrussC 数学ライブラリ
 #include "tcMath.h"
@@ -33,6 +34,9 @@
 
 // TrussC イベントシステム
 #include "tc/events/tcCoreEvents.h"
+
+// TrussC ユーティリティ
+#include "tc/utils/tcUtils.h"
 
 // =============================================================================
 // trussc 名前空間
@@ -69,8 +73,8 @@ namespace internal {
     inline bool strokeEnabled = false;
     inline float strokeWeight = 1.0f;
 
-    // 円の分割数
-    inline int circleResolution = 32;
+    // 円の分割数（oFと同じデフォルト値）
+    inline int circleResolution = 20;
 
     // LoopMode
     inline LoopMode loopMode = LoopMode::Game;
@@ -97,6 +101,15 @@ namespace internal {
 
     // ピクセルパーフェクトモード（座標系=フレームバッファサイズ）
     inline bool pixelPerfectMode = false;
+
+    // フレームレート計測用（10フレーム移動平均）
+    inline double frameTimeBuffer[10] = {};
+    inline int frameTimeIndex = 0;
+    inline bool frameTimeBufferFilled = false;
+
+    // 経過時間計測用
+    inline std::chrono::high_resolution_clock::time_point startTime;
+    inline bool startTimeInitialized = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -796,7 +809,14 @@ inline float getAspectRatio() {
 // ---------------------------------------------------------------------------
 
 inline double getElapsedTime() {
-    return sapp_frame_count() * sapp_frame_duration();
+    auto now = std::chrono::high_resolution_clock::now();
+    if (!internal::startTimeInitialized) {
+        internal::startTime = now;
+        internal::startTimeInitialized = true;
+        return 0.0;
+    }
+    auto duration = std::chrono::duration<double>(now - internal::startTime);
+    return duration.count();
 }
 
 inline uint64_t getFrameCount() {
@@ -805,6 +825,28 @@ inline uint64_t getFrameCount() {
 
 inline double getDeltaTime() {
     return sapp_frame_duration();
+}
+
+// フレームレート取得（10フレーム移動平均）
+inline double getFrameRate() {
+    // 現在のフレーム時間をバッファに追加
+    double dt = sapp_frame_duration();
+    internal::frameTimeBuffer[internal::frameTimeIndex] = dt;
+    internal::frameTimeIndex = (internal::frameTimeIndex + 1) % 10;
+    if (internal::frameTimeIndex == 0) {
+        internal::frameTimeBufferFilled = true;
+    }
+
+    // 平均を計算
+    int count = internal::frameTimeBufferFilled ? 10 : internal::frameTimeIndex;
+    if (count == 0) return 0.0;
+
+    double sum = 0.0;
+    for (int i = 0; i < count; i++) {
+        sum += internal::frameTimeBuffer[i];
+    }
+    double avgDt = sum / count;
+    return avgDt > 0.0 ? 1.0 / avgDt : 0.0;
 }
 
 // ---------------------------------------------------------------------------

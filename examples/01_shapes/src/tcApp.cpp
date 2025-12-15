@@ -43,10 +43,13 @@ void tcApp::draw() {
     // ----------------------
     // 円
     // ----------------------
+    // 大きい円は解像度を上げて滑らかに
+    tc::setCircleResolution(100);
     tc::setColor(0.3f, 0.9f, 0.3f);
     tc::drawCircle(350, 100, 60);
+    tc::setCircleResolution(20);  // デフォルトに戻す
 
-    // アニメーションする円
+    // アニメーションする円（デフォルト解像度=20角形）
     float pulse = (float)(sin(t * 3.0) * 0.3 + 0.7);
     tc::setColor(0.3f, 0.7f, 0.9f, pulse);
     tc::drawCircle(350, 250, 50);
@@ -157,6 +160,10 @@ void tcApp::draw() {
         tc::setColor(0.3f, 1.0f, 0.5f, 0.8f);
         tc::drawCircle(tc::getGlobalMouseX(), tc::getGlobalMouseY(), 30);
     }
+
+    // FPS表示
+    tc::setColor(1.0f, 1.0f, 1.0f);
+    tc::drawBitmapString("FPS: " + tc::toString(tc::getFrameRate(), 1), 10, 20);
 }
 
 // ---------------------------------------------------------------------------
