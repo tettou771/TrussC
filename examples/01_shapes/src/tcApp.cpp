@@ -137,6 +137,21 @@ void tcApp::draw() {
     tc::noStroke();
 
     // ----------------------
+    // Mesh（頂点カラー付き三角形）
+    // ----------------------
+    tc::Mesh mesh;
+    mesh.setMode(tc::PrimitiveMode::Triangles);
+    // 3頂点
+    mesh.addVertex(750, 530);
+    mesh.addVertex(850, 650);
+    mesh.addVertex(650, 650);
+    // 頂点カラー（RGB）
+    mesh.addColor(1.0f, 0.0f, 0.0f);  // 赤
+    mesh.addColor(0.0f, 1.0f, 0.0f);  // 緑
+    mesh.addColor(0.0f, 0.0f, 1.0f);  // 青
+    mesh.draw();
+
+    // ----------------------
     // グリッド描画
     // ----------------------
     tc::setColor(0.6f, 0.6f, 0.6f, 0.5f);

@@ -1279,5 +1279,8 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 // TrussC ポリライン
 #include "tc/graphics/tcPolyline.h"
 
+// TrussC メッシュ
+#include "tc/graphics/tcMesh.h"
+
 // 短縮エイリアス
 namespace tc = trussc;
