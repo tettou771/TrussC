@@ -51,7 +51,7 @@ void tcApp::setup() {
         auto child = make_shared<FixedChild>();
         child->x = positions[i].first;
         child->y = positions[i].second;
-        child->hue = i * tc::HALF_PI;
+        child->hue = i * tc::QUARTER_TAU;
         container1_->addChild(child);
     }
 
@@ -59,7 +59,7 @@ void tcApp::setup() {
         auto child = make_shared<FixedChild>();
         child->x = positions[i].first;
         child->y = positions[i].second;
-        child->hue = i * tc::HALF_PI + tc::PI;
+        child->hue = i * tc::QUARTER_TAU + tc::HALF_TAU;
         child->size = 20;
         container2_->addChild(child);
     }

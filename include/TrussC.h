@@ -17,6 +17,19 @@
 #include <cstdint>
 #include <cmath>
 #include <string>
+#include <vector>
+
+// TrussC 数学ライブラリ
+#include "tcMath.h"
+
+// TrussC カラーライブラリ
+#include "tcColor.h"
+
+// TrussC ビットマップフォント
+#include "tcBitmapFont.h"
+
+// TrussC プラットフォーム固有機能
+#include "tcPlatform.h"
 
 // =============================================================================
 // trussc 名前空間
@@ -28,10 +41,7 @@ constexpr int VERSION_MAJOR = 0;
 constexpr int VERSION_MINOR = 0;
 constexpr int VERSION_PATCH = 1;
 
-// 数学定数
-constexpr float PI = 3.14159265358979323846f;
-constexpr float TWO_PI = PI * 2.0f;
-constexpr float HALF_PI = PI / 2.0f;
+// 数学定数は tcMath.h で定義: TAU, HALF_TAU, QUARTER_TAU, PI
 
 // ---------------------------------------------------------------------------
 // LoopMode
@@ -70,6 +80,20 @@ namespace internal {
     inline float pmouseY = 0.0f;
     inline int mouseButton = -1;  // 現在押されているボタン (-1 = なし)
     inline bool mousePressed = false;
+
+    // 行列スタック（自前管理）
+    inline Mat4 currentMatrix = Mat4::identity();
+    inline std::vector<Mat4> matrixStack;
+
+    // ビットマップフォント用テクスチャ
+    inline sg_image fontTexture = {};
+    inline sg_view fontView = {};
+    inline sg_sampler fontSampler = {};
+    inline sgl_pipeline fontPipeline = {};
+    inline bool fontInitialized = false;
+
+    // ピクセルパーフェクトモード（座標系=フレームバッファサイズ）
+    inline bool pixelPerfectMode = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,10 +112,60 @@ inline void setup() {
     sgl_desc_t sgldesc = {};
     sgldesc.logger.func = slog_func;
     sgl_setup(&sgldesc);
+
+    // ビットマップフォントテクスチャを初期化
+    if (!internal::fontInitialized) {
+        // テクスチャアトラスのピクセルデータを生成
+        unsigned char* pixels = bitmapfont::generateAtlasPixels();
+
+        // テクスチャを作成
+        sg_image_desc img_desc = {};
+        img_desc.width = bitmapfont::ATLAS_WIDTH;
+        img_desc.height = bitmapfont::ATLAS_HEIGHT;
+        img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+        img_desc.data.mip_levels[0].ptr = pixels;
+        img_desc.data.mip_levels[0].size = bitmapfont::ATLAS_WIDTH * bitmapfont::ATLAS_HEIGHT * 4;
+        internal::fontTexture = sg_make_image(&img_desc);
+
+        // テクスチャビューを作成
+        sg_view_desc view_desc = {};
+        view_desc.texture.image = internal::fontTexture;
+        internal::fontView = sg_make_view(&view_desc);
+
+        // サンプラーを作成（ニアレストネイバー、ピクセルパーフェクト）
+        sg_sampler_desc smp_desc = {};
+        smp_desc.min_filter = SG_FILTER_NEAREST;
+        smp_desc.mag_filter = SG_FILTER_NEAREST;
+        smp_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
+        smp_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
+        internal::fontSampler = sg_make_sampler(&smp_desc);
+
+        // アルファブレンド用パイプラインを作成
+        // RGB: 標準アルファブレンド
+        // Alpha: 上書き（FBOに描画時、FBOが半透明にならないように）
+        sg_pipeline_desc pip_desc = {};
+        pip_desc.colors[0].blend.enabled = true;
+        pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+        pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+        pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+        pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ZERO;
+        internal::fontPipeline = sgl_make_pipeline(&pip_desc);
+
+        delete[] pixels;
+        internal::fontInitialized = true;
+    }
 }
 
 // sokol_gfx + sokol_gl を終了（cleanup コールバック内で呼ぶ）
 inline void cleanup() {
+    // フォントリソースを解放
+    if (internal::fontInitialized) {
+        sgl_destroy_pipeline(internal::fontPipeline);
+        sg_destroy_sampler(internal::fontSampler);
+        sg_destroy_view(internal::fontView);
+        sg_destroy_image(internal::fontTexture);
+        internal::fontInitialized = false;
+    }
     sgl_shutdown();
     sg_shutdown();
 }
@@ -100,12 +174,39 @@ inline void cleanup() {
 // フレーム制御
 // ---------------------------------------------------------------------------
 
+// DPIスケールを取得（Retinaディスプレイでは2.0など）
+inline float getDpiScale() {
+    return sapp_dpi_scale();
+}
+
+// フレームバッファの実サイズを取得（ピクセル単位）
+inline int getFramebufferWidth() {
+    return sapp_width();
+}
+
+inline int getFramebufferHeight() {
+    return sapp_height();
+}
+
 // フレーム開始時に呼ぶ（clearの前に）
 inline void beginFrame() {
     // デフォルトのビューポート設定
     sgl_defaults();
     sgl_matrix_mode_projection();
-    sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -1.0f, 1.0f);
+
+    if (internal::pixelPerfectMode) {
+        // ピクセルパーフェクト: 座標系 = フレームバッファサイズ
+        // Retinaで 2560x1440 座標系になる
+        sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -1.0f, 1.0f);
+    } else {
+        // 論理座標系: DPIスケールを考慮
+        // Retinaでも 1280x720 座標系のまま
+        float dpiScale = sapp_dpi_scale();
+        float logicalWidth = (float)sapp_width() / dpiScale;
+        float logicalHeight = (float)sapp_height() / dpiScale;
+        sgl_ortho(0.0f, logicalWidth, logicalHeight, 0.0f, -1.0f, 1.0f);
+    }
+
     sgl_matrix_mode_modelview();
     sgl_load_identity();
 }
@@ -127,6 +228,11 @@ inline void clear(float gray, float a = 1.0f) {
 // 画面クリア (8bit RGB: 0 ~ 255)
 inline void clear(int r, int g, int b, int a = 255) {
     clear(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
+}
+
+// 画面クリア (Color)
+inline void clear(const Color& c) {
+    clear(c.r, c.g, c.b, c.a);
 }
 
 // パス終了 & コミット（draw の最後で呼ぶ）
@@ -162,6 +268,29 @@ inline void setColor(int gray, int a = 255) {
     setColor(gray, gray, gray, a);
 }
 
+// Color 構造体で設定
+inline void setColor(const Color& c) {
+    setColor(c.r, c.g, c.b, c.a);
+}
+
+// HSB で設定 (H: 0-TAU, S: 0-1, B: 0-1)
+inline void setColorHSB(float h, float s, float b, float a = 1.0f) {
+    Color c = ColorHSB(h, s, b, a).toRGB();
+    setColor(c.r, c.g, c.b, c.a);
+}
+
+// OKLab で設定 (L: 0-1, a: ~-0.4-0.4, b: ~-0.4-0.4)
+inline void setColorOKLab(float L, float a_lab, float b_lab, float alpha = 1.0f) {
+    Color c = ColorOKLab(L, a_lab, b_lab, alpha).toRGB();
+    setColor(c.r, c.g, c.b, c.a);
+}
+
+// OKLCH で設定 (L: 0-1, C: 0-0.4, H: 0-TAU) - 最も知覚的に自然
+inline void setColorOKLCH(float L, float C, float H, float alpha = 1.0f) {
+    Color c = ColorOKLCH(L, C, H, alpha).toRGB();
+    setColor(c.r, c.g, c.b, c.a);
+}
+
 // 塗りつぶしを有効化
 inline void fill() {
     internal::fillEnabled = true;
@@ -188,22 +317,38 @@ inline void setStrokeWeight(float weight) {
 }
 
 // ---------------------------------------------------------------------------
-// 変形
+// 変形（自前の行列スタック管理）
 // ---------------------------------------------------------------------------
 
+// 内部: 自前の行列を sokol_gl に同期
+inline void syncMatrixToSokol() {
+    sgl_load_matrix(internal::currentMatrix.m);
+}
+
+// 行列をスタックに保存
 inline void pushMatrix() {
+    internal::matrixStack.push_back(internal::currentMatrix);
     sgl_push_matrix();
 }
 
+// 行列をスタックから復元
 inline void popMatrix() {
+    if (!internal::matrixStack.empty()) {
+        internal::currentMatrix = internal::matrixStack.back();
+        internal::matrixStack.pop_back();
+    }
     sgl_pop_matrix();
 }
 
+// 平行移動
 inline void translate(float x, float y) {
+    internal::currentMatrix = internal::currentMatrix * Mat4::translate(x, y, 0.0f);
     sgl_translate(x, y, 0.0f);
 }
 
+// 回転（ラジアン）
 inline void rotate(float radians) {
+    internal::currentMatrix = internal::currentMatrix * Mat4::rotateZ(radians);
     sgl_rotate(radians, 0.0f, 0.0f, 1.0f);
 }
 
@@ -212,12 +357,33 @@ inline void rotateDeg(float degrees) {
     rotate(degrees * PI / 180.0f);
 }
 
+// スケール（均一）
 inline void scale(float s) {
+    internal::currentMatrix = internal::currentMatrix * Mat4::scale(s, s, 1.0f);
     sgl_scale(s, s, 1.0f);
 }
 
+// スケール（非均一）
 inline void scale(float sx, float sy) {
+    internal::currentMatrix = internal::currentMatrix * Mat4::scale(sx, sy, 1.0f);
     sgl_scale(sx, sy, 1.0f);
+}
+
+// 現在の変換行列を取得
+inline Mat4 getCurrentMatrix() {
+    return internal::currentMatrix;
+}
+
+// 変換行列をリセット
+inline void resetMatrix() {
+    internal::currentMatrix = Mat4::identity();
+    sgl_load_identity();
+}
+
+// 変換行列を直接設定
+inline void setMatrix(const Mat4& mat) {
+    internal::currentMatrix = mat;
+    syncMatrixToSokol();
 }
 
 // ---------------------------------------------------------------------------
@@ -255,7 +421,7 @@ inline void drawCircle(float cx, float cy, float radius) {
         sgl_begin_triangle_strip();
         sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
         for (int i = 0; i <= segments; i++) {
-            float angle = (float)i / segments * TWO_PI;
+            float angle = (float)i / segments * TAU;
             float px = cx + cos(angle) * radius;
             float py = cy + sin(angle) * radius;
             sgl_v2f(cx, cy);
@@ -267,7 +433,7 @@ inline void drawCircle(float cx, float cy, float radius) {
         sgl_begin_line_strip();
         sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
         for (int i = 0; i <= segments; i++) {
-            float angle = (float)i / segments * TWO_PI;
+            float angle = (float)i / segments * TAU;
             float px = cx + cos(angle) * radius;
             float py = cy + sin(angle) * radius;
             sgl_v2f(px, py);
@@ -284,7 +450,7 @@ inline void drawEllipse(float cx, float cy, float rx, float ry) {
         sgl_begin_triangle_strip();
         sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
         for (int i = 0; i <= segments; i++) {
-            float angle = (float)i / segments * TWO_PI;
+            float angle = (float)i / segments * TAU;
             float px = cx + cos(angle) * rx;
             float py = cy + sin(angle) * ry;
             sgl_v2f(cx, cy);
@@ -296,7 +462,7 @@ inline void drawEllipse(float cx, float cy, float rx, float ry) {
         sgl_begin_line_strip();
         sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
         for (int i = 0; i <= segments; i++) {
-            float angle = (float)i / segments * TWO_PI;
+            float angle = (float)i / segments * TAU;
             float px = cx + cos(angle) * rx;
             float py = cy + sin(angle) * ry;
             sgl_v2f(px, py);
@@ -349,12 +515,232 @@ inline void setCircleResolution(int res) {
 }
 
 // ---------------------------------------------------------------------------
+// ビットマップ文字列描画（テクスチャアトラス方式）
+// ---------------------------------------------------------------------------
+
+// テキストのバウンディングボックスを計算
+inline void getBitmapStringBounds(const std::string& text, float& width, float& height) {
+    float maxWidth = 0;
+    float cursorX = 0;
+    int lines = 1;
+
+    for (char c : text) {
+        if (c == '\n') {
+            if (cursorX > maxWidth) maxWidth = cursorX;
+            cursorX = 0;
+            lines++;
+        } else if (c == '\t') {
+            cursorX += bitmapfont::CHAR_WIDTH * 8;
+        } else {
+            cursorX += bitmapfont::CHAR_WIDTH;
+        }
+    }
+    if (cursorX > maxWidth) maxWidth = cursorX;
+
+    width = maxWidth;
+    height = lines * bitmapfont::CHAR_TEX_HEIGHT;
+}
+
+// ビットマップ文字列を描画（回転・スケールをキャンセルしてtranslate成分のみ使用）
+// openFrameworks の ofDrawBitmapString と同様の動作
+inline void drawBitmapString(const std::string& text, float x, float y) {
+    if (text.empty() || !internal::fontInitialized) return;
+
+    // 現在の行列から translate 成分を抽出
+    Mat4 currentMat = getCurrentMatrix();
+    float worldX = currentMat.m[12] + x;
+    float worldY = currentMat.m[13] + y;
+
+    // 行列を保存して、translate のみの行列に切り替え
+    pushMatrix();
+    resetMatrix();
+    translate(worldX, worldY);
+
+    // アルファブレンドパイプラインとテクスチャを有効化
+    sgl_load_pipeline(internal::fontPipeline);
+    sgl_enable_texture();
+    sgl_texture(internal::fontView, internal::fontSampler);
+
+    // 全文字をバッチで描画
+    sgl_begin_quads();
+    sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
+
+    float cursorX = 0;
+    float cursorY = 0;
+    const float charW = bitmapfont::CHAR_TEX_WIDTH;
+    const float charH = bitmapfont::CHAR_TEX_HEIGHT;
+
+    for (char c : text) {
+        // 改行処理
+        if (c == '\n') {
+            cursorX = 0;
+            cursorY += charH;
+            continue;
+        }
+
+        // タブ処理（8文字分のスペース、oFと同じ）
+        if (c == '\t') {
+            cursorX += charW * 8;
+            continue;
+        }
+
+        // 制御文字はスキップ
+        if (c < 32) continue;
+
+        // テクスチャ座標を取得
+        float u, v;
+        bitmapfont::getCharTexCoord(c, u, v);
+        float u2 = u + bitmapfont::TEX_CHAR_WIDTH;
+        float v2 = v + bitmapfont::TEX_CHAR_HEIGHT;
+
+        // 四角形を描画（テクスチャ座標付き）
+        float px = cursorX;
+        float py = cursorY;
+
+        sgl_v2f_t2f(px, py, u, v);
+        sgl_v2f_t2f(px + charW, py, u2, v);
+        sgl_v2f_t2f(px + charW, py + charH, u2, v2);
+        sgl_v2f_t2f(px, py + charH, u, v2);
+
+        cursorX += charW;
+    }
+
+    sgl_end();
+    sgl_disable_texture();
+    sgl_load_default_pipeline();
+
+    // 行列を復元
+    popMatrix();
+}
+
+// ビットマップ文字列を描画（スケール付き）
+inline void drawBitmapString(const std::string& text, float x, float y, float scale) {
+    if (text.empty() || !internal::fontInitialized) return;
+
+    // 現在の行列から translate 成分を抽出
+    Mat4 currentMat = getCurrentMatrix();
+    float worldX = currentMat.m[12] + x;
+    float worldY = currentMat.m[13] + y;
+
+    // 行列を保存して、translate のみの行列に切り替え
+    pushMatrix();
+    resetMatrix();
+    translate(worldX, worldY);
+
+    // アルファブレンドパイプラインとテクスチャを有効化
+    sgl_load_pipeline(internal::fontPipeline);
+    sgl_enable_texture();
+    sgl_texture(internal::fontView, internal::fontSampler);
+
+    // 全文字をバッチで描画
+    sgl_begin_quads();
+    sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
+
+    float cursorX = 0;
+    float cursorY = 0;
+    const float charW = bitmapfont::CHAR_TEX_WIDTH * scale;
+    const float charH = bitmapfont::CHAR_TEX_HEIGHT * scale;
+
+    for (char c : text) {
+        // 改行処理
+        if (c == '\n') {
+            cursorX = 0;
+            cursorY += charH;
+            continue;
+        }
+
+        // タブ処理（8文字分のスペース）
+        if (c == '\t') {
+            cursorX += charW * 8;
+            continue;
+        }
+
+        // 制御文字はスキップ
+        if (c < 32) continue;
+
+        // テクスチャ座標を取得
+        float u, v;
+        bitmapfont::getCharTexCoord(c, u, v);
+        float u2 = u + bitmapfont::TEX_CHAR_WIDTH;
+        float v2 = v + bitmapfont::TEX_CHAR_HEIGHT;
+
+        // 四角形を描画（テクスチャ座標付き）
+        float px = cursorX;
+        float py = cursorY;
+
+        sgl_v2f_t2f(px, py, u, v);
+        sgl_v2f_t2f(px + charW, py, u2, v);
+        sgl_v2f_t2f(px + charW, py + charH, u2, v2);
+        sgl_v2f_t2f(px, py + charH, u, v2);
+
+        cursorX += charW;
+    }
+
+    sgl_end();
+    sgl_disable_texture();
+    sgl_load_default_pipeline();
+
+    // 行列を復元
+    popMatrix();
+}
+
+// ビットマップ文字列を背景付きで描画
+inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
+                                       const Color& background = Color(0, 0, 0),
+                                       const Color& foreground = Color(1, 1, 1)) {
+    if (text.empty()) return;
+
+    // テキストのサイズを計算
+    float textWidth, textHeight;
+    getBitmapStringBounds(text, textWidth, textHeight);
+
+    // パディング
+    const float padding = 4.0f;
+
+    // 現在の行列から translate 成分を抽出
+    Mat4 currentMat = getCurrentMatrix();
+    float worldX = currentMat.m[12] + x;
+    float worldY = currentMat.m[13] + y;
+
+    // 行列を保存
+    pushMatrix();
+    resetMatrix();
+
+    // アルファブレンドパイプラインで背景を描画
+    sgl_load_pipeline(internal::fontPipeline);
+    setColor(background);
+    drawRect(worldX - padding, worldY - padding,
+             textWidth + padding * 2, textHeight + padding * 2);
+    sgl_load_default_pipeline();
+
+    popMatrix();
+
+    // 前景色で文字を描画
+    setColor(foreground);
+    drawBitmapString(text, x, y);
+}
+
+// ---------------------------------------------------------------------------
 // ウィンドウ制御
 // ---------------------------------------------------------------------------
 
 // ウィンドウタイトルを設定
 inline void setWindowTitle(const std::string& title) {
     sapp_set_window_title(title.c_str());
+}
+
+// ウィンドウサイズを変更（座標系に対応したサイズで指定）
+// pixelPerfect=true: フレームバッファサイズで指定
+// pixelPerfect=false: 論理サイズで指定
+inline void setWindowSize(int width, int height) {
+    if (internal::pixelPerfectMode) {
+        // ピクセルパーフェクトモード: フレームバッファサイズ → 論理サイズに変換
+        float scale = sapp_dpi_scale();
+        platform::setWindowSize(static_cast<int>(width / scale), static_cast<int>(height / scale));
+    } else {
+        // 論理座標モード: そのまま
+        platform::setWindowSize(width, height);
+    }
 }
 
 // フルスクリーン切り替え
@@ -375,17 +761,26 @@ inline void toggleFullscreen() {
 }
 
 // ---------------------------------------------------------------------------
-// ウィンドウ情報
+// ウィンドウ情報（座標系に対応したサイズ）
 // ---------------------------------------------------------------------------
 
+// ウィンドウ幅を取得（座標系に対応したサイズ）
 inline int getWindowWidth() {
-    return sapp_width();
+    if (internal::pixelPerfectMode) {
+        return sapp_width();  // フレームバッファサイズ
+    }
+    return static_cast<int>(sapp_width() / sapp_dpi_scale());  // 論理サイズ
 }
 
+// ウィンドウ高さを取得（座標系に対応したサイズ）
 inline int getWindowHeight() {
-    return sapp_height();
+    if (internal::pixelPerfectMode) {
+        return sapp_height();  // フレームバッファサイズ
+    }
+    return static_cast<int>(sapp_height() / sapp_dpi_scale());  // 論理サイズ
 }
 
+// アスペクト比
 inline float getAspectRatio() {
     return static_cast<float>(sapp_width()) / static_cast<float>(sapp_height());
 }
@@ -463,30 +858,10 @@ inline void redraw() {
 }
 
 // ---------------------------------------------------------------------------
-// 数学ユーティリティ
+// 数学ユーティリティ（tcMath.h から提供）
 // ---------------------------------------------------------------------------
-
-inline float map(float value, float start1, float stop1, float start2, float stop2) {
-    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
-}
-
-inline float lerp(float a, float b, float t) {
-    return a + (b - a) * t;
-}
-
-inline float clamp(float value, float min, float max) {
-    if (value < min) return min;
-    if (value > max) return max;
-    return value;
-}
-
-inline float radians(float degrees) {
-    return degrees * PI / 180.0f;
-}
-
-inline float degrees(float radians) {
-    return radians * 180.0f / PI;
-}
+// Vec2, Vec3, Vec4, Mat3, Mat4, lerp, clamp, map, radians, degrees など
+// 詳細は tcMath.h を参照
 
 // ---------------------------------------------------------------------------
 // キーコード定数（sokol_app のキーコードをラップ）
@@ -543,7 +918,8 @@ struct WindowSettings {
     int width = 1280;
     int height = 720;
     std::string title = "TrussC App";
-    bool highDpi = true;
+    bool highDpi = true;  // High DPI対応（Retinaで鮮明に描画）
+    bool pixelPerfect = false;  // true: 座標系=フレームバッファサイズ, false: 座標系=論理サイズ
     int sampleCount = 4;  // MSAA
     bool fullscreen = false;
     // bool headless = false;  // 将来用
@@ -561,6 +937,14 @@ struct WindowSettings {
 
     WindowSettings& setHighDpi(bool enabled) {
         highDpi = enabled;
+        return *this;
+    }
+
+    // ピクセルパーフェクトモード
+    // true: 座標系がフレームバッファサイズと一致（Retinaで2560x1440座標）
+    // false: 座標系は論理サイズ（Retinaでも1280x720座標）
+    WindowSettings& setPixelPerfect(bool enabled) {
+        pixelPerfect = enabled;
         return *this;
     }
 
@@ -630,37 +1014,48 @@ namespace internal {
             case SAPP_EVENTTYPE_KEY_UP:
                 if (appKeyReleasedFunc) appKeyReleasedFunc(ev->key_code);
                 break;
-            case SAPP_EVENTTYPE_MOUSE_DOWN:
+            case SAPP_EVENTTYPE_MOUSE_DOWN: {
                 currentMouseButton = ev->mouse_button;
-                mouseX = ev->mouse_x;
-                mouseY = ev->mouse_y;
+                // ピクセルパーフェクトモードではDPIスケールを適用
+                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
+                mouseX = ev->mouse_x * scale;
+                mouseY = ev->mouse_y * scale;
                 mouseButton = ev->mouse_button;
                 mousePressed = true;
-                if (appMousePressedFunc) appMousePressedFunc((int)ev->mouse_x, (int)ev->mouse_y, ev->mouse_button);
+                if (appMousePressedFunc) appMousePressedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
-            case SAPP_EVENTTYPE_MOUSE_UP:
+            }
+            case SAPP_EVENTTYPE_MOUSE_UP: {
                 currentMouseButton = -1;
-                mouseX = ev->mouse_x;
-                mouseY = ev->mouse_y;
+                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
+                mouseX = ev->mouse_x * scale;
+                mouseY = ev->mouse_y * scale;
                 mouseButton = -1;
                 mousePressed = false;
-                if (appMouseReleasedFunc) appMouseReleasedFunc((int)ev->mouse_x, (int)ev->mouse_y, ev->mouse_button);
+                if (appMouseReleasedFunc) appMouseReleasedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
-            case SAPP_EVENTTYPE_MOUSE_MOVE:
-                mouseX = ev->mouse_x;
-                mouseY = ev->mouse_y;
+            }
+            case SAPP_EVENTTYPE_MOUSE_MOVE: {
+                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
+                mouseX = ev->mouse_x * scale;
+                mouseY = ev->mouse_y * scale;
                 if (currentMouseButton >= 0) {
-                    if (appMouseDraggedFunc) appMouseDraggedFunc((int)ev->mouse_x, (int)ev->mouse_y, currentMouseButton);
+                    if (appMouseDraggedFunc) appMouseDraggedFunc((int)mouseX, (int)mouseY, currentMouseButton);
                 } else {
-                    if (appMouseMovedFunc) appMouseMovedFunc((int)ev->mouse_x, (int)ev->mouse_y);
+                    if (appMouseMovedFunc) appMouseMovedFunc((int)mouseX, (int)mouseY);
                 }
                 break;
+            }
             case SAPP_EVENTTYPE_MOUSE_SCROLL:
                 if (appMouseScrolledFunc) appMouseScrolledFunc(ev->scroll_x, ev->scroll_y);
                 break;
-            case SAPP_EVENTTYPE_RESIZED:
-                if (appWindowResizedFunc) appWindowResizedFunc(ev->window_width, ev->window_height);
+            case SAPP_EVENTTYPE_RESIZED: {
+                float scale = pixelPerfectMode ? sapp_dpi_scale() : 1.0f;
+                int w = static_cast<int>(ev->window_width * scale);
+                int h = static_cast<int>(ev->window_height * scale);
+                if (appWindowResizedFunc) appWindowResizedFunc(w, h);
                 break;
+            }
             default:
                 break;
         }
@@ -673,6 +1068,9 @@ namespace internal {
 
 template<typename AppClass>
 int runApp(const WindowSettings& settings = WindowSettings()) {
+    // ピクセルパーフェクトモードを設定
+    internal::pixelPerfectMode = settings.pixelPerfect;
+
     // アプリインスタンスを生成
     static AppClass* app = nullptr;
 
@@ -721,8 +1119,16 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 
     // sapp_desc を構築
     sapp_desc desc = {};
-    desc.width = settings.width;
-    desc.height = settings.height;
+    if (settings.pixelPerfect) {
+        // ピクセルパーフェクトの場合、指定サイズをフレームバッファサイズとして扱い、
+        // 論理ウィンドウサイズに変換する
+        float displayScale = platform::getDisplayScaleFactor();
+        desc.width = static_cast<int>(settings.width / displayScale);
+        desc.height = static_cast<int>(settings.height / displayScale);
+    } else {
+        desc.width = settings.width;
+        desc.height = settings.height;
+    }
     desc.window_title = settings.title.c_str();
     desc.high_dpi = settings.highDpi;
     desc.sample_count = settings.sampleCount;

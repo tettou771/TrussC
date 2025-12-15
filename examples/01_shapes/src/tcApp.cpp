@@ -62,7 +62,7 @@ void tcApp::draw() {
     // ----------------------
     tc::setColor(1.0f, 1.0f, 1.0f);
     for (int i = 0; i < 10; i++) {
-        float angle = (float)i / 10.0f * tc::TWO_PI + (float)t;
+        float angle = (float)i / 10.0f * tc::TAU + (float)t;
         float x2 = 550 + cos(angle) * 80;
         float y2 = 250 + sin(angle) * 80;
         tc::drawLine(550, 250, x2, y2);

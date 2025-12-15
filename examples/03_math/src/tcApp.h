@@ -1,0 +1,45 @@
+#pragma once
+
+#include "tcBaseApp.h"
+#include <vector>
+
+class tcApp : public tc::App {
+public:
+    void setup() override;
+    void update() override;
+    void draw() override;
+
+    void keyPressed(int key) override;
+    void mousePressed(int x, int y, int button) override;
+
+private:
+    // パーティクル
+    struct Particle {
+        tc::Vec2 pos;
+        tc::Vec2 vel;
+        tc::Vec2 acc;
+        float radius;
+        float hue;
+        float life;
+        float maxLife;
+    };
+
+    std::vector<Particle> particles_;
+
+    // デモモード
+    int mode_ = 0;
+    static constexpr int NUM_MODES = 4;
+
+    // ヘルパー
+    void drawVec2Demo();
+    void drawRotationDemo();
+    void drawLerpDemo();
+    void drawParticleDemo();
+
+    void spawnParticle(float x, float y);
+    void updateParticles();
+    void drawParticles();
+
+    // 色変換（hue: 0-1）
+    void setColorHSB(float h, float s, float b, float a = 1.0f);
+};

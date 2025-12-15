@@ -70,8 +70,8 @@ public:
     void draw() override {
         // hue に基づいて色を設定
         float r = (sin(hue) * 0.5f + 0.5f);
-        float g = (sin(hue + tc::TWO_PI / 3) * 0.5f + 0.5f);
-        float b = (sin(hue + tc::TWO_PI * 2 / 3) * 0.5f + 0.5f);
+        float g = (sin(hue + tc::TAU / 3) * 0.5f + 0.5f);
+        float b = (sin(hue + tc::TAU * 2 / 3) * 0.5f + 0.5f);
 
         tc::setColor(r, g, b);
         tc::drawRect(-size/2, -size/2, size, size);

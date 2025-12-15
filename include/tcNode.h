@@ -125,6 +125,32 @@ public:
     // 座標変換
     // -------------------------------------------------------------------------
 
+    // このノードのローカル変換行列を取得
+    Mat4 getLocalMatrix() const {
+        Mat4 mat = Mat4::translate(x, y, 0.0f);
+        if (rotation != 0.0f) {
+            mat = mat * Mat4::rotateZ(rotation);
+        }
+        if (scaleX != 1.0f || scaleY != 1.0f) {
+            mat = mat * Mat4::scale(scaleX, scaleY, 1.0f);
+        }
+        return mat;
+    }
+
+    // このノードのグローバル変換行列を取得（親の変換を含む）
+    Mat4 getGlobalMatrix() const {
+        Mat4 local = getLocalMatrix();
+        if (auto p = parent_.lock()) {
+            return p->getGlobalMatrix() * local;
+        }
+        return local;
+    }
+
+    // グローバル変換行列の逆行列を取得
+    Mat4 getGlobalMatrixInverse() const {
+        return getGlobalMatrix().inverted();
+    }
+
     // グローバル座標をこのノードのローカル座標に変換
     void globalToLocal(float globalX, float globalY, float& localX, float& localY) const {
         // まず親のローカル座標に変換
