@@ -1234,5 +1234,8 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 // TrussC シェイプ描画
 #include "tc/graphics/tcShape.h"
 
+// TrussC ポリライン
+#include "tc/graphics/tcPolyline.h"
+
 // 短縮エイリアス
 namespace tc = trussc;

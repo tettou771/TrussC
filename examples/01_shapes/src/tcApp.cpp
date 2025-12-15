@@ -119,6 +119,20 @@ void tcApp::draw() {
     }
     tc::endShape(true);
 
+    // Polyline で波形（メンバ変数、100頂点）
+    tc::noFill();
+    tc::stroke();
+    tc::setColor(0.2f, 1.0f, 0.6f);
+    wave.clear();
+    for (int i = 0; i < 100; i++) {
+        float x = 650 + i * 2;
+        float y = 450 + sin(i * 0.1f + t * 3) * 30;
+        wave.addVertex(x, y);
+    }
+    wave.draw();
+    tc::fill();
+    tc::noStroke();
+
     // ----------------------
     // グリッド描画
     // ----------------------
