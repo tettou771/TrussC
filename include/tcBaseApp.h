@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tcNode.h"
+#include "tc/types/tcRectNode.h"
 
 // =============================================================================
 // trussc 名前空間

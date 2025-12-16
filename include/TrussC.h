@@ -26,6 +26,9 @@
 // TrussC ノイズ関数
 #include "tc/math/tcNoise.h"
 
+// TrussC レイ（Hit Test 用）
+#include "tc/math/tcRay.h"
+
 // TrussC カラーライブラリ
 #include "tcColor.h"
 
@@ -709,21 +712,25 @@ inline void getBitmapStringBounds(const std::string& text, float& width, float& 
     height = lines * bitmapfont::CHAR_TEX_HEIGHT;
 }
 
-// ビットマップ文字列を描画（回転・スケールをキャンセルしてtranslate成分のみ使用）
-// openFrameworks の ofDrawBitmapString と同様の動作
-inline void drawBitmapString(const std::string& text, float x, float y) {
+// ビットマップ文字列を描画
+// screenFixed = true (デフォルト): スクリーン固定（回転・スケールをキャンセル）
+// screenFixed = false: 現在の行列変換に追従（回転・スケールも適用）
+inline void drawBitmapString(const std::string& text, float x, float y, bool screenFixed = true) {
     if (text.empty() || !internal::fontInitialized) return;
 
-    // ローカル座標をワールド座標に変換（行列全体を適用）
-    // Mat4は行優先: m[0],m[1]が1行目、m[3]=tx, m[7]=ty
-    Mat4 currentMat = getCurrentMatrix();
-    float worldX = currentMat.m[0]*x + currentMat.m[1]*y + currentMat.m[3];
-    float worldY = currentMat.m[4]*x + currentMat.m[5]*y + currentMat.m[7];
-
-    // 行列を保存して、translate のみの行列に切り替え
     pushMatrix();
-    resetMatrix();
-    translate(worldX, worldY);
+
+    if (screenFixed) {
+        // スクリーン固定: ローカル座標をワールド座標に変換し、行列をリセット
+        Mat4 currentMat = getCurrentMatrix();
+        float worldX = currentMat.m[0]*x + currentMat.m[1]*y + currentMat.m[3];
+        float worldY = currentMat.m[4]*x + currentMat.m[5]*y + currentMat.m[7];
+        resetMatrix();
+        translate(worldX, worldY);
+    } else {
+        // 変換に追従: 現在の行列のまま、指定位置に移動
+        translate(x, y);
+    }
 
     // アルファブレンドパイプラインとテクスチャを有効化
     sgl_load_pipeline(internal::fontPipeline);
@@ -734,10 +741,10 @@ inline void drawBitmapString(const std::string& text, float x, float y) {
     sgl_begin_quads();
     sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
 
-    float cursorX = 0;
-    float cursorY = 0;
     const float charW = bitmapfont::CHAR_TEX_WIDTH;
     const float charH = bitmapfont::CHAR_TEX_HEIGHT;
+    float cursorX = 0;
+    float cursorY = -charH;  // baseline 基準: 指定した y が文字の下端になる
 
     for (char c : text) {
         // 改行処理
@@ -806,10 +813,10 @@ inline void drawBitmapString(const std::string& text, float x, float y, float sc
     sgl_begin_quads();
     sgl_c4f(internal::currentR, internal::currentG, internal::currentB, internal::currentA);
 
-    float cursorX = 0;
-    float cursorY = 0;
     const float charW = bitmapfont::CHAR_TEX_WIDTH * scale;
     const float charH = bitmapfont::CHAR_TEX_HEIGHT * scale;
+    float cursorX = 0;
+    float cursorY = -charH;  // baseline 基準
 
     for (char c : text) {
         // 改行処理

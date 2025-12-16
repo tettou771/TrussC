@@ -1,0 +1,19 @@
+// =============================================================================
+// hitTestExample - Ray-based Hit Test のサンプル
+// =============================================================================
+
+#include "tcApp.h"
+
+int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
+    tc::WindowSettings settings;
+    settings.title = "hitTestExample";
+    settings.width = 1280;
+    settings.height = 720;
+
+    tc::runApp<tcApp>(settings);
+
+    return 0;
+}

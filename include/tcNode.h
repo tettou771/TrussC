@@ -278,13 +278,136 @@ public:
         popMatrix();
     }
 
+    // -------------------------------------------------------------------------
+    // Ray-based Hit Test（イベントディスパッチ用）
+    // -------------------------------------------------------------------------
+
+    // ヒットテスト結果
+    struct HitResult {
+        Ptr node;           // ヒットしたノード
+        float distance;     // Ray の origin からの距離
+        Vec3 localPoint;    // ローカル座標でのヒット位置
+
+        bool hit() const { return node != nullptr; }
+    };
+
+    // Global Ray でツリー全体をヒットテストし、最も手前のノードを返す
+    // 描画順の逆（後から描画されたものが優先）で走査
+    HitResult findHitNode(const Ray& globalRay) {
+        return findHitNodeRecursive(globalRay, getGlobalMatrixInverse());
+    }
+
+    // マウスイベントをツリーに配信（2D モード用）
+    // screenX, screenY: スクリーン座標
+    // return: イベントを処理したノード（処理されなかった場合は nullptr）
+    Ptr dispatchMousePress(float screenX, float screenY, int button) {
+        Ray globalRay = Ray::fromScreenPoint2D(screenX, screenY);
+        HitResult result = findHitNode(globalRay);
+
+        if (result.hit()) {
+            // ローカル座標を計算
+            float localX = result.localPoint.x;
+            float localY = result.localPoint.y;
+
+            // イベントを配信
+            if (result.node->onMousePress(localX, localY, button)) {
+                return result.node;
+            }
+        }
+
+        return nullptr;
+    }
+
+    Ptr dispatchMouseRelease(float screenX, float screenY, int button) {
+        Ray globalRay = Ray::fromScreenPoint2D(screenX, screenY);
+        HitResult result = findHitNode(globalRay);
+
+        if (result.hit()) {
+            float localX = result.localPoint.x;
+            float localY = result.localPoint.y;
+
+            if (result.node->onMouseRelease(localX, localY, button)) {
+                return result.node;
+            }
+        }
+
+        return nullptr;
+    }
+
+    Ptr dispatchMouseMove(float screenX, float screenY) {
+        Ray globalRay = Ray::fromScreenPoint2D(screenX, screenY);
+        HitResult result = findHitNode(globalRay);
+
+        if (result.hit()) {
+            float localX = result.localPoint.x;
+            float localY = result.localPoint.y;
+
+            if (result.node->onMouseMove(localX, localY)) {
+                return result.node;
+            }
+        }
+
+        return nullptr;
+    }
+
+private:
+    // 再帰的なヒットテスト（描画順の逆で走査）
+    HitResult findHitNodeRecursive(const Ray& globalRay, const Mat4& parentInverseMatrix) {
+        if (!isActive) return HitResult{};
+
+        // このノードの逆行列を計算
+        Mat4 localInverse = getLocalMatrix().inverted();
+        Mat4 globalInverse = localInverse * parentInverseMatrix;
+
+        // Global Ray を Local Ray に変換
+        Ray localRay = globalRay.transformed(globalInverse);
+
+        HitResult bestResult{};
+
+        // 子ノードを後ろから走査（描画順の逆）
+        for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
+            HitResult childResult = (*it)->findHitNodeRecursive(globalRay, globalInverse);
+            if (childResult.hit()) {
+                // 子の結果を採用（描画順で後 = 手前）
+                bestResult = childResult;
+                break;  // 最初にヒットしたものを優先（描画順で最後）
+            }
+        }
+
+        // 子にヒットしなかった場合、自分をチェック
+        if (!bestResult.hit()) {
+            float distance;
+            if (hitTest(localRay, distance)) {
+                bestResult.node = std::dynamic_pointer_cast<Node>(shared_from_this());
+                bestResult.distance = distance;
+                bestResult.localPoint = localRay.at(distance);
+            }
+        }
+
+        return bestResult;
+    }
+
 protected:
 
     // -------------------------------------------------------------------------
     // イベント（オーバーライド可能）
     // -------------------------------------------------------------------------
 
-    // ヒットテスト（ローカル座標でのクリック判定）
+    // -------------------------------------------------------------------------
+    // ヒットテスト（Ray ベース - 2D/3D 統一方式）
+    // -------------------------------------------------------------------------
+
+    // Ray によるヒットテスト（ローカル空間での判定）
+    // localRay: このノードのローカル座標系に変換済みの Ray
+    // outDistance: ヒットした場合の距離（Ray の origin からの t 値）
+    // return: ヒットした場合 true
+    virtual bool hitTest(const Ray& localRay, float& outDistance) {
+        (void)localRay;
+        (void)outDistance;
+        return false;
+    }
+
+    // 従来の2D用ヒットテスト（後方互換性のため残す）
     // trueを返すと、このノードがイベントを受け取る
     virtual bool hitTest(float localX, float localY) {
         (void)localX;
