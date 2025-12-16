@@ -613,6 +613,55 @@ inline size_t getAudioAnalysisBuffer(float* outBuffer, size_t numSamples) {
     return AudioEngine::getInstance().getAnalysisBuffer(outBuffer, numSamples);
 }
 
+// ---------------------------------------------------------------------------
+// マイク入力 (miniaudio ベース)
+// ---------------------------------------------------------------------------
+
+class MicInput {
+public:
+    static constexpr int BUFFER_SIZE = 4096;  // リングバッファサイズ
+    static constexpr int DEFAULT_SAMPLE_RATE = 44100;
+
+    MicInput() = default;
+    ~MicInput();
+
+    // 初期化（マイクデバイスを開く）
+    bool start(int sampleRate = DEFAULT_SAMPLE_RATE);
+
+    // 停止
+    void stop();
+
+    // 最新のサンプルを取得
+    // numSamples: 取得するサンプル数（最大 BUFFER_SIZE）
+    // 戻り値: 実際に取得したサンプル数
+    size_t getBuffer(float* outBuffer, size_t numSamples);
+
+    // 状態
+    bool isRunning() const { return running_; }
+    int getSampleRate() const { return sampleRate_; }
+
+    // コールバック（内部使用）
+    void onAudioData(const float* input, size_t frameCount);
+
+private:
+    void* device_ = nullptr;  // ma_device*
+    bool running_ = false;
+    int sampleRate_ = DEFAULT_SAMPLE_RATE;
+
+    // リングバッファ
+    std::vector<float> buffer_;
+    size_t writePos_ = 0;
+    std::mutex mutex_;
+};
+
+// グローバルMicInputインスタンス（シングルトン的に使用）
+MicInput& getMicInput();
+
+// マイク入力から最新のサンプルを取得
+inline size_t getMicAnalysisBuffer(float* outBuffer, size_t numSamples) {
+    return getMicInput().getBuffer(outBuffer, numSamples);
+}
+
 } // namespace trussc
 
 namespace tc = trussc;
