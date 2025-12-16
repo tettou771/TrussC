@@ -2,6 +2,8 @@
 
 #include "tcNode.h"
 #include "tc/types/tcRectNode.h"
+#include <vector>
+#include <string>
 
 // =============================================================================
 // trussc 名前空間
@@ -75,6 +77,14 @@ public:
     virtual void windowResized(int width, int height) {
         (void)width;
         (void)height;
+    }
+
+    // -------------------------------------------------------------------------
+    // ドラッグ&ドロップイベント
+    // -------------------------------------------------------------------------
+
+    virtual void filesDropped(const std::vector<std::string>& files) {
+        (void)files;
     }
 };
 

@@ -34,8 +34,10 @@ public:
     // ウィンドウ
     Event<ResizeEventArgs> windowResized;
 
+    // ドラッグ&ドロップ
+    Event<DragDropEventArgs> filesDropped;
+
     // 将来用
-    // Event<DragDropEventArgs> fileDragDropped;
     // Event<TouchEventArgs> touchBegan;
     // Event<TouchEventArgs> touchMoved;
     // Event<TouchEventArgs> touchEnded;
