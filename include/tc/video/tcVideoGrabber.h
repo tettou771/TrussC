@@ -70,6 +70,24 @@ public:
         return deviceId_;
     }
 
+    // 希望フレームレートを指定（setup() の前に呼ぶ）
+    void setDesiredFrameRate(int fps) {
+        desiredFrameRate_ = fps;
+    }
+
+    int getDesiredFrameRate() const {
+        return desiredFrameRate_;
+    }
+
+    // 詳細ログのON/OFF
+    void setVerbose(bool verbose) {
+        verbose_ = verbose;
+    }
+
+    bool isVerbose() const {
+        return verbose_;
+    }
+
     // =========================================================================
     // セットアップ / クローズ
     // =========================================================================
@@ -167,6 +185,9 @@ public:
     int getWidth() const { return width_; }
     int getHeight() const { return height_; }
 
+    // 現在のデバイス名を取得
+    const std::string& getDeviceName() const { return deviceName_; }
+
     // =========================================================================
     // ピクセルアクセス
     // =========================================================================
@@ -211,10 +232,13 @@ private:
     int requestedWidth_ = 640;
     int requestedHeight_ = 480;
     int deviceId_ = 0;
+    int desiredFrameRate_ = -1;  // -1 = 指定なし（カメラのデフォルト）
 
     // 状態
     bool initialized_ = false;
     bool frameNew_ = false;
+    bool verbose_ = false;
+    std::string deviceName_;
 
     // ピクセルデータ（RGBA）
     unsigned char* pixels_ = nullptr;
@@ -239,8 +263,11 @@ private:
         requestedWidth_ = other.requestedWidth_;
         requestedHeight_ = other.requestedHeight_;
         deviceId_ = other.deviceId_;
+        desiredFrameRate_ = other.desiredFrameRate_;
         initialized_ = other.initialized_;
         frameNew_ = other.frameNew_;
+        verbose_ = other.verbose_;
+        deviceName_ = std::move(other.deviceName_);
         pixels_ = other.pixels_;
         pixelsDirty_.store(other.pixelsDirty_.load());
         texture_ = std::move(other.texture_);

@@ -24,8 +24,12 @@ void tcApp::setup() {
         if (!devices_.empty()) {
             currentDevice_ = 0;
             grabber_.setDeviceID(currentDevice_);
+            grabber_.setVerbose(true);  // 詳細ログを有効化
+            // grabber_.setDesiredFrameRate(30);  // フレームレート指定（オプション）
             if (grabber_.setup(640, 480)) {
-                printf("Camera started: %dx%d\n", grabber_.getWidth(), grabber_.getHeight());
+                printf("Camera started: %dx%d (%s)\n",
+                       grabber_.getWidth(), grabber_.getHeight(),
+                       grabber_.getDeviceName().c_str());
             } else {
                 printf("Failed to start camera\n");
             }
@@ -145,8 +149,11 @@ void tcApp::keyPressed(int key) {
             grabber_.close();
             currentDevice_ = deviceIdx;
             grabber_.setDeviceID(currentDevice_);
+            grabber_.setVerbose(true);
             if (grabber_.setup(640, 480)) {
-                printf("Camera started: %dx%d\n", grabber_.getWidth(), grabber_.getHeight());
+                printf("Camera started: %dx%d (%s)\n",
+                       grabber_.getWidth(), grabber_.getHeight(),
+                       grabber_.getDeviceName().c_str());
             } else {
                 printf("Failed to start camera %d\n", deviceIdx);
             }

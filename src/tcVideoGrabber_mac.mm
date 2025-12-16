@@ -198,6 +198,9 @@ bool VideoGrabber::setupPlatform() {
 
         data->device = devices[deviceId_];
 
+        // デバイス名を保存
+        deviceName_ = data->device.localizedName.UTF8String;
+
         // =========================================================
         // デバイスのフォーマットから最適な解像度を選択（oF方式）
         // =========================================================
@@ -209,7 +212,9 @@ bool VideoGrabber::setupPlatform() {
             int bestW = 0, bestH = 0;
             AVCaptureDeviceFormat* bestFormat = nil;
 
-            NSLog(@"VideoGrabber: Searching for %dx%d in device formats...", requestedWidth_, requestedHeight_);
+            if (verbose_) {
+                NSLog(@"VideoGrabber: Searching for %dx%d in device formats...", requestedWidth_, requestedHeight_);
+            }
 
             for (AVCaptureDeviceFormat* format in [data->device formats]) {
                 CMFormatDescriptionRef desc = format.formatDescription;
@@ -227,7 +232,9 @@ bool VideoGrabber::setupPlatform() {
                     bestW = tw;
                     bestH = th;
                     bestFormat = format;
-                    NSLog(@"VideoGrabber: Found exact match: %dx%d", tw, th);
+                    if (verbose_) {
+                        NSLog(@"VideoGrabber: Found exact match: %dx%d", tw, th);
+                    }
                     break;
                 }
 
@@ -247,8 +254,10 @@ bool VideoGrabber::setupPlatform() {
             // 最適なフォーマットを設定
             if (bestFormat != nil && bestW > 0 && bestH > 0) {
                 if (bestW != requestedWidth_ || bestH != requestedHeight_) {
-                    NSLog(@"VideoGrabber: Requested %dx%d not available. Using closest: %dx%d",
-                          requestedWidth_, requestedHeight_, bestW, bestH);
+                    if (verbose_) {
+                        NSLog(@"VideoGrabber: Requested %dx%d not available. Using closest: %dx%d",
+                              requestedWidth_, requestedHeight_, bestW, bestH);
+                    }
                 }
                 [data->device setActiveFormat:bestFormat];
                 width_ = bestW;
@@ -259,7 +268,33 @@ bool VideoGrabber::setupPlatform() {
                     data->device.activeFormat.formatDescription);
                 width_ = dimensions.width;
                 height_ = dimensions.height;
-                NSLog(@"VideoGrabber: No suitable format found. Using device default: %dx%d", width_, height_);
+                if (verbose_) {
+                    NSLog(@"VideoGrabber: No suitable format found. Using device default: %dx%d", width_, height_);
+                }
+            }
+
+            // フレームレート設定（oF方式）
+            if (desiredFrameRate_ > 0) {
+                AVFrameRateRange* desiredRange = nil;
+                NSArray* supportedFrameRates = data->device.activeFormat.videoSupportedFrameRateRanges;
+
+                for (AVFrameRateRange* range in supportedFrameRates) {
+                    if (std::floor(range.minFrameRate) <= desiredFrameRate_ &&
+                        std::ceil(range.maxFrameRate) >= desiredFrameRate_) {
+                        desiredRange = range;
+                        break;
+                    }
+                }
+
+                if (desiredRange) {
+                    data->device.activeVideoMinFrameDuration = CMTimeMake(1, desiredFrameRate_);
+                    data->device.activeVideoMaxFrameDuration = CMTimeMake(1, desiredFrameRate_);
+                    if (verbose_) {
+                        NSLog(@"VideoGrabber: Set frame rate to %d fps", desiredFrameRate_);
+                    }
+                } else if (verbose_) {
+                    NSLog(@"VideoGrabber: Requested frame rate %d not supported", desiredFrameRate_);
+                }
             }
 
             [data->device unlockForConfiguration];
@@ -323,7 +358,9 @@ bool VideoGrabber::setupPlatform() {
         }
         [data->session addOutput:data->output];
 
-        NSLog(@"VideoGrabber: Configured format: %dx%d", width_, height_);
+        if (verbose_) {
+            NSLog(@"VideoGrabber: Configured format: %dx%d", width_, height_);
+        }
 
         // バックバッファを確保
         data->bufferWidth = width_;
@@ -424,7 +461,9 @@ void VideoGrabber::updateDelegatePixels() {
     if (data->delegate) {
         TrussCVideoGrabberDelegate* delegate = (TrussCVideoGrabberDelegate*)data->delegate;
         delegate.targetPixels = pixels_;
-        NSLog(@"VideoGrabber: Updated delegate pixels pointer to %p", pixels_);
+        if (verbose_) {
+            NSLog(@"VideoGrabber: Updated delegate pixels pointer to %p", pixels_);
+        }
     }
 }
 
