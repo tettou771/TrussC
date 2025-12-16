@@ -1,0 +1,506 @@
+#pragma once
+
+// =============================================================================
+// TrussC Sound
+// sokol_audio + stb_vorbis ベースのサウンド再生
+//
+// 設計:
+// - AudioEngine: シングルトン、sokol_audio の初期化、ミキサー管理
+// - SoundBuffer: デコード済みサウンドデータ（共有可能）
+// - Sound: ユーザー向けクラス、再生制御
+//
+// 使用例:
+//   tc::Sound sound;
+//   sound.load("music.ogg");
+//   sound.play();
+//   sound.setVolume(0.8f);
+//   sound.setLoop(true);
+// =============================================================================
+
+#include <string>
+#include <vector>
+#include <memory>
+#include <cstdint>
+#include <mutex>
+#include <atomic>
+#include <cstring>
+
+// sokol_audio 前方宣言（ヘッダーは sokol_impl.mm でインクルード済み）
+extern "C" {
+    typedef struct saudio_desc {
+        int sample_rate;
+        int num_channels;
+        int buffer_frames;
+        int packet_frames;
+        int num_packets;
+        void (*stream_cb)(float* buffer, int num_frames, int num_channels);
+        void (*stream_userdata_cb)(float* buffer, int num_frames, int num_channels, void* user_data);
+        void* user_data;
+        // logger は省略
+        char _padding[64];
+    } saudio_desc;
+
+    void saudio_setup(const saudio_desc* desc);
+    void saudio_shutdown(void);
+    bool saudio_isvalid(void);
+}
+
+// stb_vorbis 前方宣言
+extern "C" {
+    typedef struct stb_vorbis stb_vorbis;
+
+    typedef struct {
+        unsigned int sample_rate;
+        int channels;
+        unsigned int setup_memory_required;
+        unsigned int setup_temp_memory_required;
+        unsigned int temp_memory_required;
+        int max_frame_size;
+    } stb_vorbis_info;
+
+    stb_vorbis* stb_vorbis_open_filename(const char *filename, int *error, void *alloc_buffer);
+    stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f);
+    int stb_vorbis_stream_length_in_samples(stb_vorbis *f);
+    int stb_vorbis_get_samples_float_interleaved(stb_vorbis *f, int channels, float *buffer, int num_floats);
+    void stb_vorbis_close(stb_vorbis *f);
+}
+
+// dr_wav 前方宣言
+extern "C" {
+    typedef uint64_t drwav_uint64;
+    float* drwav_open_file_and_read_pcm_frames_f32(
+        const char* filename, unsigned int* channels, unsigned int* sampleRate,
+        drwav_uint64* totalFrameCount, void* pAllocationCallbacks);
+    void drwav_free(void* p, void* pAllocationCallbacks);
+}
+
+// dr_mp3 前方宣言
+extern "C" {
+    typedef uint64_t drmp3_uint64;
+    typedef uint32_t drmp3_uint32;
+    typedef struct {
+        drmp3_uint32 channels;
+        drmp3_uint32 sampleRate;
+    } drmp3_config;
+    float* drmp3_open_file_and_read_pcm_frames_f32(
+        const char* filePath, drmp3_config* pConfig,
+        drmp3_uint64* pTotalFrameCount, void* pAllocationCallbacks);
+    void drmp3_free(void* p, void* pAllocationCallbacks);
+}
+
+namespace trussc {
+
+// ---------------------------------------------------------------------------
+// サウンドバッファ（デコード済みデータ）
+// ---------------------------------------------------------------------------
+class SoundBuffer {
+public:
+    std::vector<float> samples;  // インターリーブされたサンプル
+    int channels = 0;
+    int sampleRate = 0;
+    size_t numSamples = 0;       // チャンネルあたりのサンプル数
+
+    bool loadOgg(const std::string& path) {
+        int error = 0;
+        stb_vorbis* vorbis = stb_vorbis_open_filename(path.c_str(), &error, nullptr);
+        if (!vorbis) {
+            printf("SoundBuffer: failed to open %s (error=%d)\n", path.c_str(), error);
+            return false;
+        }
+
+        stb_vorbis_info info = stb_vorbis_get_info(vorbis);
+        channels = info.channels;
+        sampleRate = info.sample_rate;
+        numSamples = stb_vorbis_stream_length_in_samples(vorbis);
+
+        samples.resize(numSamples * channels);
+
+        int decoded = stb_vorbis_get_samples_float_interleaved(
+            vorbis, channels, samples.data(), samples.size());
+
+        stb_vorbis_close(vorbis);
+
+        printf("SoundBuffer: loaded %s (%d ch, %d Hz, %zu samples)\n",
+               path.c_str(), channels, sampleRate, numSamples);
+
+        return decoded > 0;
+    }
+
+    bool loadWav(const std::string& path) {
+        unsigned int ch, sr;
+        drwav_uint64 frameCount;
+
+        float* data = drwav_open_file_and_read_pcm_frames_f32(
+            path.c_str(), &ch, &sr, &frameCount, nullptr);
+
+        if (!data) {
+            printf("SoundBuffer: failed to open WAV %s\n", path.c_str());
+            return false;
+        }
+
+        channels = ch;
+        sampleRate = sr;
+        numSamples = frameCount;
+
+        samples.resize(numSamples * channels);
+        std::memcpy(samples.data(), data, samples.size() * sizeof(float));
+
+        drwav_free(data, nullptr);
+
+        printf("SoundBuffer: loaded WAV %s (%d ch, %d Hz, %zu samples)\n",
+               path.c_str(), channels, sampleRate, numSamples);
+
+        return true;
+    }
+
+    bool loadMp3(const std::string& path) {
+        drmp3_config config = {0, 0};
+        drmp3_uint64 frameCount = 0;
+
+        float* data = drmp3_open_file_and_read_pcm_frames_f32(
+            path.c_str(), &config, &frameCount, nullptr);
+
+        if (!data) {
+            printf("SoundBuffer: failed to open MP3 %s\n", path.c_str());
+            return false;
+        }
+
+        channels = config.channels;
+        sampleRate = config.sampleRate;
+        numSamples = frameCount;
+
+        samples.resize(numSamples * channels);
+        std::memcpy(samples.data(), data, samples.size() * sizeof(float));
+
+        drmp3_free(data, nullptr);
+
+        printf("SoundBuffer: loaded MP3 %s (%d ch, %d Hz, %zu samples)\n",
+               path.c_str(), channels, sampleRate, numSamples);
+
+        return true;
+    }
+
+    float getDuration() const {
+        if (sampleRate == 0) return 0;
+        return (float)numSamples / sampleRate;
+    }
+
+    // テスト用: サイン波を生成
+    void generateSineWave(float frequency, float duration, int sr = 44100) {
+        sampleRate = sr;
+        channels = 1;
+        numSamples = (size_t)(duration * sampleRate);
+        samples.resize(numSamples);
+
+        for (size_t i = 0; i < numSamples; i++) {
+            float t = (float)i / sampleRate;
+            samples[i] = 0.5f * std::sin(2.0f * 3.14159265f * frequency * t);
+        }
+
+        printf("SoundBuffer: generated sine wave (%.0f Hz, %.1f sec)\n", frequency, duration);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// 再生中の音声インスタンス
+// ---------------------------------------------------------------------------
+struct PlayingSound {
+    std::shared_ptr<SoundBuffer> buffer;
+    std::atomic<size_t> position{0};     // 現在の再生位置（サンプル単位）
+    std::atomic<float> volume{1.0f};
+    std::atomic<bool> loop{false};
+    std::atomic<bool> playing{false};
+    std::atomic<bool> paused{false};
+};
+
+// ---------------------------------------------------------------------------
+// オーディオエンジン（シングルトン）
+// ---------------------------------------------------------------------------
+class AudioEngine {
+public:
+    static constexpr int MAX_PLAYING_SOUNDS = 32;
+    static constexpr int SAMPLE_RATE = 44100;
+    static constexpr int NUM_CHANNELS = 2;  // ステレオ出力
+
+    static AudioEngine& getInstance() {
+        static AudioEngine instance;
+        return instance;
+    }
+
+    bool init() {
+        if (initialized_) return true;
+
+        saudio_desc desc = {};
+        desc.sample_rate = SAMPLE_RATE;
+        desc.num_channels = NUM_CHANNELS;
+        desc.stream_userdata_cb = audioCallback;
+        desc.user_data = this;
+
+        saudio_setup(&desc);
+
+        if (!saudio_isvalid()) {
+            printf("AudioEngine: failed to initialize\n");
+            return false;
+        }
+
+        initialized_ = true;
+        printf("AudioEngine: initialized (%d Hz, %d ch)\n", SAMPLE_RATE, NUM_CHANNELS);
+        return true;
+    }
+
+    void shutdown() {
+        if (initialized_) {
+            saudio_shutdown();
+            initialized_ = false;
+        }
+    }
+
+    // 新しい再生インスタンスを追加
+    std::shared_ptr<PlayingSound> play(std::shared_ptr<SoundBuffer> buffer) {
+        if (!initialized_ || !buffer) return nullptr;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // 空きスロットを探す
+        for (auto& slot : playingSounds_) {
+            if (!slot || !slot->playing) {
+                slot = std::make_shared<PlayingSound>();
+                slot->buffer = buffer;
+                slot->position = 0;
+                slot->volume = 1.0f;
+                slot->loop = false;
+                slot->playing = true;
+                slot->paused = false;
+                return slot;
+            }
+        }
+
+        printf("AudioEngine: max playing sounds reached\n");
+        return nullptr;
+    }
+
+private:
+    AudioEngine() {
+        playingSounds_.resize(MAX_PLAYING_SOUNDS);
+    }
+
+    ~AudioEngine() {
+        shutdown();
+    }
+
+    static void audioCallback(float* buffer, int num_frames, int num_channels, void* user_data) {
+        auto* engine = static_cast<AudioEngine*>(user_data);
+        engine->mixAudio(buffer, num_frames, num_channels);
+    }
+
+    void mixAudio(float* buffer, int num_frames, int num_channels) {
+        // バッファをクリア
+        std::memset(buffer, 0, num_frames * num_channels * sizeof(float));
+
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        for (auto& sound : playingSounds_) {
+            if (!sound || !sound->playing || sound->paused) continue;
+
+            auto& src = sound->buffer;
+            size_t pos = sound->position;
+            float vol = sound->volume;
+
+            for (int frame = 0; frame < num_frames; frame++) {
+                if (pos >= src->numSamples) {
+                    if (sound->loop) {
+                        pos = 0;
+                    } else {
+                        sound->playing = false;
+                        break;
+                    }
+                }
+
+                // ソースサンプルを取得
+                float left = 0, right = 0;
+                if (src->channels == 1) {
+                    // モノラル → ステレオ
+                    left = right = src->samples[pos] * vol;
+                } else {
+                    // ステレオ
+                    left = src->samples[pos * 2] * vol;
+                    right = src->samples[pos * 2 + 1] * vol;
+                }
+
+                // ミックス
+                buffer[frame * num_channels] += left;
+                if (num_channels > 1) {
+                    buffer[frame * num_channels + 1] += right;
+                }
+
+                pos++;
+            }
+
+            sound->position = pos;
+        }
+
+        // クリッピング
+        for (int i = 0; i < num_frames * num_channels; i++) {
+            if (buffer[i] > 1.0f) buffer[i] = 1.0f;
+            if (buffer[i] < -1.0f) buffer[i] = -1.0f;
+        }
+    }
+
+    bool initialized_ = false;
+    std::vector<std::shared_ptr<PlayingSound>> playingSounds_;
+    std::mutex mutex_;
+};
+
+// ---------------------------------------------------------------------------
+// サウンドクラス（ユーザー向け）
+// ---------------------------------------------------------------------------
+class Sound {
+public:
+    Sound() = default;
+    ~Sound() = default;
+
+    // コピー・ムーブ
+    Sound(const Sound&) = default;
+    Sound& operator=(const Sound&) = default;
+    Sound(Sound&&) = default;
+    Sound& operator=(Sound&&) = default;
+
+    // -------------------------------------------------------------------------
+    // 読み込み
+    // -------------------------------------------------------------------------
+    bool load(const std::string& path) {
+        // AudioEngine を初期化（初回のみ）
+        AudioEngine::getInstance().init();
+
+        buffer_ = std::make_shared<SoundBuffer>();
+
+        // 拡張子で判別
+        std::string ext = path.substr(path.find_last_of('.') + 1);
+        bool success = false;
+
+        if (ext == "ogg" || ext == "OGG") {
+            success = buffer_->loadOgg(path);
+        } else if (ext == "wav" || ext == "WAV") {
+            success = buffer_->loadWav(path);
+        } else if (ext == "mp3" || ext == "MP3") {
+            success = buffer_->loadMp3(path);
+        } else {
+            printf("Sound: unsupported format: %s\n", ext.c_str());
+        }
+
+        if (!success) {
+            buffer_.reset();
+            return false;
+        }
+        return true;
+    }
+
+    // テスト用: サイン波を生成
+    void loadTestTone(float frequency = 440.0f, float duration = 1.0f) {
+        AudioEngine::getInstance().init();
+        buffer_ = std::make_shared<SoundBuffer>();
+        buffer_->generateSineWave(frequency, duration);
+    }
+
+    bool isLoaded() const { return buffer_ != nullptr; }
+
+    // -------------------------------------------------------------------------
+    // 再生制御
+    // -------------------------------------------------------------------------
+    void play() {
+        if (!buffer_) return;
+
+        // 既に再生中なら停止
+        stop();
+
+        playing_ = AudioEngine::getInstance().play(buffer_);
+        if (playing_) {
+            playing_->volume = volume_;
+            playing_->loop = loop_;
+        }
+    }
+
+    void stop() {
+        if (playing_) {
+            playing_->playing = false;
+            playing_.reset();
+        }
+    }
+
+    void pause() {
+        if (playing_) {
+            playing_->paused = true;
+        }
+    }
+
+    void resume() {
+        if (playing_) {
+            playing_->paused = false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 設定
+    // -------------------------------------------------------------------------
+    void setVolume(float vol) {
+        volume_ = vol;
+        if (playing_) {
+            playing_->volume = vol;
+        }
+    }
+
+    float getVolume() const { return volume_; }
+
+    void setLoop(bool loop) {
+        loop_ = loop;
+        if (playing_) {
+            playing_->loop = loop;
+        }
+    }
+
+    bool isLoop() const { return loop_; }
+
+    // -------------------------------------------------------------------------
+    // 状態
+    // -------------------------------------------------------------------------
+    bool isPlaying() const {
+        return playing_ && playing_->playing && !playing_->paused;
+    }
+
+    bool isPaused() const {
+        return playing_ && playing_->paused;
+    }
+
+    float getPosition() const {
+        if (!playing_ || !buffer_) return 0;
+        return (float)playing_->position / buffer_->sampleRate;
+    }
+
+    float getDuration() const {
+        return buffer_ ? buffer_->getDuration() : 0;
+    }
+
+private:
+    std::shared_ptr<SoundBuffer> buffer_;
+    std::shared_ptr<PlayingSound> playing_;
+    float volume_ = 1.0f;
+    bool loop_ = false;
+};
+
+// ---------------------------------------------------------------------------
+// グローバル関数
+// ---------------------------------------------------------------------------
+
+// オーディオエンジンを初期化（setup() で自動的に呼ばれる）
+inline void initAudio() {
+    AudioEngine::getInstance().init();
+}
+
+// オーディオエンジンをシャットダウン
+inline void shutdownAudio() {
+    AudioEngine::getInstance().shutdown();
+}
+
+} // namespace trussc
+
+namespace tc = trussc;

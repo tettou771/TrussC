@@ -13,3 +13,6 @@
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb/stb_truetype.h"
+
+// サウンド関連 (stb_vorbis, dr_wav, dr_mp3) は
+// modules/tcSound に移動
