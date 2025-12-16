@@ -51,6 +51,10 @@
 // TrussC ファイルダイアログ
 #include "tc/utils/tcFileDialog.h"
 
+// TrussC JSON/XML
+#include "tc/utils/tcJson.h"
+#include "tc/utils/tcXml.h"
+
 // =============================================================================
 // trussc 名前空間
 // =============================================================================
