@@ -3,17 +3,16 @@
 // =============================================================================
 
 #include "tcApp.h"
-#include <iostream>
 
 using namespace std;
 
 void tcApp::setup() {
-    cout << "=== File Dialog Example ===" << endl;
-    cout << "O: Open file dialog" << endl;
-    cout << "F: Open folder dialog" << endl;
-    cout << "S: Save dialog" << endl;
-    cout << "A: Alert dialog" << endl;
-    cout << "===========================" << endl;
+    tc::tcLogNotice() << "=== File Dialog Example ===";
+    tc::tcLogNotice() << "O: Open file dialog";
+    tc::tcLogNotice() << "F: Open folder dialog";
+    tc::tcLogNotice() << "S: Save dialog";
+    tc::tcLogNotice() << "A: Alert dialog";
+    tc::tcLogNotice() << "===========================";
 }
 
 void tcApp::update() {
@@ -84,7 +83,7 @@ void tcApp::keyPressed(int key) {
 
             if (lastResult.success) {
                 statusMessage = "File selected";
-                cout << "Selected: " << lastResult.filePath << endl;
+                tc::tcLogNotice() << "Selected: " << lastResult.filePath;
 
                 // 画像ファイルなら読み込みを試行
                 string path = lastResult.filePath;
@@ -96,7 +95,7 @@ void tcApp::keyPressed(int key) {
                     path.find(".JPEG") != string::npos) {
                     if (loadedImage.load(path)) {
                         hasImage = true;
-                        cout << "Image loaded: " << loadedImage.getWidth() << "x" << loadedImage.getHeight() << endl;
+                        tc::tcLogNotice() << "Image loaded: " << loadedImage.getWidth() << "x" << loadedImage.getHeight();
                     }
                 }
             } else {
@@ -114,7 +113,7 @@ void tcApp::keyPressed(int key) {
 
             if (lastResult.success) {
                 statusMessage = "Folder selected";
-                cout << "Selected folder: " << lastResult.filePath << endl;
+                tc::tcLogNotice() << "Selected folder: " << lastResult.filePath;
             } else {
                 statusMessage = "Folder dialog cancelled";
             }
@@ -130,7 +129,7 @@ void tcApp::keyPressed(int key) {
 
             if (lastResult.success) {
                 statusMessage = "Save location selected";
-                cout << "Save to: " << lastResult.filePath << endl;
+                tc::tcLogNotice() << "Save to: " << lastResult.filePath;
             } else {
                 statusMessage = "Save dialog cancelled";
             }
