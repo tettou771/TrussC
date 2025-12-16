@@ -225,27 +225,33 @@ public:
         tc::fill();
         tc::drawRect(0, 0, width, height);
 
-        // スクロール可能なコンテンツ（簡易的にクリッピングなしで描画）
+        // クリッピングを設定（グローバル座標で、DPIスケール考慮）
+        float gx, gy;
+        localToGlobal(0, 0, gx, gy);
+        float dpi = sapp_dpi_scale();
+        tc::setScissor(gx * dpi, gy * dpi, width * dpi, height * dpi);
+
+        // スクロール可能なコンテンツ
         tc::pushMatrix();
         tc::translate(0, -scrollY);
 
-        // コンテンツ（複数のアイテム）
+        // コンテンツ（複数のアイテム）- クリッピングにより範囲外は自動的に非表示
         for (int i = 0; i < 10; i++) {
             float itemY = i * 30;
-            // 表示範囲内のみ描画
-            if (itemY - scrollY > -30 && itemY - scrollY < height) {
-                tc::setColor(0.3f + i * 0.05f, 0.3f, 0.35f);
-                tc::fill();
-                tc::drawRect(5, itemY + 2, width - 10, 26);
+            tc::setColor(0.3f + i * 0.05f, 0.3f, 0.35f);
+            tc::fill();
+            tc::drawRect(5, itemY + 2, width - 10, 26);
 
-                tc::setColor(1.0f, 1.0f, 1.0f);
-                char buf[32];
-                snprintf(buf, sizeof(buf), "Item %d", i + 1);
-                tc::drawBitmapString(buf, 10, itemY + 18, false);
-            }
+            tc::setColor(1.0f, 1.0f, 1.0f);
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Item %d", i + 1);
+            tc::drawBitmapString(buf, 10, itemY + 18, false);
         }
 
         tc::popMatrix();
+
+        // クリッピングをリセット
+        tc::resetScissor();
 
         // 枠線
         tc::noFill();

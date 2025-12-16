@@ -251,7 +251,7 @@ public:
     }
 
     // 自分と子ノードを再帰的に描画
-    void drawTree() {
+    virtual void drawTree() {
         if (!isActive) return;
 
         pushMatrix();

@@ -27,6 +27,19 @@ public:
     float height = 100.0f;
 
     // -------------------------------------------------------------------------
+    // クリッピング設定
+    // -------------------------------------------------------------------------
+
+    // クリッピングを有効/無効にする
+    void setClipping(bool enabled) {
+        clipping_ = enabled;
+    }
+
+    bool isClipping() const {
+        return clipping_;
+    }
+
+    // -------------------------------------------------------------------------
     // サイズ設定
     // -------------------------------------------------------------------------
 
@@ -102,7 +115,57 @@ public:
         // 派生クラスで drawRect(0, 0, width, height) などを呼ぶ
     }
 
+    // クリッピング対応の描画ツリー
+    void drawTree() override {
+        if (!isActive) return;
+
+        pushMatrix();
+
+        // 変換を適用
+        translate(x, y);
+        if (rotation != 0.0f) {
+            rotate(rotation);
+        }
+        if (scaleX != 1.0f || scaleY != 1.0f) {
+            scale(scaleX, scaleY);
+        }
+
+        // ユーザーの描画
+        if (isVisible) {
+            draw();
+        }
+
+        // クリッピングが有効なら scissor を設定
+        if (clipping_) {
+            // ローカル座標 (0,0) と (width, height) をグローバル座標に変換
+            float gx1, gy1, gx2, gy2;
+            localToGlobal(0, 0, gx1, gy1);
+            localToGlobal(width, height, gx2, gy2);
+
+            // スクリーン座標での矩形を計算
+            float sx = std::min(gx1, gx2);
+            float sy = std::min(gy1, gy2);
+            float sw = std::abs(gx2 - gx1);
+            float sh = std::abs(gy2 - gy1);
+
+            setScissor(sx, sy, sw, sh);
+        }
+
+        // 子ノードを描画
+        for (auto& child : children_) {
+            child->drawTree();
+        }
+
+        // クリッピングをリセット
+        if (clipping_) {
+            resetScissor();
+        }
+
+        popMatrix();
+    }
+
 protected:
+    bool clipping_ = false;
     // -------------------------------------------------------------------------
     // マウスイベント（イベントを発火）
     // -------------------------------------------------------------------------

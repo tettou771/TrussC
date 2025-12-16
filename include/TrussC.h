@@ -410,6 +410,25 @@ inline void setStrokeWeight(float weight) {
 }
 
 // ---------------------------------------------------------------------------
+// Scissor Clipping（描画領域の制限）
+// ---------------------------------------------------------------------------
+
+// Scissor矩形を設定（スクリーン座標）
+inline void setScissor(float x, float y, float w, float h) {
+    sgl_scissor_rectf(x, y, w, h, true);  // origin_top_left = true
+}
+
+// Scissor矩形を設定（int版）
+inline void setScissor(int x, int y, int w, int h) {
+    sgl_scissor_rect(x, y, w, h, true);
+}
+
+// Scissorをウィンドウ全体にリセット
+inline void resetScissor() {
+    sgl_scissor_rect(0, 0, sapp_width(), sapp_height(), true);
+}
+
+// ---------------------------------------------------------------------------
 // 変形（自前の行列スタック管理）
 // ---------------------------------------------------------------------------
 
