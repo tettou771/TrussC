@@ -13,6 +13,10 @@
 #include "sokol/sokol_glue.h"
 #include "sokol/sokol_gl.h"
 
+// Dear ImGui + sokol_imgui
+#include "imgui/imgui.h"
+#include "sokol/sokol_imgui.h"
+
 // 標準ライブラリ
 #include <cstdint>
 #include <cmath>
@@ -99,6 +103,9 @@ namespace internal {
     inline sgl_pipeline pipeline3d = {};
     inline bool pipeline3dInitialized = false;
     inline bool pixelPerfectMode = false;
+
+    // ImGui 統合
+    inline bool imguiEnabled = false;
 
     // ブレンドモード用パイプライン
     inline sgl_pipeline blendPipelines[6] = {};
@@ -1302,6 +1309,11 @@ namespace internal {
     }
 
     inline void _event_cb(const sapp_event* ev) {
+        // ImGui にイベントを渡す
+        if (imguiEnabled) {
+            simgui_handle_event(ev);
+        }
+
         // ev->mouse_x/y はフレームバッファ座標で届く
         // pixelPerfectMode = true: そのまま使う（座標系=フレームバッファサイズ）
         // pixelPerfectMode = false: DPIスケールで割って論理座標に変換
@@ -1579,6 +1591,9 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 
 // TrussC EasyCam（3Dカメラ）
 #include "tc/3d/tcEasyCam.h"
+
+// TrussC ImGui 統合
+#include "tc/gui/tcImGui.h"
 
 // 短縮エイリアス
 namespace tc = trussc;
