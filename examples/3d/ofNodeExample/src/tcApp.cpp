@@ -1,5 +1,4 @@
 #include "tcApp.h"
-#include <iostream>
 
 using namespace std;
 
@@ -7,9 +6,9 @@ using namespace std;
 // setup - 初期化
 // ---------------------------------------------------------------------------
 void tcApp::setup() {
-    cout << "02_nodes: Node System Demo" << endl;
-    cout << "  - Space: 回転を停止/再開" << endl;
-    cout << "  - ESC: 終了" << endl;
+    tc::tcLogNotice() << "02_nodes: Node System Demo";
+    tc::tcLogNotice() << "  - Space: 回転を停止/再開";
+    tc::tcLogNotice() << "  - ESC: 終了";
 
     // コンテナ1（左側、時計回り）
     container1_ = make_shared<RotatingContainer>();
@@ -126,18 +125,18 @@ void tcApp::keyPressed(int key) {
         container1_->rotationSpeed = paused ? 0.0f : 0.5f;
         container2_->rotationSpeed = paused ? 0.0f : -0.3f;
 
-        cout << "Rotation " << (paused ? "paused" : "resumed") << endl;
+        tc::tcLogNotice() << "Rotation " << (paused ? "paused" : "resumed");
     }
 }
 
 void tcApp::mousePressed(int x, int y, int button) {
-    cout << "Global mouse: " << x << ", " << y << endl;
+    tc::tcLogVerbose() << "Global mouse: " << x << ", " << y;
 
     // 各フォロワーのローカル座標を表示
-    cout << "  Follower1 local: " << follower1_->getMouseX()
-         << ", " << follower1_->getMouseY() << endl;
-    cout << "  Follower2 local: " << follower2_->getMouseX()
-         << ", " << follower2_->getMouseY() << endl;
+    tc::tcLogVerbose() << "  Follower1 local: " << follower1_->getMouseX()
+                       << ", " << follower1_->getMouseY();
+    tc::tcLogVerbose() << "  Follower2 local: " << follower2_->getMouseX()
+                       << ", " << follower2_->getMouseY();
 }
 
 void tcApp::mouseDragged(int x, int y, int button) {

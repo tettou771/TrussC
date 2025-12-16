@@ -1,17 +1,14 @@
 #include "tcApp.h"
-#include <iostream>
-
-using namespace std;
 
 // ---------------------------------------------------------------------------
 // setup
 // ---------------------------------------------------------------------------
 void tcApp::setup() {
-    cout << "05_3d_primitives: 3D Primitives Demo" << endl;
-    cout << "  - 1/2/3/4: 解像度変更" << endl;
-    cout << "  - s: 塗りつぶし ON/OFF" << endl;
-    cout << "  - w: ワイヤーフレーム ON/OFF" << endl;
-    cout << "  - ESC: 終了" << endl;
+    tc::tcLogNotice() << "05_3d_primitives: 3D Primitives Demo";
+    tc::tcLogNotice() << "  - 1/2/3/4: 解像度変更";
+    tc::tcLogNotice() << "  - s: 塗りつぶし ON/OFF";
+    tc::tcLogNotice() << "  - w: ワイヤーフレーム ON/OFF";
+    tc::tcLogNotice() << "  - ESC: 終了";
 
     rebuildPrimitives();
 }
@@ -47,7 +44,7 @@ void tcApp::rebuildPrimitives() {
     cylinder = tc::createCylinder(size * 0.4f, size * 1.5f, cylRes);
     cone = tc::createCone(size * 0.5f, size * 1.5f, coneRes);
 
-    cout << "Resolution mode: " << resolution << endl;
+    tc::tcLogNotice() << "Resolution mode: " << resolution;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,10 +160,10 @@ void tcApp::keyPressed(int key) {
     }
     else if (key == 's' || key == 'S') {
         bFill = !bFill;
-        cout << "Fill: " << (bFill ? "ON" : "OFF") << endl;
+        tc::tcLogNotice() << "Fill: " << (bFill ? "ON" : "OFF");
     }
     else if (key == 'w' || key == 'W') {
         bWireframe = !bWireframe;
-        cout << "Wireframe: " << (bWireframe ? "ON" : "OFF") << endl;
+        tc::tcLogNotice() << "Wireframe: " << (bWireframe ? "ON" : "OFF");
     }
 }

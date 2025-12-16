@@ -3,8 +3,9 @@
 // =============================================================================
 
 #include "tcApp.h"
-using namespace tc;
+
 using namespace std;
+using namespace tc;
 
 void tcApp::setup() {
     // カメラ権限を確認
@@ -13,12 +14,13 @@ void tcApp::setup() {
     if (permissionGranted_) {
         // 利用可能なカメラ一覧を取得
         devices_ = grabber_.listDevices();
-        printf("=== Available Cameras ===\n");
+        tcLogNotice() << "=== Available Cameras ===";
         for (auto& dev : devices_) {
-            printf("[%d] %s\n", dev.deviceId, dev.deviceName.c_str());
+            tcLogNotice() << "[" << dev.deviceId << "] " << dev.deviceName;
         }
-        printf("========================\n\n");
-        printf("Press 1-9 to switch camera, SPACE to restart current camera\n\n");
+        tcLogNotice() << "========================";
+        tcLogNotice() << "";
+        tcLogNotice() << "Press 1-9 to switch camera, SPACE to restart current camera";
 
         // デフォルトカメラでキャプチャ開始
         if (!devices_.empty()) {
@@ -27,15 +29,14 @@ void tcApp::setup() {
             grabber_.setVerbose(true);  // 詳細ログを有効化
             // grabber_.setDesiredFrameRate(30);  // フレームレート指定（オプション）
             if (grabber_.setup(640, 480)) {
-                printf("Camera started: %dx%d (%s)\n",
-                       grabber_.getWidth(), grabber_.getHeight(),
-                       grabber_.getDeviceName().c_str());
+                tcLogNotice() << "Camera started: " << grabber_.getWidth() << "x" << grabber_.getHeight()
+                              << " (" << grabber_.getDeviceName() << ")";
             } else {
-                printf("Failed to start camera\n");
+                tcLogError() << "Failed to start camera";
             }
         }
     } else {
-        printf("Camera permission not granted. Requesting...\n");
+        tcLogWarning() << "Camera permission not granted. Requesting...";
         VideoGrabber::requestCameraPermission();
         permissionRequested_ = true;
     }
@@ -51,7 +52,7 @@ void tcApp::update() {
             if (!devices_.empty()) {
                 grabber_.setDeviceID(0);
                 grabber_.setup(640, 480);
-                printf("Permission granted! Camera started.\n");
+                tcLogNotice() << "Permission granted! Camera started.";
             }
         }
     }
@@ -145,17 +146,16 @@ void tcApp::keyPressed(int key) {
     if (key >= '1' && key <= '9') {
         int deviceIdx = key - '1';
         if (deviceIdx < (int)devices_.size() && deviceIdx != currentDevice_) {
-            printf("Switching to camera %d: %s\n", deviceIdx, devices_[deviceIdx].deviceName.c_str());
+            tcLogNotice() << "Switching to camera " << deviceIdx << ": " << devices_[deviceIdx].deviceName;
             grabber_.close();
             currentDevice_ = deviceIdx;
             grabber_.setDeviceID(currentDevice_);
             grabber_.setVerbose(true);
             if (grabber_.setup(640, 480)) {
-                printf("Camera started: %dx%d (%s)\n",
-                       grabber_.getWidth(), grabber_.getHeight(),
-                       grabber_.getDeviceName().c_str());
+                tcLogNotice() << "Camera started: " << grabber_.getWidth() << "x" << grabber_.getHeight()
+                              << " (" << grabber_.getDeviceName() << ")";
             } else {
-                printf("Failed to start camera %d\n", deviceIdx);
+                tcLogError() << "Failed to start camera " << deviceIdx;
             }
             newFrameCount_ = 0;
             frameCount_ = 0;
@@ -163,7 +163,7 @@ void tcApp::keyPressed(int key) {
     }
     // スペースで現在のカメラを再起動
     else if (key == ' ') {
-        printf("Restarting camera %d\n", currentDevice_);
+        tcLogNotice() << "Restarting camera " << currentDevice_;
         grabber_.close();
         grabber_.setDeviceID(currentDevice_);
         grabber_.setup(640, 480);
