@@ -1206,6 +1206,7 @@ namespace internal {
     inline void (*appMouseDraggedFunc)(int, int, int) = nullptr;
     inline void (*appMouseScrolledFunc)(float, float) = nullptr;
     inline void (*appWindowResizedFunc)(int, int) = nullptr;
+    inline void (*appFilesDroppedFunc)(const std::vector<std::string>&) = nullptr;
 
     inline void _setup_cb() {
         setup();
@@ -1422,6 +1423,19 @@ namespace internal {
                 if (appWindowResizedFunc) appWindowResizedFunc(w, h);
                 break;
             }
+            case SAPP_EVENTTYPE_FILES_DROPPED: {
+                DragDropEventArgs args;
+                args.x = mouseX;  // 最後のマウス位置
+                args.y = mouseY;
+                int numFiles = sapp_get_num_dropped_files();
+                for (int i = 0; i < numFiles; i++) {
+                    args.files.push_back(sapp_get_dropped_file_path(i));
+                }
+                events().filesDropped.notify(args);
+
+                if (appFilesDroppedFunc) appFilesDroppedFunc(args.files);
+                break;
+            }
             default:
                 break;
         }
@@ -1482,6 +1496,9 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
     internal::appWindowResizedFunc = [](int w, int h) {
         if (app) app->windowResized(w, h);
     };
+    internal::appFilesDroppedFunc = [](const std::vector<std::string>& files) {
+        if (app) app->filesDropped(files);
+    };
 
     // sapp_desc を構築
     sapp_desc desc = {};
@@ -1504,6 +1521,11 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
     desc.cleanup_cb = internal::_cleanup_cb;
     desc.event_cb = internal::_event_cb;
     desc.logger.func = slog_func;
+
+    // ドラッグ&ドロップを有効化
+    desc.enable_dragndrop = true;
+    desc.max_dropped_files = 16;           // 最大16ファイル
+    desc.max_dropped_file_path_length = 2048;  // パス最大長
 
     // アプリを実行
     sapp_run(&desc);
