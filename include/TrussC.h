@@ -49,6 +49,35 @@
 // =============================================================================
 namespace trussc {
 
+// ---------------------------------------------------------------------------
+// ブレンドモード
+// ---------------------------------------------------------------------------
+enum class BlendMode {
+    Alpha,      // 通常アルファブレンド（デフォルト）
+    Add,        // 加算合成
+    Multiply,   // 乗算合成
+    Screen,     // スクリーン合成
+    Subtract,   // 減算合成
+    Disabled    // ブレンドなし（上書き）
+};
+
+// ---------------------------------------------------------------------------
+// テクスチャフィルター
+// ---------------------------------------------------------------------------
+enum class TextureFilter {
+    Nearest,    // ニアレストネイバー（ドット絵向け）
+    Linear      // バイリニア補間（デフォルト）
+};
+
+// ---------------------------------------------------------------------------
+// テクスチャラップモード
+// ---------------------------------------------------------------------------
+enum class TextureWrap {
+    Repeat,         // 繰り返し
+    ClampToEdge,    // 端のピクセルで止まる（デフォルト）
+    MirroredRepeat  // 反転して繰り返し
+};
+
 // 前方宣言（RenderContext 用）
 namespace internal {
     inline sg_image fontTexture = {};
@@ -59,6 +88,11 @@ namespace internal {
     inline sgl_pipeline pipeline3d = {};
     inline bool pipeline3dInitialized = false;
     inline bool pixelPerfectMode = false;
+
+    // ブレンドモード用パイプライン
+    inline sgl_pipeline blendPipelines[6] = {};
+    inline bool blendPipelinesInitialized = false;
+    inline BlendMode currentBlendMode = BlendMode::Alpha;
 }
 
 } // namespace trussc (一時的に閉じる)
@@ -204,10 +238,85 @@ inline void setup() {
         internal::pipeline3d = sgl_make_pipeline(&pip_desc);
         internal::pipeline3dInitialized = true;
     }
+
+    // ブレンドモード用パイプラインを作成
+    // 全モードで Alpha チャンネルは加算的（既存の alpha を減らさない）
+    if (!internal::blendPipelinesInitialized) {
+        // Alpha - 通常アルファブレンド
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.colors[0].blend.enabled = true;
+            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            internal::blendPipelines[static_cast<int>(BlendMode::Alpha)] = sgl_make_pipeline(&pip_desc);
+        }
+        // Add - 加算合成
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.colors[0].blend.enabled = true;
+            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ONE;
+            internal::blendPipelines[static_cast<int>(BlendMode::Add)] = sgl_make_pipeline(&pip_desc);
+        }
+        // Multiply - 乗算合成
+        // 純粋な乗算: result = src × dst
+        // 半透明は色の暗さで表現（srcAlpha は RGB に事前乗算されている前提）
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.colors[0].blend.enabled = true;
+            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_DST_COLOR;
+            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ZERO;
+            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ONE;
+            internal::blendPipelines[static_cast<int>(BlendMode::Multiply)] = sgl_make_pipeline(&pip_desc);
+        }
+        // Screen - スクリーン合成
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.colors[0].blend.enabled = true;
+            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_COLOR;
+            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ONE;
+            internal::blendPipelines[static_cast<int>(BlendMode::Screen)] = sgl_make_pipeline(&pip_desc);
+        }
+        // Subtract - 減算合成
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.colors[0].blend.enabled = true;
+            pip_desc.colors[0].blend.op_rgb = SG_BLENDOP_REVERSE_SUBTRACT;
+            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.op_alpha = SG_BLENDOP_ADD;  // Alpha は加算のまま
+            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ONE;
+            internal::blendPipelines[static_cast<int>(BlendMode::Subtract)] = sgl_make_pipeline(&pip_desc);
+        }
+        // Disabled - ブレンドなし（上書き）
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.colors[0].blend.enabled = false;
+            internal::blendPipelines[static_cast<int>(BlendMode::Disabled)] = sgl_make_pipeline(&pip_desc);
+        }
+
+        internal::blendPipelinesInitialized = true;
+        internal::currentBlendMode = BlendMode::Alpha;
+    }
 }
 
 // sokol_gfx + sokol_gl を終了（cleanup コールバック内で呼ぶ）
 inline void cleanup() {
+    // ブレンドモードパイプラインを解放
+    if (internal::blendPipelinesInitialized) {
+        for (int i = 0; i < 6; i++) {
+            sgl_destroy_pipeline(internal::blendPipelines[i]);
+        }
+        internal::blendPipelinesInitialized = false;
+    }
     // 3Dパイプラインを解放
     if (internal::pipeline3dInitialized) {
         sgl_destroy_pipeline(internal::pipeline3d);
@@ -288,6 +397,11 @@ inline void clear(float gray, float a = 1.0f) {
 // 画面クリア (8bit RGB: 0 ~ 255)
 inline void clear(int r, int g, int b, int a = 255) {
     clear(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
+}
+
+// 画面クリア (8bit グレースケール: 0 ~ 255)
+inline void clear(int gray, int a = 255) {
+    clear(gray / 255.0f, gray / 255.0f, gray / 255.0f, a / 255.0f);
 }
 
 // 画面クリア (Color)
@@ -562,6 +676,28 @@ inline void resetMatrix() {
 // 変換行列を直接設定
 inline void setMatrix(const Mat4& mat) {
     getDefaultContext().setMatrix(mat);
+}
+
+// ---------------------------------------------------------------------------
+// ブレンドモード
+// ---------------------------------------------------------------------------
+
+// ブレンドモードを設定
+// Alpha チャンネルは全モードで加算的（FBO描画時に透明にならないように）
+inline void setBlendMode(BlendMode mode) {
+    if (!internal::blendPipelinesInitialized) return;
+    internal::currentBlendMode = mode;
+    sgl_load_pipeline(internal::blendPipelines[static_cast<int>(mode)]);
+}
+
+// 現在のブレンドモードを取得
+inline BlendMode getBlendMode() {
+    return internal::currentBlendMode;
+}
+
+// デフォルトのブレンドモード（Alpha）に戻す
+inline void resetBlendMode() {
+    setBlendMode(BlendMode::Alpha);
 }
 
 // ---------------------------------------------------------------------------
@@ -1391,6 +1527,9 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 
 // TrussC FBO（オフスクリーンレンダリング）
 #include "tc/gl/tcFbo.h"
+
+// TrussC ビデオ入力（Webカメラ）
+#include "tc/video/tcVideoGrabber.h"
 
 // TrussC 3Dプリミティブ
 #include <map>
