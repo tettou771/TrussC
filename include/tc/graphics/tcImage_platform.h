@@ -13,19 +13,15 @@ inline bool Image::grabScreenPlatform(int x, int y, int w, int h) {
     // FBO (オフスクリーンレンダリング) を実装するまでは未対応
 
     // 暫定: 灰色で埋める（デバッグ用）
-    if (pixels_ && allocated_) {
-        for (int py = 0; py < height_; py++) {
-            for (int px = 0; px < width_; px++) {
-                int index = (py * width_ + px) * channels_;
-                pixels_[index] = 128;      // R
-                pixels_[index + 1] = 128;  // G
-                pixels_[index + 2] = 128;  // B
-                if (channels_ == 4) {
-                    pixels_[index + 3] = 255;  // A
-                }
+    if (pixels_.isAllocated()) {
+        for (int py = 0; py < pixels_.getHeight(); py++) {
+            for (int px = 0; px < pixels_.getWidth(); px++) {
+                pixels_.setColor(px, py, Color(0.5f, 0.5f, 0.5f, 1.0f));
             }
         }
-        updateTexture();
+        // テクスチャを更新
+        dirty_ = true;
+        update();
     }
 
     // 未実装を示す

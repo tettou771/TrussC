@@ -29,7 +29,7 @@ bool Fbo::readPixelsPlatform(unsigned char* pixels) const {
     }
 
     // ソーステクスチャを取得
-    sg_mtl_image_info info = sg_mtl_query_image_info(colorImage_);
+    sg_mtl_image_info info = sg_mtl_query_image_info(colorTexture_.getImage());
     id<MTLTexture> srcTexture = (__bridge id<MTLTexture>)info.tex[info.active_slot];
 
     if (!srcTexture) {

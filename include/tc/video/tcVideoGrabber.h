@@ -5,6 +5,7 @@
 // =============================================================================
 
 // このファイルは TrussC.h からインクルードされる
+// Texture, HasTexture が先にインクルードされている必要がある
 
 #include <vector>
 #include <string>
@@ -27,9 +28,9 @@ struct VideoDeviceInfo {
 };
 
 // ---------------------------------------------------------------------------
-// VideoGrabber - Webカメラ入力クラス
+// VideoGrabber - Webカメラ入力クラス（HasTexture を継承）
 // ---------------------------------------------------------------------------
-class VideoGrabber {
+class VideoGrabber : public HasTexture {
 public:
     VideoGrabber() = default;
     ~VideoGrabber() { close(); }
@@ -95,8 +96,8 @@ public:
         // デリゲートにピクセルバッファのポインタを設定
         updateDelegatePixels();
 
-        // テクスチャを作成
-        createTexture();
+        // テクスチャを作成（Stream モード: 毎フレーム更新用）
+        texture_.allocate(width_, height_, 4, TextureUsage::Stream);
 
         initialized_ = true;
         return true;
@@ -108,12 +109,7 @@ public:
 
         closePlatform();
 
-        if (textureValid_) {
-            sg_destroy_sampler(sampler_);
-            sg_destroy_view(view_);
-            sg_destroy_image(texture_);
-            textureValid_ = false;
-        }
+        texture_.clear();
 
         if (pixels_) {
             delete[] pixels_;
@@ -153,7 +149,7 @@ public:
         // バッファが更新されていたらテクスチャに反映
         if (pixelsDirty_.exchange(false)) {
             std::lock_guard<std::mutex> lock(mutex_);
-            updateTexture();
+            texture_.loadData(pixels_, width_, height_, 4);
             frameNew_ = true;
         }
     }
@@ -161,20 +157,6 @@ public:
     // 新しいフレームが来たか
     bool isFrameNew() const {
         return frameNew_;
-    }
-
-    // =========================================================================
-    // 描画
-    // =========================================================================
-
-    void draw(float x, float y) const {
-        if (!initialized_ || !textureValid_) return;
-        drawInternal(x, y, (float)width_, (float)height_);
-    }
-
-    void draw(float x, float y, float w, float h) const {
-        if (!initialized_ || !textureValid_) return;
-        drawInternal(x, y, w, h);
     }
 
     // =========================================================================
@@ -198,9 +180,19 @@ public:
 
         image.allocate(width_, height_, 4);
         std::lock_guard<std::mutex> lock(mutex_);
-        std::memcpy(image.getPixels(), pixels_, width_ * height_ * 4);
+        std::memcpy(image.getPixelsData(), pixels_, width_ * height_ * 4);
+        image.setDirty();
         image.update();
     }
+
+    // =========================================================================
+    // HasTexture 実装
+    // =========================================================================
+
+    Texture& getTexture() override { return texture_; }
+    const Texture& getTexture() const override { return texture_; }
+
+    // draw() は HasTexture のデフォルト実装を使用
 
     // =========================================================================
     // パーミッション（macOS）
@@ -231,11 +223,8 @@ private:
     mutable std::mutex mutex_;
     std::atomic<bool> pixelsDirty_{false};
 
-    // sokol リソース
-    sg_image texture_ = {};
-    sg_view view_ = {};
-    sg_sampler sampler_ = {};
-    bool textureValid_ = false;
+    // テクスチャ（Stream モード）
+    Texture texture_;
 
     // プラットフォーム固有ハンドル
     void* platformHandle_ = nullptr;
@@ -243,68 +232,6 @@ private:
     // -------------------------------------------------------------------------
     // 内部メソッド
     // -------------------------------------------------------------------------
-
-    void createTexture() {
-        if (textureValid_) {
-            sg_destroy_sampler(sampler_);
-            sg_destroy_view(view_);
-            sg_destroy_image(texture_);
-        }
-
-        // ストリーミング用テクスチャを作成（初期データなし）
-        sg_image_desc img_desc = {};
-        img_desc.width = width_;
-        img_desc.height = height_;
-        img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
-        img_desc.usage.stream_update = true;  // 毎フレーム更新用
-        // 注意: stream_update テクスチャは初期データを設定しない
-        texture_ = sg_make_image(&img_desc);
-
-        // ビューを作成
-        sg_view_desc view_desc = {};
-        view_desc.texture.image = texture_;
-        view_ = sg_make_view(&view_desc);
-
-        // サンプラーを作成（バイリニアフィルタリング）
-        sg_sampler_desc smp_desc = {};
-        smp_desc.min_filter = SG_FILTER_LINEAR;
-        smp_desc.mag_filter = SG_FILTER_LINEAR;
-        smp_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
-        smp_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
-        sampler_ = sg_make_sampler(&smp_desc);
-
-        textureValid_ = true;
-    }
-
-    void updateTexture() {
-        if (!textureValid_ || !pixels_) return;
-
-        sg_image_data data = {};
-        data.mip_levels[0].ptr = pixels_;
-        data.mip_levels[0].size = width_ * height_ * 4;
-        sg_update_image(texture_, &data);
-    }
-
-    void drawInternal(float x, float y, float w, float h) const {
-        // アルファブレンドパイプラインを使用
-        sgl_load_pipeline(internal::fontPipeline);
-        sgl_enable_texture();
-        sgl_texture(view_, sampler_);
-
-        Color col = getDefaultContext().getColor();
-        sgl_begin_quads();
-        sgl_c4f(col.r, col.g, col.b, col.a);
-
-        // テクスチャ座標: 左上(0,0) 右下(1,1)
-        sgl_v2f_t2f(x, y, 0.0f, 0.0f);
-        sgl_v2f_t2f(x + w, y, 1.0f, 0.0f);
-        sgl_v2f_t2f(x + w, y + h, 1.0f, 1.0f);
-        sgl_v2f_t2f(x, y + h, 0.0f, 1.0f);
-
-        sgl_end();
-        sgl_disable_texture();
-        sgl_load_default_pipeline();
-    }
 
     void moveFrom(VideoGrabber&& other) {
         width_ = other.width_;
@@ -316,16 +243,12 @@ private:
         frameNew_ = other.frameNew_;
         pixels_ = other.pixels_;
         pixelsDirty_.store(other.pixelsDirty_.load());
-        texture_ = other.texture_;
-        view_ = other.view_;
-        sampler_ = other.sampler_;
-        textureValid_ = other.textureValid_;
+        texture_ = std::move(other.texture_);
         platformHandle_ = other.platformHandle_;
 
         // 元のオブジェクトを無効化
         other.pixels_ = nullptr;
         other.initialized_ = false;
-        other.textureValid_ = false;
         other.platformHandle_ = nullptr;
         other.width_ = 0;
         other.height_ = 0;
@@ -353,7 +276,7 @@ private:
         updateDelegatePixels();
 
         // テクスチャを再作成
-        createTexture();
+        texture_.allocate(width_, height_, 4, TextureUsage::Stream);
     }
 
     // -------------------------------------------------------------------------

@@ -6,13 +6,14 @@
 
 // このファイルは TrussC.h からインクルードされる
 // sokol と internal 名前空間の変数にアクセスするため
+// Texture, HasTexture が先にインクルードされている必要がある
 
 namespace trussc {
 
 // ---------------------------------------------------------------------------
-// Fbo クラス
+// Fbo クラス - HasTexture を継承
 // ---------------------------------------------------------------------------
-class Fbo {
+class Fbo : public HasTexture {
 public:
     Fbo() = default;
     ~Fbo() { clear(); }
@@ -41,15 +42,8 @@ public:
         width_ = w;
         height_ = h;
 
-        // カラーアタッチメント用テクスチャ
-        // sokol では color_attachment を設定すればテクスチャとしてもサンプリング可能
-        sg_image_desc color_desc = {};
-        color_desc.usage.color_attachment = true;
-        color_desc.width = w;
-        color_desc.height = h;
-        color_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
-        color_desc.sample_count = 1;
-        colorImage_ = sg_make_image(&color_desc);
+        // カラーテクスチャを RenderTarget として作成
+        colorTexture_.allocate(w, h, 4, TextureUsage::RenderTarget);
 
         // 深度バッファ用テクスチャ
         sg_image_desc depth_desc = {};
@@ -60,28 +54,10 @@ public:
         depth_desc.sample_count = 1;
         depthImage_ = sg_make_image(&depth_desc);
 
-        // カラーアタッチメントビュー（レンダリング用）
-        sg_view_desc color_att_desc = {};
-        color_att_desc.color_attachment.image = colorImage_;
-        colorAttView_ = sg_make_view(&color_att_desc);
-
         // 深度アタッチメントビュー
         sg_view_desc depth_att_desc = {};
         depth_att_desc.depth_stencil_attachment.image = depthImage_;
         depthAttView_ = sg_make_view(&depth_att_desc);
-
-        // テクスチャビュー（サンプリング用）
-        sg_view_desc tex_desc = {};
-        tex_desc.texture.image = colorImage_;
-        textureView_ = sg_make_view(&tex_desc);
-
-        // サンプラー（バイリニアフィルタリング）
-        sg_sampler_desc smp_desc = {};
-        smp_desc.min_filter = SG_FILTER_LINEAR;
-        smp_desc.mag_filter = SG_FILTER_LINEAR;
-        smp_desc.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
-        smp_desc.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
-        sampler_ = sg_make_sampler(&smp_desc);
 
         // FBO 用 sokol_gl コンテキストを作成（RGBA8 フォーマット用）
         sgl_context_desc_t ctx_desc = {};
@@ -109,12 +85,9 @@ public:
         if (allocated_) {
             sgl_destroy_pipeline(pipelineBlend_);
             sgl_destroy_context(context_);
-            sg_destroy_sampler(sampler_);
-            sg_destroy_view(textureView_);
             sg_destroy_view(depthAttView_);
-            sg_destroy_view(colorAttView_);
             sg_destroy_image(depthImage_);
-            sg_destroy_image(colorImage_);
+            colorTexture_.clear();
             allocated_ = false;
         }
         width_ = 0;
@@ -134,7 +107,7 @@ public:
 
         // オフスクリーンパスを開始
         sg_pass pass = {};
-        pass.attachments.colors[0] = colorAttView_;
+        pass.attachments.colors[0] = colorTexture_.getAttachmentView();
         pass.attachments.depth_stencil = depthAttView_;
         pass.action.colors[0].load_action = SG_LOADACTION_CLEAR;
         pass.action.colors[0].clear_value = { 0.0f, 0.0f, 0.0f, 0.0f };  // 透明でクリア
@@ -166,7 +139,7 @@ public:
         }
 
         sg_pass pass = {};
-        pass.attachments.colors[0] = colorAttView_;
+        pass.attachments.colors[0] = colorTexture_.getAttachmentView();
         pass.attachments.depth_stencil = depthAttView_;
         pass.action.colors[0].load_action = SG_LOADACTION_CLEAR;
         pass.action.colors[0].clear_value = { r, g, b, a };
@@ -205,18 +178,6 @@ public:
         }
     }
 
-    // FBO の内容を描画（左上座標）
-    void draw(float x, float y) const {
-        if (!allocated_) return;
-        drawInternal(x, y, (float)width_, (float)height_);
-    }
-
-    // FBO の内容を描画（左上座標 + サイズ指定）
-    void draw(float x, float y, float w, float h) const {
-        if (!allocated_) return;
-        drawInternal(x, y, w, h);
-    }
-
     // ピクセルデータを読み取る
     // 注意: 描画完了後（end() の後）に呼ぶこと
     bool readPixels(unsigned char* pixels) const {
@@ -232,7 +193,12 @@ public:
         if (!allocated_) return false;
 
         image.allocate(width_, height_, 4);
-        return readPixels(image.getPixels());
+        bool result = readPixels(image.getPixelsData());
+        if (result) {
+            image.setDirty();
+            image.update();
+        }
+        return result;
     }
 
     // サイズ取得
@@ -241,10 +207,17 @@ public:
     bool isAllocated() const { return allocated_; }
     bool isActive() const { return active_; }
 
+    // === HasTexture 実装 ===
+
+    Texture& getTexture() override { return colorTexture_; }
+    const Texture& getTexture() const override { return colorTexture_; }
+
+    // draw() は HasTexture のデフォルト実装を使用
+
     // 内部リソースへのアクセス（上級者向け）
-    sg_image getColorImage() const { return colorImage_; }
-    sg_view getTextureView() const { return textureView_; }
-    sg_sampler getSampler() const { return sampler_; }
+    sg_image getColorImage() const { return colorTexture_.getImage(); }
+    sg_view getTextureView() const { return colorTexture_.getView(); }
+    sg_sampler getSampler() const { return colorTexture_.getSampler(); }
 
 private:
     int width_ = 0;
@@ -253,36 +226,11 @@ private:
     bool active_ = false;
     bool wasInSwapchainPass_ = false;  // begin() 時にスワップチェーンパス中だったか
 
-    sg_image colorImage_ = {};
+    Texture colorTexture_;             // カラーテクスチャ（RenderTarget）
     sg_image depthImage_ = {};
-    sg_view colorAttView_ = {};
     sg_view depthAttView_ = {};
-    sg_view textureView_ = {};
-    sg_sampler sampler_ = {};
-    sgl_context context_ = {};             // FBO 用 sokol_gl コンテキスト
-    sgl_pipeline pipelineBlend_ = {};      // FBO 用パイプライン（アルファブレンド）
-
-    void drawInternal(float x, float y, float w, float h) const {
-        // アルファブレンドパイプラインを使用
-        sgl_load_pipeline(internal::fontPipeline);
-        sgl_enable_texture();
-        sgl_texture(textureView_, sampler_);
-
-        Color col = getDefaultContext().getColor();
-        sgl_begin_quads();
-        sgl_c4f(col.r, col.g, col.b, col.a);
-
-        // FBO は Y が反転している場合があるので確認が必要
-        // sokol/Metal では反転しないはず
-        sgl_v2f_t2f(x, y, 0.0f, 0.0f);
-        sgl_v2f_t2f(x + w, y, 1.0f, 0.0f);
-        sgl_v2f_t2f(x + w, y + h, 1.0f, 1.0f);
-        sgl_v2f_t2f(x, y + h, 0.0f, 1.0f);
-
-        sgl_end();
-        sgl_disable_texture();
-        sgl_load_default_pipeline();
-    }
+    sgl_context context_ = {};         // FBO 用 sokol_gl コンテキスト
+    sgl_pipeline pipelineBlend_ = {};  // FBO 用パイプライン（アルファブレンド）
 
     void moveFrom(Fbo&& other) {
         width_ = other.width_;
@@ -290,12 +238,9 @@ private:
         allocated_ = other.allocated_;
         active_ = other.active_;
         wasInSwapchainPass_ = other.wasInSwapchainPass_;
-        colorImage_ = other.colorImage_;
+        colorTexture_ = std::move(other.colorTexture_);
         depthImage_ = other.depthImage_;
-        colorAttView_ = other.colorAttView_;
         depthAttView_ = other.depthAttView_;
-        textureView_ = other.textureView_;
-        sampler_ = other.sampler_;
         context_ = other.context_;
         pipelineBlend_ = other.pipelineBlend_;
 
@@ -304,6 +249,10 @@ private:
         other.wasInSwapchainPass_ = false;
         other.width_ = 0;
         other.height_ = 0;
+        other.depthImage_ = {};
+        other.depthAttView_ = {};
+        other.context_ = {};
+        other.pipelineBlend_ = {};
     }
 
     // プラットフォーム固有のピクセル読み取り（tcFbo_platform.h で実装）
