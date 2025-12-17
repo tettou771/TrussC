@@ -5,12 +5,9 @@ using namespace std;
 namespace fs = std::filesystem;
 
 void tcApp::setup() {
-    cout << "screenshotExample: FBO Save Demo (with MSAA)" << endl;
-    cout << "  - Press SPACE to save FBO" << endl;
-    cout << "  - FBO uses 4x MSAA for smooth edges" << endl;
-
-    // FBO を画面サイズで確保（4x MSAA）
-    fbo.allocate(tc::getWindowWidth(), tc::getWindowHeight(), 4);
+    cout << "screenshotExample: saveScreenshot() Demo" << endl;
+    cout << "  - Press SPACE to capture screenshot" << endl;
+    cout << "  - Uses OS window capture (no FBO needed)" << endl;
 
     // 保存先パス（dataフォルダ）
     savePath = tc::getDataPath("");
@@ -22,11 +19,8 @@ void tcApp::update() {
 }
 
 void tcApp::draw() {
-    // 画面をクリア（これでスワップチェーンパスが開始される）
-    tc::clear(30);
-
-    // FBO に描画
-    fbo.begin(0.2f, 0.2f, 0.3f, 1.0f);  // 暗い青紫背景
+    // 背景をクリア（暗い青紫）
+    tc::clear(51, 51, 76);
 
     // デモ描画：回転する円たち
     int numCircles = 12;
@@ -40,7 +34,7 @@ void tcApp::draw() {
         float y = centerY + sin(angle) * radius;
 
         // 色相を変える
-        float hue = float(i) / numCircles * tc::TAU;  // 0-TAU
+        float hue = float(i) / numCircles * tc::TAU;
         tc::Color c = tc::colorFromHSB(hue, 0.8f, 1.0f);
         tc::setColor(c);
 
@@ -61,22 +55,15 @@ void tcApp::draw() {
         tc::drawLine(0, y, tc::getWindowWidth(), y);
     }
 
-    fbo.end();
-
-    // FBO の内容を画面に描画
-    tc::setColor(255);
-    fbo.draw(0, 0);
-
-    // 情報表示（FBO の外でテキスト描画）
-    tc::drawBitmapStringHighlight("FBO Save Demo (MSAA)", 10, 20,
+    // 情報表示
+    tc::drawBitmapStringHighlight("saveScreenshot() Demo", 10, 20,
         tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
 
-    string msaaStr = "FBO: " + to_string(fbo.getWidth()) + "x" + to_string(fbo.getHeight())
-                   + " (" + to_string(fbo.getSampleCount()) + "x MSAA)";
-    tc::drawBitmapStringHighlight(msaaStr, 10, 40,
+    string sizeStr = "Window: " + to_string(tc::getWindowWidth()) + "x" + to_string(tc::getWindowHeight());
+    tc::drawBitmapStringHighlight(sizeStr, 10, 40,
         tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
 
-    tc::drawBitmapStringHighlight("Press SPACE to save", 10, 60,
+    tc::drawBitmapStringHighlight("Press SPACE to capture", 10, 60,
         tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
 
     string countStr = "Saved: " + to_string(screenshotCount);
@@ -86,11 +73,11 @@ void tcApp::draw() {
 
 void tcApp::keyPressed(int key) {
     if (key == ' ') {
-        // FBO の内容を直接保存
         string filename = "screenshot_" + to_string(screenshotCount) + ".png";
         fs::path filepath = savePath / filename;
 
-        if (fbo.save(filepath)) {
+        // OS のウィンドウキャプチャ機能でスクリーンショットを保存
+        if (tc::saveScreenshot(filepath)) {
             cout << "Saved: " << filepath << endl;
             screenshotCount++;
         } else {

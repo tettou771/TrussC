@@ -150,23 +150,10 @@ public:
 
     // draw() は HasTexture のデフォルト実装を使用
 
-    // === スクリーンキャプチャ ===
-
-    bool grabScreen(int x, int y, int w, int h) {
-        allocate(w, h, 4);
-        return grabScreenPlatform(x, y, w, h);
-    }
-
 private:
     Pixels pixels_;
     Texture texture_;
     bool dirty_ = false;
-
-    // プラットフォーム固有のスクリーンキャプチャ
-    bool grabScreenPlatform(int x, int y, int w, int h);
 };
 
 } // namespace trussc
-
-// プラットフォーム固有の実装
-#include "tc/graphics/tcImage_platform.h"

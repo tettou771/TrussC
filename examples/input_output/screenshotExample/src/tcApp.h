@@ -11,9 +11,6 @@ public:
     void keyPressed(int key) override;
 
 private:
-    // FBO（オフスクリーンレンダリング用）
-    tc::Fbo fbo;
-
     // スクリーンショット保存先
     std::filesystem::path savePath;
     int screenshotCount = 0;

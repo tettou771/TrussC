@@ -1099,6 +1099,21 @@ inline void redraw() {
 }
 
 // ---------------------------------------------------------------------------
+// スクリーンショット
+// ---------------------------------------------------------------------------
+
+// スクリーンショットを保存（OS のウィンドウキャプチャ機能を使用）
+// 対応フォーマット: .png, .jpg/.jpeg, .tiff/.tif, .bmp
+inline bool saveScreenshot(const std::filesystem::path& path) {
+    return platform::saveScreenshot(path);
+}
+
+// 画面をキャプチャして Pixels に格納
+inline bool grabScreen(Pixels& outPixels) {
+    return platform::captureWindow(outPixels);
+}
+
+// ---------------------------------------------------------------------------
 // 数学ユーティリティ（tcMath.h から提供）
 // ---------------------------------------------------------------------------
 // Vec2, Vec3, Vec4, Mat3, Mat4, lerp, clamp, map, radians, degrees など
