@@ -43,8 +43,15 @@ public:
     // -------------------------------------------------------------------------
 
     // 子ノードを追加
-    void addChild(Ptr child) {
+    // keepGlobalPosition: true の場合、子のグローバル座標を維持する
+    void addChild(Ptr child, bool keepGlobalPosition = false) {
         if (!child || child.get() == this) return;
+
+        // グローバル座標を保持する場合、移動前の位置を記録
+        float globalX = 0, globalY = 0;
+        if (keepGlobalPosition) {
+            child->localToGlobal(0, 0, globalX, globalY);
+        }
 
         // 既存の親から削除
         if (auto oldParent = child->parent_.lock()) {
@@ -53,6 +60,14 @@ public:
 
         child->parent_ = weak_from_this();
         children_.push_back(child);
+
+        // グローバル座標を保持する場合、新しい親基準でローカル座標を再計算
+        if (keepGlobalPosition) {
+            float localX, localY;
+            globalToLocal(globalX, globalY, localX, localY);
+            child->x = localX;
+            child->y = localY;
+        }
     }
 
     // 子ノードを削除
