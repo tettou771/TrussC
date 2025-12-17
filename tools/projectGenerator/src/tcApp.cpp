@@ -209,9 +209,9 @@ void tcApp::draw() {
     // IDE 選択
     ImGui::Text("IDE");
     ImGui::SetNextItemWidth(-1);
-    const char* ideItems[] = { "CMake only", "VSCode", "Cursor", "Xcode (macOS)" };
+    const char* ideItems[] = { "CMake only", "VSCode", "Cursor", "Xcode (macOS)", "Visual Studio (Windows)" };
     int ideIndex = static_cast<int>(ideType);
-    if (ImGui::Combo("##ide", &ideIndex, ideItems, 4)) {
+    if (ImGui::Combo("##ide", &ideIndex, ideItems, 5)) {
         ideType = static_cast<IdeType>(ideIndex);
         saveConfig();  // IDE 変更時に保存
     }
@@ -444,6 +444,8 @@ bool tcApp::generateProject() {
             generateVSCodeFiles(destPath);
         } else if (ideType == IdeType::Xcode) {
             generateXcodeProject(destPath);
+        } else if (ideType == IdeType::VisualStudio) {
+            generateVisualStudioProject(destPath);
         }
 
         saveConfig();
@@ -460,7 +462,7 @@ void tcApp::generateVSCodeFiles(const string& path) {
     string vscodePath = path + "/.vscode";
     fs::create_directories(vscodePath);
 
-    // launch.json
+    // launch.json (OS ごとに分岐)
     Json launch;
     launch["version"] = "0.2.0";
     launch["configurations"] = Json::array();
@@ -469,9 +471,22 @@ void tcApp::generateVSCodeFiles(const string& path) {
     config["name"] = "Debug";
     config["type"] = "lldb";
     config["request"] = "launch";
-    config["program"] = "${workspaceFolder}/bin/" + projectName + ".app/Contents/MacOS/" + projectName;
     config["cwd"] = "${workspaceFolder}";
     config["preLaunchTask"] = "CMake: build";
+
+    // OS ごとのプログラムパス
+    Json osx;
+    osx["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}.app/Contents/MacOS/${workspaceFolderBasename}";
+    config["osx"] = osx;
+
+    Json linux_cfg;
+    linux_cfg["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}";
+    config["linux"] = linux_cfg;
+
+    Json windows;
+    windows["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}.exe";
+    windows["type"] = "cppvsdbg";  // Windows では cppvsdbg を使用
+    config["windows"] = windows;
 
     launch["configurations"].push_back(config);
     saveJson(launch, vscodePath + "/launch.json");
@@ -500,6 +515,28 @@ void tcApp::generateXcodeProject(const string& path) {
 
     if (result != 0) {
         tcLogWarning() << "Failed to generate Xcode project (exit code: " << result << ")";
+    }
+}
+
+void tcApp::generateVisualStudioProject(const string& path) {
+    // build フォルダを削除して cmake -G "Visual Studio 17 2022" を実行
+    string buildPath = path + "/build";
+    if (fs::exists(buildPath)) {
+        fs::remove_all(buildPath);
+    }
+    fs::create_directories(buildPath);
+
+#ifdef _WIN32
+    string cmd = "cd /d \"" + buildPath + "\" && cmake -G \"Visual Studio 17 2022\" ..";
+#else
+    // macOS/Linux からは生成のみ（開くのは Windows で）
+    string cmd = "cd \"" + buildPath + "\" && cmake -G \"Visual Studio 17 2022\" ..";
+#endif
+    tcLog() << "Visual Studio cmd: " << cmd;
+    int result = system(cmd.c_str());
+
+    if (result != 0) {
+        tcLogWarning() << "Failed to generate Visual Studio project (exit code: " << result << ")";
     }
 }
 
@@ -532,13 +569,16 @@ void tcApp::openInIde(const string& path) {
             }
             break;
         }
+        case IdeType::VisualStudio:
+            setStatus("Visual Studio is not available on macOS", true);
+            return;
         case IdeType::CMakeOnly:
             // ターミナルで開く
             cmd = "open -a Terminal \"" + path + "\"";
             break;
     }
 #else
-    // Windows
+    // Windows / Linux
     switch (ideType) {
         case IdeType::VSCode:
             cmd = "code \"" + path + "\"";
@@ -547,10 +587,37 @@ void tcApp::openInIde(const string& path) {
             cmd = "cursor \"" + path + "\"";
             break;
         case IdeType::Xcode:
-            setStatus("Xcode is not available on Windows", true);
+            setStatus("Xcode is not available on Windows/Linux", true);
             return;
+        case IdeType::VisualStudio: {
+            // build/*.sln を探して開く
+            string buildPath = path + "/build";
+            if (fs::exists(buildPath)) {
+                for (const auto& entry : fs::directory_iterator(buildPath)) {
+                    string name = entry.path().filename().string();
+                    if (name.find(".sln") != string::npos) {
+#ifdef _WIN32
+                        cmd = "start \"\" \"" + entry.path().string() + "\"";
+#else
+                        setStatus("Visual Studio is not available on Linux", true);
+                        return;
+#endif
+                        break;
+                    }
+                }
+            }
+            if (cmd.empty()) {
+                setStatus("Visual Studio project not found. Run Update first.", true);
+                return;
+            }
+            break;
+        }
         case IdeType::CMakeOnly:
+#ifdef _WIN32
             cmd = "start cmd /k \"cd /d " + path + "\"";
+#else
+            cmd = "x-terminal-emulator --working-directory=\"" + path + "\" || gnome-terminal --working-directory=\"" + path + "\"";
+#endif
             break;
     }
 #endif
@@ -693,6 +760,8 @@ bool tcApp::updateProject() {
             generateVSCodeFiles(importedProjectPath);
         } else if (ideType == IdeType::Xcode) {
             generateXcodeProject(importedProjectPath);
+        } else if (ideType == IdeType::VisualStudio) {
+            generateVisualStudioProject(importedProjectPath);
         }
 
         return true;
@@ -869,6 +938,9 @@ void tcApp::doGenerateProject() {
         } else if (ideType == IdeType::Xcode) {
             log("Generating Xcode project (this may take a while)...");
             generateXcodeProject(destPath);
+        } else if (ideType == IdeType::VisualStudio) {
+            log("Generating Visual Studio project (this may take a while)...");
+            generateVisualStudioProject(destPath);
         }
 
         log("Done!");
@@ -954,6 +1026,9 @@ void tcApp::doUpdateProject() {
         } else if (ideType == IdeType::Xcode) {
             log("Generating Xcode project (this may take a while)...");
             generateXcodeProject(importedProjectPath);
+        } else if (ideType == IdeType::VisualStudio) {
+            log("Generating Visual Studio project (this may take a while)...");
+            generateVisualStudioProject(importedProjectPath);
         }
 
         log("Done!");

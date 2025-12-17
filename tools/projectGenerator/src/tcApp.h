@@ -14,7 +14,8 @@ enum class IdeType {
     CMakeOnly,
     VSCode,
     Cursor,
-    Xcode
+    Xcode,
+    VisualStudio
 };
 
 class tcApp : public tc::App {
@@ -72,6 +73,7 @@ private:
     void importProject(const string& path);
     void generateVSCodeFiles(const string& path);
     void generateXcodeProject(const string& path);
+    void generateVisualStudioProject(const string& path);
     void openInIde(const string& path);
     string getTemplatePath();
     void setStatus(const string& msg, bool isError = false);
