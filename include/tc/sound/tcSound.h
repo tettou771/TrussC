@@ -99,7 +99,7 @@ public:
         samples.resize(numSamples * channels);
 
         int decoded = stb_vorbis_get_samples_float_interleaved(
-            vorbis, channels, samples.data(), samples.size());
+            vorbis, channels, samples.data(), static_cast<int>(samples.size()));
 
         stb_vorbis_close(vorbis);
 

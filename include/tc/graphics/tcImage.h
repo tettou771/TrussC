@@ -77,8 +77,9 @@ public:
         return true;
     }
 
-    // 画像を保存
-    bool save(const fs::path& path) const {
+    // 画像を保存（HasTexture::save() のオーバーライド）
+    // Image は pixels を持っているので直接保存（テクスチャからの読み戻し不要）
+    bool save(const fs::path& path) const override {
         return pixels_.save(path);
     }
 

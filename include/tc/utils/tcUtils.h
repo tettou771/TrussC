@@ -241,7 +241,7 @@ inline int hexToInt(const std::string& hexStr) {
 
 inline unsigned int hexToUInt(const std::string& hexStr) {
     try {
-        return std::stoul(hexStr, nullptr, 16);
+        return static_cast<unsigned int>(std::stoul(hexStr, nullptr, 16));
     } catch (...) {
         return 0;
     }

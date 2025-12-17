@@ -5,12 +5,12 @@ using namespace std;
 namespace fs = std::filesystem;
 
 void tcApp::setup() {
-    cout << "screenshotExample: Screen Capture Demo" << endl;
-    cout << "  - Press SPACE to save screenshot" << endl;
-    cout << "  - Press 'c' to capture to Image" << endl;
+    cout << "screenshotExample: FBO Save Demo (with MSAA)" << endl;
+    cout << "  - Press SPACE to save FBO" << endl;
+    cout << "  - FBO uses 4x MSAA for smooth edges" << endl;
 
-    // FBO を画面サイズで確保
-    fbo.allocate(tc::getWindowWidth(), tc::getWindowHeight());
+    // FBO を画面サイズで確保（4x MSAA）
+    fbo.allocate(tc::getWindowWidth(), tc::getWindowHeight(), 4);
 
     // 保存先パス（dataフォルダ）
     savePath = tc::getDataPath("");
@@ -68,33 +68,33 @@ void tcApp::draw() {
     fbo.draw(0, 0);
 
     // 情報表示（FBO の外でテキスト描画）
-    tc::drawBitmapStringHighlight("screenshotExample", 10, 20,
-        tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
-    tc::drawBitmapStringHighlight("Press SPACE to save screenshot", 10, 40,
+    tc::drawBitmapStringHighlight("FBO Save Demo (MSAA)", 10, 20,
         tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
 
-    string countStr = "Screenshots taken: " + to_string(screenshotCount);
-    tc::drawBitmapStringHighlight(countStr, 10, 60,
+    string msaaStr = "FBO: " + to_string(fbo.getWidth()) + "x" + to_string(fbo.getHeight())
+                   + " (" + to_string(fbo.getSampleCount()) + "x MSAA)";
+    tc::drawBitmapStringHighlight(msaaStr, 10, 40,
+        tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
+
+    tc::drawBitmapStringHighlight("Press SPACE to save", 10, 60,
+        tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
+
+    string countStr = "Saved: " + to_string(screenshotCount);
+    tc::drawBitmapStringHighlight(countStr, 10, 80,
         tc::Color(0, 0, 0, 0.7f), tc::Color(1, 1, 1));
 }
 
 void tcApp::keyPressed(int key) {
     if (key == ' ') {
-        // スクリーンショットを保存
-        tc::Image img;
-        if (fbo.copyTo(img)) {
-            // ファイル名を生成
-            string filename = "screenshot_" + to_string(screenshotCount) + ".png";
-            fs::path filepath = savePath / filename;
+        // FBO の内容を直接保存
+        string filename = "screenshot_" + to_string(screenshotCount) + ".png";
+        fs::path filepath = savePath / filename;
 
-            if (img.save(filepath)) {
-                cout << "Saved: " << filepath << endl;
-                screenshotCount++;
-            } else {
-                cout << "Failed to save: " << filepath << endl;
-            }
+        if (fbo.save(filepath)) {
+            cout << "Saved: " << filepath << endl;
+            screenshotCount++;
         } else {
-            cout << "Failed to capture FBO" << endl;
+            cout << "Failed to save: " << filepath << endl;
         }
     }
 }

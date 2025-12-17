@@ -54,7 +54,7 @@ public:
 
     std::vector<Vec3>& getVertices() { return vertices_; }
     const std::vector<Vec3>& getVertices() const { return vertices_; }
-    size_t getNumVertices() const { return vertices_.size(); }
+    int getNumVertices() const { return static_cast<int>(vertices_.size()); }
 
     // ---------------------------------------------------------------------------
     // カラー（頂点カラー）
@@ -75,7 +75,7 @@ public:
 
     std::vector<Color>& getColors() { return colors_; }
     const std::vector<Color>& getColors() const { return colors_; }
-    size_t getNumColors() const { return colors_.size(); }
+    int getNumColors() const { return static_cast<int>(colors_.size()); }
     bool hasColors() const { return !colors_.empty(); }
 
     // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ public:
 
     std::vector<unsigned int>& getIndices() { return indices_; }
     const std::vector<unsigned int>& getIndices() const { return indices_; }
-    size_t getNumIndices() const { return indices_.size(); }
+    int getNumIndices() const { return static_cast<int>(indices_.size()); }
     bool hasIndices() const { return !indices_.empty(); }
 
     // ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ public:
 
     std::vector<Vec3>& getNormals() { return normals_; }
     const std::vector<Vec3>& getNormals() const { return normals_; }
-    size_t getNumNormals() const { return normals_.size(); }
+    int getNumNormals() const { return static_cast<int>(normals_.size()); }
     bool hasNormals() const { return !normals_.empty(); }
 
     // ---------------------------------------------------------------------------

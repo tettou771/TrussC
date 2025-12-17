@@ -252,7 +252,7 @@ private:
     // メインのストローク生成ロジック
     void appendStrokeToMesh(const Polyline& pl, Mesh& targetMesh, const std::vector<float>& vertWidths) {
         const auto& verts = pl.getVertices();
-        int numVerts = verts.size();
+        int numVerts = pl.size();
         if (numVerts < 2) return;
 
         bool isClosed = pl.isClosed();

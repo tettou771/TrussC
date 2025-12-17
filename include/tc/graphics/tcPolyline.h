@@ -62,8 +62,8 @@ public:
     }
 
     // 頂点数
-    size_t size() const {
-        return vertices_.size();
+    int size() const {
+        return static_cast<int>(vertices_.size());
     }
 
     bool empty() const {
@@ -71,11 +71,11 @@ public:
     }
 
     // 特定の頂点にアクセス
-    Vec3& operator[](size_t index) {
+    Vec3& operator[](int index) {
         return vertices_[index];
     }
 
-    const Vec3& operator[](size_t index) const {
+    const Vec3& operator[](int index) const {
         return vertices_[index];
     }
 

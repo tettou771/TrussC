@@ -7,7 +7,11 @@
 // このファイルは TrussC.h からインクルードされる
 // Texture クラスが先にインクルードされている必要がある
 
+#include <filesystem>
+
 namespace trussc {
+
+namespace fs = std::filesystem;
 
 // ---------------------------------------------------------------------------
 // HasTexture - テクスチャを持つオブジェクトの基底クラス
@@ -81,6 +85,16 @@ public:
 
     TextureWrap getWrapV() const {
         return getTexture().getWrapV();
+    }
+
+    // === 保存（サブクラスでオーバーライド） ===
+
+    // テクスチャ内容をファイルに保存
+    // Image: 直接 pixels を保存（コピー不要）
+    // Fbo: テクスチャからピクセルを読み取って保存
+    virtual bool save(const fs::path& path) const {
+        (void)path;
+        return false;  // デフォルトは未実装
     }
 };
 

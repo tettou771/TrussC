@@ -63,8 +63,8 @@ inline void clearLights() {
 }
 
 // アクティブなライトの数を取得
-inline size_t getNumLights() {
-    return internal::activeLights.size();
+inline int getNumLights() {
+    return static_cast<int>(internal::activeLights.size());
 }
 
 // マテリアルを設定

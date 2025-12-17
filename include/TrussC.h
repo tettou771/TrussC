@@ -855,9 +855,10 @@ inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
     resetMatrix();
 
     // アルファブレンドパイプラインで背景を描画
+    // y はベースライン位置なので、背景は textHeight 分上から始める
     sgl_load_pipeline(internal::fontPipeline);
     setColor(background);
-    drawRect(worldX - padding, worldY - padding,
+    drawRect(worldX - padding, worldY - textHeight - padding,
              textWidth + padding * 2, textHeight + padding * 2);
     sgl_load_default_pipeline();
 
@@ -1160,7 +1161,7 @@ struct WindowSettings {
     std::string title = "TrussC App";
     bool highDpi = true;  // High DPI対応（Retinaで鮮明に描画）
     bool pixelPerfect = false;  // true: 座標系=フレームバッファサイズ, false: 座標系=論理サイズ
-    int sampleCount = 4;  // MSAA
+    int sampleCount = 4;  // MSAA（デフォルト4x、8xは一部デバイスで非対応）
     bool fullscreen = false;
     // bool headless = false;  // 将来用
 

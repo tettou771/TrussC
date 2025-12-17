@@ -67,14 +67,14 @@ inline float windowFunction(WindowType type, int i, int n) {
 
 // 信号に窓関数を適用
 inline void applyWindow(std::vector<float>& signal, WindowType type) {
-    int n = signal.size();
+    int n = static_cast<int>(signal.size());
     for (int i = 0; i < n; i++) {
         signal[i] *= windowFunction(type, i, n);
     }
 }
 
 inline void applyWindow(std::vector<std::complex<float>>& signal, WindowType type) {
-    int n = signal.size();
+    int n = static_cast<int>(signal.size());
     for (int i = 0; i < n; i++) {
         signal[i] *= windowFunction(type, i, n);
     }
@@ -119,7 +119,7 @@ inline int getBits(int n) {
 
 // インプレース FFT
 inline void fft(std::vector<std::complex<float>>& data) {
-    int n = data.size();
+    int n = static_cast<int>(data.size());
     if (n <= 1) return;
 
     // 2のべき乗でなければエラー
@@ -158,7 +158,7 @@ inline void fft(std::vector<std::complex<float>>& data) {
 
 // インプレース 逆FFT
 inline void ifft(std::vector<std::complex<float>>& data) {
-    int n = data.size();
+    int n = static_cast<int>(data.size());
     if (n <= 1) return;
 
     // 共役を取る

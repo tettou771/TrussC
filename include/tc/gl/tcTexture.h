@@ -46,13 +46,15 @@ public:
 
     // 空のテクスチャを確保
     void allocate(int width, int height, int channels = 4,
-                  TextureUsage usage = TextureUsage::Immutable) {
+                  TextureUsage usage = TextureUsage::Immutable,
+                  int sampleCount = 1) {
         clear();
 
         width_ = width;
         height_ = height;
         channels_ = channels;
         usage_ = usage;
+        sampleCount_ = sampleCount;
 
         createResources(nullptr);
     }
@@ -102,6 +104,7 @@ public:
     int getHeight() const { return height_; }
     int getChannels() const { return channels_; }
     TextureUsage getUsage() const { return usage_; }
+    int getSampleCount() const { return sampleCount_; }
 
     // === データ更新（Immutable 以外） ===
 
@@ -242,6 +245,7 @@ private:
     int width_ = 0;
     int height_ = 0;
     int channels_ = 0;
+    int sampleCount_ = 1;
     bool allocated_ = false;
     TextureUsage usage_ = TextureUsage::Immutable;
     uint64_t lastUpdateFrame_ = UINT64_MAX;  // 最後に更新したフレーム
@@ -273,7 +277,8 @@ private:
                 break;
             case TextureUsage::RenderTarget:
                 img_desc.usage.color_attachment = true;
-                img_desc.sample_count = 1;  // FBO 用に明示的に設定
+                img_desc.usage.resolve_attachment = true;  // MSAA resolve 先としても使えるように
+                img_desc.sample_count = sampleCount_;
                 break;
         }
 
@@ -355,6 +360,7 @@ private:
         width_ = other.width_;
         height_ = other.height_;
         channels_ = other.channels_;
+        sampleCount_ = other.sampleCount_;
         allocated_ = other.allocated_;
         usage_ = other.usage_;
         lastUpdateFrame_ = other.lastUpdateFrame_;
@@ -370,6 +376,7 @@ private:
         other.width_ = 0;
         other.height_ = 0;
         other.channels_ = 0;
+        other.sampleCount_ = 1;
         other.allocated_ = false;
     }
 };
