@@ -18,12 +18,20 @@
 void tcApp::setup() {
     tc::setVsync(true);
 
+    // macOS バンドルの場合、data フォルダへのパスを設定
+    // 実行ファイル: bin/xxx.app/Contents/MacOS/xxx
+    // data: bin/data/
+    // ../../../ = bin/ なので ../../../data/ が正しいパス
+    #ifdef __APPLE__
+    tc::setDataPathRoot("../../../data/");
+    #endif
+
     fftInput.resize(FFT_SIZE, 0.0f);
     spectrum.resize(FFT_SIZE / 2, 0.0f);
     spectrumSmooth.resize(FFT_SIZE / 2, 0.0f);
 
     // 音楽をロード
-    std::string musicPath = "data/beat_loop.wav";
+    std::string musicPath = tc::getDataPath("beat_loop.wav");
     if (music.load(musicPath)) {
         musicLoaded = true;
         music.setLoop(true);

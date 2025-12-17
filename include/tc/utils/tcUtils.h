@@ -7,7 +7,52 @@
 #include <bitset>
 #include <cstdint>
 
+// tcPlatform.h の前方宣言（循環インクルード回避）
+namespace trussc { namespace platform {
+    std::string getExecutableDir();
+}}
+
 namespace trussc {
+
+// ---------------------------------------------------------------------------
+// データパス（oF の ofToDataPath と同様）
+// ---------------------------------------------------------------------------
+
+namespace internal {
+    // デフォルトは "data/"（実行ファイルからの相対パス）
+    inline std::string dataPathRoot = "data/";
+    inline bool dataPathRootIsAbsolute = false;
+}
+
+// データパスのルートを設定
+// 相対パスの場合、実行ファイルのディレクトリを基準に解決される
+// 絶対パス（/ で始まる）の場合はそのまま使用
+inline void setDataPathRoot(const std::string& path) {
+    internal::dataPathRoot = path;
+    // 末尾にスラッシュがなければ追加
+    if (!internal::dataPathRoot.empty() && internal::dataPathRoot.back() != '/') {
+        internal::dataPathRoot += '/';
+    }
+    // 絶対パスかどうかを記録
+    internal::dataPathRootIsAbsolute = (!path.empty() && path[0] == '/');
+}
+
+// データパスのルートを取得
+inline std::string getDataPathRoot() {
+    return internal::dataPathRoot;
+}
+
+// ファイル名からデータパスを取得
+// 実行ファイルのディレクトリを基準に解決される
+inline std::string getDataPath(const std::string& filename) {
+    if (internal::dataPathRootIsAbsolute) {
+        // 絶対パスの場合はそのまま
+        return internal::dataPathRoot + filename;
+    } else {
+        // 相対パスの場合は実行ファイルのディレクトリを基準に
+        return platform::getExecutableDir() + internal::dataPathRoot + filename;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // toString - 値を文字列に変換

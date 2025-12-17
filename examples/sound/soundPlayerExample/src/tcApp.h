@@ -14,7 +14,6 @@ private:
     tc::Sound sfx;
 
     std::string musicPath;
-    std::string sfxPath;
     bool musicLoaded = false;
     bool sfxLoaded = false;
 };

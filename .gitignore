@@ -71,7 +71,8 @@ _deps/
 
 # examples 内のビルド成果物を除外（サブフォルダも含む）
 examples/**/build/
-examples/**/bin/
+examples/**/bin/*
+!examples/**/bin/data/
 examples/**/out/
 examples/**/*.xcodeproj/
 examples/**/*.sln

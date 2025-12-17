@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 // =============================================================================
 // プラットフォーム固有機能
 // =============================================================================
@@ -15,6 +17,12 @@ float getDisplayScaleFactor();
 // ウィンドウサイズを変更（論理サイズで指定）
 // macOS: NSWindow を使用
 void setWindowSize(int width, int height);
+
+// 実行ファイルの絶対パスを取得
+std::string getExecutablePath();
+
+// 実行ファイルがあるディレクトリを取得（末尾に / 付き）
+std::string getExecutableDir();
 
 } // namespace platform
 } // namespace trussc

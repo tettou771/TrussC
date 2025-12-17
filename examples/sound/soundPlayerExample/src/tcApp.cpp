@@ -1,14 +1,32 @@
+// =============================================================================
+// soundPlayerExample - サウンド再生サンプル
+//
+// 使用音源:
+//   "113 2b loose-pants 4.2 mono" by astro_denticle
+//   https://freesound.org/
+//   License: CC0 (Public Domain)
+//   Thanks to astro_denticle for sharing this great beat loop!
+// =============================================================================
+
 #include "tcApp.h"
 #include "TrussC.h"
 
 void tcApp::setup() {
     tc::setVsync(true);
 
-    // 音声ファイルパス（なければテストトーンを使用）
-    musicPath = "music.ogg";
-    sfxPath = "sfx.wav";
+    // macOS バンドルの場合、data フォルダへのパスを設定
+    // 実行ファイル: bin/xxx.app/Contents/MacOS/xxx
+    // data: bin/data/
+    // ../../../ = bin/ なので ../../../data/ が正しいパス
+    #ifdef __APPLE__
+    tc::setDataPathRoot("../../../data/");
+    #endif
 
-    // 音楽をロード（なければテストトーンを使用）
+    // 音声ファイルパス（data フォルダ内の CC0 サンプル音源）
+    musicPath = tc::getDataPath("beat_loop.wav");
+    printf("Trying to load: %s\n", musicPath.c_str());
+
+    // 音楽をロード
     if (music.load(musicPath)) {
         musicLoaded = true;
         music.setLoop(true);
@@ -20,15 +38,9 @@ void tcApp::setup() {
         musicLoaded = true;
     }
 
-    // 効果音をロード（なければテストトーンを使用）
-    if (sfx.load(sfxPath)) {
-        sfxLoaded = true;
-        printf("SFX loaded: %s (%.1f sec)\n", sfxPath.c_str(), sfx.getDuration());
-    } else {
-        printf("SFX not found: %s - using test tone\n", sfxPath.c_str());
-        sfx.loadTestTone(880.0f, 0.2f);  // A5 (880Hz), 0.2秒
-        sfxLoaded = true;
-    }
+    // 効果音（テストトーンを使用）
+    sfx.loadTestTone(880.0f, 0.2f);  // A5 (880Hz), 0.2秒
+    sfxLoaded = true;
 
     printf("\n=== Controls ===\n");
     printf("SPACE: Play/Stop music\n");
@@ -121,14 +133,9 @@ void tcApp::draw() {
     tc::drawBitmapString("=== Sound Effect ===", 50, y);
     y += 25;
 
-    if (sfxLoaded) {
-        std::string status = sfx.isPlaying() ? "Playing" : "Ready";
-        tc::setColor(sfx.isPlaying() ? tc::colors::lime : tc::colors::gray);
-        tc::drawBitmapString("Status: " + status, 50, y);
-    } else {
-        tc::setColor(tc::colors::red);
-        tc::drawBitmapString("SFX file not found: " + sfxPath, 50, y);
-    }
+    std::string status = sfx.isPlaying() ? "Playing" : "Ready";
+    tc::setColor(sfx.isPlaying() ? tc::colors::lime : tc::colors::gray);
+    tc::drawBitmapString("Status: " + status, 50, y);
 
     // FPS
     tc::setColor(100);
