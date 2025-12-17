@@ -26,40 +26,34 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # =============================================================================
-# TrussC バージョン指定
+# TrussC パス設定
 # =============================================================================
-set(TC_VERSION "0.0.1" CACHE STRING "TrussC version to use")
+# projectGenerator が生成時に TC_ROOT を直接設定する
+# 手動でテンプレートをコピーした場合は環境変数 TC_PATH を使用
+set(TC_ROOT "" CACHE PATH "Path to TrussC (e.g. /path/to/tc_v0.0.1)")
 
-# =============================================================================
-# TrussC を探す
-# =============================================================================
-# 環境変数 TC_PATH から取得
-if(DEFINED ENV{TC_PATH})
-    set(TC_PATH "$ENV{TC_PATH}")
-    set(TC_ROOT "${TC_PATH}/tc_v${TC_VERSION}")
-else()
-    message("")
-    message("╔══════════════════════════════════════════════════════════════════╗")
-    message("║                                                                  ║")
-    message("║   ERROR: TC_PATH environment variable is not set!               ║")
-    message("║                                                                  ║")
-    message("╠══════════════════════════════════════════════════════════════════╣")
-    message("║                                                                  ║")
-    message("║   Please set it to your TrussC parent directory:                ║")
-    message("║                                                                  ║")
-    message("║     export TC_PATH=/path/to/TrussC                              ║")
-    message("║                                                                  ║")
-    message("║   Expected structure:                                           ║")
-    message("║     TC_PATH/                                                    ║")
-    message("║       ├── tc_v0.0.1/                                            ║")
-    message("║       ├── tc_v0.1.0/                                            ║")
-    message("║       └── ...                                                   ║")
-    message("║                                                                  ║")
-    message("║   Add to ~/.zshrc or ~/.bashrc for permanent setup.             ║")
-    message("║                                                                  ║")
-    message("╚══════════════════════════════════════════════════════════════════╝")
-    message("")
-    message(FATAL_ERROR "Configuration failed - TC_PATH not set")
+if(NOT TC_ROOT)
+    # 環境変数からフォールバック
+    set(TC_VERSION "0.0.1")
+    if(DEFINED ENV{TC_PATH})
+        set(TC_ROOT "$ENV{TC_PATH}/tc_v${TC_VERSION}")
+    else()
+        message("")
+        message("╔══════════════════════════════════════════════════════════════════╗")
+        message("║                                                                  ║")
+        message("║   ERROR: TC_ROOT is not set!                                    ║")
+        message("║                                                                  ║")
+        message("╠══════════════════════════════════════════════════════════════════╣")
+        message("║                                                                  ║")
+        message("║   Option 1: Use projectGenerator to create/update project       ║")
+        message("║                                                                  ║")
+        message("║   Option 2: Set TC_PATH environment variable:                   ║")
+        message("║     export TC_PATH=/path/to/TrussC                              ║")
+        message("║                                                                  ║")
+        message("╚══════════════════════════════════════════════════════════════════╝")
+        message("")
+        message(FATAL_ERROR "Configuration failed - TC_ROOT not set")
+    endif()
 endif()
 
 # パスが存在するか確認
@@ -112,8 +106,17 @@ target_sources(${PROJECT_NAME} PRIVATE
 # TrussC をリンク
 target_link_libraries(${PROJECT_NAME} PRIVATE tc::TrussC)
 
-# アドオンを使う場合はここに追加
-# use_addon(${PROJECT_NAME} tcxBox2d)
+# addons.make からアドオンを読み込み
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/addons.make")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/addons.make" _ADDON_LIST)
+    foreach(_ADDON ${_ADDON_LIST})
+        # 空行とコメント行をスキップ
+        string(STRIP "${_ADDON}" _ADDON)
+        if(_ADDON AND NOT _ADDON MATCHES "^#")
+            use_addon(${PROJECT_NAME} ${_ADDON})
+        endif()
+    endforeach()
+endif()
 
 # =============================================================================
 # 出力設定
