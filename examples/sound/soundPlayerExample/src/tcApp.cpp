@@ -14,14 +14,6 @@
 void tcApp::setup() {
     tc::setVsync(true);
 
-    // macOS バンドルの場合、data フォルダへのパスを設定
-    // 実行ファイル: bin/xxx.app/Contents/MacOS/xxx
-    // data: bin/data/
-    // ../../../ = bin/ なので ../../../data/ が正しいパス
-    #ifdef __APPLE__
-    tc::setDataPathRoot("../../../data/");
-    #endif
-
     // 音声ファイルパス（data フォルダ内の CC0 サンプル音源）
     musicPath = tc::getDataPath("beat_loop.wav");
     printf("Trying to load: %s\n", musicPath.c_str());

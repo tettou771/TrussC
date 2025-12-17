@@ -1225,6 +1225,15 @@ namespace internal {
 
     inline void _setup_cb() {
         setup();
+
+        // macOS バンドルの場合、デフォルトの data パスを設定
+        // 実行ファイル: bin/xxx.app/Contents/MacOS/xxx
+        // data: bin/data/
+        // ../../../ = bin/ なので ../../../data/ が正しいパス
+        #ifdef __APPLE__
+        setDataPathRoot("../../../data/");
+        #endif
+
         if (appSetupFunc) appSetupFunc();
     }
 

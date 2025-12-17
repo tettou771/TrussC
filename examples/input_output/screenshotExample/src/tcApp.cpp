@@ -5,10 +5,6 @@ using namespace std;
 namespace fs = std::filesystem;
 
 void tcApp::setup() {
-    // macOS バンドルの場合、data フォルダへのパスを設定
-    #ifdef __APPLE__
-    tc::setDataPathRoot("../../../data/");
-    #endif
     cout << "screenshotExample: Screen Capture Demo" << endl;
     cout << "  - Press SPACE to save screenshot" << endl;
     cout << "  - Press 'c' to capture to Image" << endl;

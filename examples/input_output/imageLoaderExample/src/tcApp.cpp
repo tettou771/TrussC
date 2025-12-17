@@ -4,10 +4,6 @@
 using namespace std;
 
 void tcApp::setup() {
-    // macOS バンドルの場合、data フォルダへのパスを設定
-    #ifdef __APPLE__
-    tc::setDataPathRoot("../../../data/");
-    #endif
     cout << "imageLoaderExample: Image Loading Demo" << endl;
     cout << "  - Loading multiple images" << endl;
     cout << "  - Drawing with different sizes" << endl;

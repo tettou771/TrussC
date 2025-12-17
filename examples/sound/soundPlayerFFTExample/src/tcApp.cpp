@@ -18,14 +18,6 @@
 void tcApp::setup() {
     tc::setVsync(true);
 
-    // macOS バンドルの場合、data フォルダへのパスを設定
-    // 実行ファイル: bin/xxx.app/Contents/MacOS/xxx
-    // data: bin/data/
-    // ../../../ = bin/ なので ../../../data/ が正しいパス
-    #ifdef __APPLE__
-    tc::setDataPathRoot("../../../data/");
-    #endif
-
     fftInput.resize(FFT_SIZE, 0.0f);
     spectrum.resize(FFT_SIZE / 2, 0.0f);
     spectrumSmooth.resize(FFT_SIZE / 2, 0.0f);
