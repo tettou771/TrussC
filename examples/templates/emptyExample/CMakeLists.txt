@@ -3,16 +3,16 @@
 # =============================================================================
 # 使い方:
 #   1. このフォルダを好きな場所にコピー
-#   2. 環境変数 TRUSSC_PATH を TrussC の親ディレクトリに設定
+#   2. 環境変数 TC_PATH を TrussC の親ディレクトリに設定
 #   3. mkdir build && cd build && cmake .. && cmake --build .
 #
 # バージョン管理:
-#   TRUSSC_PATH=/path/to/TrussC
-#          ├── trussc_v0.0.1/
-#          ├── trussc_v0.1.0/
-#          └── trussc_v1.0.0/
+#   TC_PATH=/path/to/TrussC
+#          ├── tc_v0.0.1/
+#          ├── tc_v0.1.0/
+#          └── tc_v1.0.0/
 #
-#   下の TRUSSC_VERSION を変更してバージョンを切り替え
+#   下の TC_VERSION を変更してバージョンを切り替え
 # =============================================================================
 
 cmake_minimum_required(VERSION 3.20)
@@ -28,75 +28,75 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # =============================================================================
 # TrussC バージョン指定
 # =============================================================================
-set(TRUSSC_VERSION "0.0.1" CACHE STRING "TrussC version to use")
+set(TC_VERSION "0.0.1" CACHE STRING "TrussC version to use")
 
 # =============================================================================
 # TrussC を探す
 # =============================================================================
-# 環境変数 TRUSSC_PATH から取得
-if(DEFINED ENV{TRUSSC_PATH})
-    set(TRUSSC_PATH "$ENV{TRUSSC_PATH}")
-    set(TRUSSC_ROOT "${TRUSSC_PATH}/trussc_v${TRUSSC_VERSION}")
+# 環境変数 TC_PATH から取得
+if(DEFINED ENV{TC_PATH})
+    set(TC_PATH "$ENV{TC_PATH}")
+    set(TC_ROOT "${TC_PATH}/tc_v${TC_VERSION}")
 else()
     message("")
     message("╔══════════════════════════════════════════════════════════════════╗")
     message("║                                                                  ║")
-    message("║   ERROR: TRUSSC_PATH environment variable is not set!           ║")
+    message("║   ERROR: TC_PATH environment variable is not set!               ║")
     message("║                                                                  ║")
     message("╠══════════════════════════════════════════════════════════════════╣")
     message("║                                                                  ║")
     message("║   Please set it to your TrussC parent directory:                ║")
     message("║                                                                  ║")
-    message("║     export TRUSSC_PATH=/path/to/TrussC                          ║")
+    message("║     export TC_PATH=/path/to/TrussC                              ║")
     message("║                                                                  ║")
     message("║   Expected structure:                                           ║")
-    message("║     TRUSSC_PATH/                                                ║")
-    message("║       ├── trussc_v0.0.1/                                        ║")
-    message("║       ├── trussc_v0.1.0/                                        ║")
+    message("║     TC_PATH/                                                    ║")
+    message("║       ├── tc_v0.0.1/                                            ║")
+    message("║       ├── tc_v0.1.0/                                            ║")
     message("║       └── ...                                                   ║")
     message("║                                                                  ║")
     message("║   Add to ~/.zshrc or ~/.bashrc for permanent setup.             ║")
     message("║                                                                  ║")
     message("╚══════════════════════════════════════════════════════════════════╝")
     message("")
-    message(FATAL_ERROR "Configuration failed - TRUSSC_PATH not set")
+    message(FATAL_ERROR "Configuration failed - TC_PATH not set")
 endif()
 
 # パスが存在するか確認
-if(NOT EXISTS "${TRUSSC_ROOT}/CMakeLists.txt")
+if(NOT EXISTS "${TC_ROOT}/CMakeLists.txt")
     message("")
     message("╔══════════════════════════════════════════════════════════════════╗")
     message("║                                                                  ║")
-    message("║   ERROR: TrussC v${TRUSSC_VERSION} not found!")
+    message("║   ERROR: TrussC v${TC_VERSION} not found!")
     message("║                                                                  ║")
     message("╠══════════════════════════════════════════════════════════════════╣")
     message("║                                                                  ║")
-    message("║   Looked in: ${TRUSSC_ROOT}")
+    message("║   Looked in: ${TC_ROOT}")
     message("║                                                                  ║")
-    message("║   Available versions in ${TRUSSC_PATH}:")
-    file(GLOB _TRUSSC_VERSIONS LIST_DIRECTORIES true "${TRUSSC_PATH}/trussc_v*")
-    foreach(_V ${_TRUSSC_VERSIONS})
+    message("║   Available versions in ${TC_PATH}:")
+    file(GLOB _TC_VERSIONS LIST_DIRECTORIES true "${TC_PATH}/tc_v*")
+    foreach(_V ${_TC_VERSIONS})
         get_filename_component(_VNAME ${_V} NAME)
         message("║     - ${_VNAME}")
     endforeach()
-    if(NOT _TRUSSC_VERSIONS)
+    if(NOT _TC_VERSIONS)
         message("║     (none found)")
     endif()
     message("║                                                                  ║")
-    message("║   Check TRUSSC_VERSION in CMakeLists.txt                        ║")
+    message("║   Check TC_VERSION in CMakeLists.txt                            ║")
     message("║                                                                  ║")
     message("╚══════════════════════════════════════════════════════════════════╝")
     message("")
-    message(FATAL_ERROR "Configuration failed - TrussC v${TRUSSC_VERSION} not found")
+    message(FATAL_ERROR "Configuration failed - TrussC v${TC_VERSION} not found")
 endif()
 
-message(STATUS "[${PROJECT_NAME}] TrussC v${TRUSSC_VERSION}: ${TRUSSC_ROOT}")
+message(STATUS "[${PROJECT_NAME}] TrussC v${TC_VERSION}: ${TC_ROOT}")
 
 # TrussC を追加
-add_subdirectory(${TRUSSC_ROOT} ${CMAKE_BINARY_DIR}/TrussC)
+add_subdirectory(${TC_ROOT} ${CMAKE_BINARY_DIR}/TrussC)
 
 # use_addon マクロを読み込み（アドオン用）
-include(${TRUSSC_ROOT}/cmake/use_addon.cmake)
+include(${TC_ROOT}/cmake/use_addon.cmake)
 
 # =============================================================================
 # 実行ファイル

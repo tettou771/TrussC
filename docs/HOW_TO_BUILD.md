@@ -11,14 +11,14 @@
 
 ## 環境変数の設定
 
-TrussC を使うには `TRUSSC_PATH` 環境変数を設定する。
+TrussC を使うには `TC_PATH` 環境変数を設定する。
 
 ### フォルダ構造
 
 ```
-/path/to/TrussC/           ← TRUSSC_PATH はここを指す
-├── trussc_v0.0.1/         ← バージョンごとのフォルダ
-├── trussc_v0.1.0/
+/path/to/TrussC/           ← TC_PATH はここを指す
+├── tc_v0.0.1/             ← バージョンごとのフォルダ
+├── tc_v0.1.0/
 └── ...
 ```
 
@@ -26,7 +26,7 @@ TrussC を使うには `TRUSSC_PATH` 環境変数を設定する。
 
 ```bash
 # ~/.zshrc または ~/.bashrc に追加
-export TRUSSC_PATH="/path/to/TrussC"
+export TC_PATH="/path/to/TrussC"
 ```
 
 設定を反映：
@@ -38,7 +38,7 @@ source ~/.zshrc
 
 ```powershell
 # システム環境変数に追加
-setx TRUSSC_PATH "C:\path\to\TrussC"
+setx TC_PATH "C:\path\to\TrussC"
 ```
 
 または「システムのプロパティ」→「環境変数」から GUI で設定。
@@ -50,7 +50,7 @@ setx TRUSSC_PATH "C:\path\to\TrussC"
 ### 1. テンプレートをコピー
 
 ```bash
-cp -r /path/to/TrussC/trussc_v0.0.1/examples/templates/emptyExample ~/myProject
+cp -r /path/to/TrussC/tc_v0.0.1/examples/templates/emptyExample ~/myProject
 cd ~/myProject
 ```
 
@@ -59,7 +59,7 @@ cd ~/myProject
 `CMakeLists.txt` の先頭付近：
 
 ```cmake
-set(TRUSSC_VERSION "0.0.1" CACHE STRING "TrussC version to use")
+set(TC_VERSION "0.0.1" CACHE STRING "TrussC version to use")
 ```
 
 使いたいバージョンに変更可能。
@@ -109,7 +109,7 @@ cmake --build .
 ### バージョンを cmake コマンドで指定
 
 ```bash
-cmake .. -DTRUSSC_VERSION=0.1.0
+cmake .. -DTC_VERSION=0.1.0
 ```
 
 ---
@@ -186,7 +186,7 @@ Visual Studio 内で `F5` で実行。
 TrussC に同梱されているサンプルをビルドする場合（開発者向け）：
 
 ```bash
-cd /path/to/TrussC/trussc_v0.0.1/examples/graphics/graphicsExample
+cd /path/to/TrussC/tc_v0.0.1/examples/graphics/graphicsExample
 mkdir build && cd build
 cmake ..
 cmake --build .
@@ -197,11 +197,11 @@ open bin/graphicsExample.app
 
 ## トラブルシューティング
 
-### TRUSSC_PATH が設定されていない
+### TC_PATH が設定されていない
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║   ERROR: TRUSSC_PATH environment variable is not set!           ║
+║   ERROR: TC_PATH environment variable is not set!               ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
@@ -213,11 +213,11 @@ open bin/graphicsExample.app
 ╔══════════════════════════════════════════════════════════════════╗
 ║   ERROR: TrussC v0.0.1 not found!                               ║
 ║   Available versions in /path/to/TrussC:                        ║
-║     - trussc_v0.0.1                                             ║
+║     - tc_v0.0.1                                                 ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
-→ CMakeLists.txt の `TRUSSC_VERSION` を利用可能なバージョンに変更。
+→ CMakeLists.txt の `TC_VERSION` を利用可能なバージョンに変更。
 
 ### CMake が見つからない
 

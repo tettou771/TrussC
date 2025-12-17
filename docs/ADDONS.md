@@ -60,7 +60,7 @@ TrussC に同梱されているアドオン:
 2. `use_addon()` で追加
 
 ```
-trussc_v0.0.1/
+tc_v0.0.1/
 └── addons/
     ├── tcxBox2d/        # 公式
     └── tcxSomeAddon/    # サードパーティ
