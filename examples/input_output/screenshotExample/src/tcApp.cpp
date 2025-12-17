@@ -1,47 +1,14 @@
 #include "tcApp.h"
 #include <iostream>
 
-#ifdef __APPLE__
-#include <mach-o/dyld.h>
-#endif
-
 using namespace std;
 namespace fs = std::filesystem;
 
-// 実行ファイルのディレクトリを取得
-fs::path getExecutableDir() {
-#ifdef __APPLE__
-    char path[1024];
-    uint32_t size = sizeof(path);
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        return fs::path(path).parent_path();
-    }
-#endif
-    return fs::current_path();
-}
-
-// データパスを取得（macOS .app バンドル対応）
-fs::path getDataPath(const fs::path& relativePath = "") {
-    fs::path exeDir = getExecutableDir();
-
-    vector<fs::path> searchPaths = {
-        exeDir / "../../../../bin/data",  // .app 内から
-        fs::path("../bin/data"),          // build/ から
-        fs::path("bin/data"),             // プロジェクトルートから
-        fs::path("data"),                 // カレントディレクトリ直下
-    };
-
-    for (const auto& base : searchPaths) {
-        auto fullPath = relativePath.empty() ? base : base / relativePath;
-        if (fs::exists(relativePath.empty() ? base : fullPath)) {
-            return fullPath;
-        }
-    }
-
-    return searchPaths[0] / relativePath;
-}
-
 void tcApp::setup() {
+    // macOS バンドルの場合、data フォルダへのパスを設定
+    #ifdef __APPLE__
+    tc::setDataPathRoot("../../../data/");
+    #endif
     cout << "screenshotExample: Screen Capture Demo" << endl;
     cout << "  - Press SPACE to save screenshot" << endl;
     cout << "  - Press 'c' to capture to Image" << endl;
@@ -50,7 +17,7 @@ void tcApp::setup() {
     fbo.allocate(tc::getWindowWidth(), tc::getWindowHeight());
 
     // 保存先パス（dataフォルダ）
-    savePath = getDataPath();
+    savePath = tc::getDataPath("");
     cout << "Screenshots will be saved to: " << savePath << endl;
 }
 
