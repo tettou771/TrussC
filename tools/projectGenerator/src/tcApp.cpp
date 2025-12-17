@@ -23,20 +23,12 @@ void tcApp::setup() {
     // 設定を読み込み
     loadConfig();
 
-    // TC_PATH が未設定なら環境変数から取得
-    if (tcPath.empty()) {
-        const char* env = getenv("TC_PATH");
-        if (env) {
-            tcPath = env;
-        }
-    }
-
-    // TC_PATH が設定されていない場合はダイアログを表示
-    if (tcPath.empty()) {
+    // TC_ROOT が設定されていない場合はダイアログを表示
+    if (tcRoot.empty()) {
         showSetupDialog = true;
     } else {
-        strncpy(tcPathBuf, tcPath.c_str(), sizeof(tcPathBuf) - 1);
-        scanVersions();
+        strncpy(tcRootBuf, tcRoot.c_str(), sizeof(tcRootBuf) - 1);
+        scanAddons();
     }
 
     // デフォルトの保存先
@@ -86,32 +78,31 @@ void tcApp::draw() {
 
     imguiBegin();
 
-    // TC_PATH 設定ダイアログ
+    // TC_ROOT 設定ダイアログ
     if (showSetupDialog) {
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(getWindowWidth(), getWindowHeight()));
-        ImGui::Begin("Setup TC_PATH", nullptr,
+        ImGui::Begin("Setup TC_ROOT", nullptr,
                      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
 
         ImGui::Spacing();
-        ImGui::Text("Setup TC_PATH");
+        ImGui::Text("Setup TrussC");
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::TextWrapped("TC_PATH environment variable is not set.");
-        ImGui::TextWrapped("Please select the TrussC installation directory.");
+        ImGui::TextWrapped("Please select the TrussC folder (e.g. tc_v0.0.1).");
         ImGui::Spacing();
         ImGui::Spacing();
 
-        ImGui::Text("TC_PATH");
+        ImGui::Text("TrussC Folder");
         ImGui::SetNextItemWidth(-80);
-        ImGui::InputText("##tcPath", tcPathBuf, sizeof(tcPathBuf));
+        ImGui::InputText("##tcRoot", tcRootBuf, sizeof(tcRootBuf));
         ImGui::SameLine();
         if (ImGui::Button("Browse...")) {
-            auto result = loadDialog("Select TrussC directory", true);
+            auto result = loadDialog("Select TrussC folder (tc_vX.Y.Z)", true);
             if (result.success) {
-                strncpy(tcPathBuf, result.filePath.c_str(), sizeof(tcPathBuf) - 1);
+                strncpy(tcRootBuf, result.filePath.c_str(), sizeof(tcRootBuf) - 1);
             }
         }
 
@@ -119,13 +110,14 @@ void tcApp::draw() {
         ImGui::Spacing();
 
         if (ImGui::Button("OK", ImVec2(120, 30))) {
-            tcPath = tcPathBuf;
-            if (!tcPath.empty() && fs::exists(tcPath)) {
+            tcRoot = tcRootBuf;
+            // tc_vX.Y.Z フォルダか確認（CMakeLists.txt があるか）
+            if (!tcRoot.empty() && fs::exists(tcRoot + "/CMakeLists.txt")) {
                 showSetupDialog = false;
                 saveConfig();
-                scanVersions();
+                scanAddons();
             } else {
-                setStatus("Invalid path", true);
+                setStatus("Invalid TrussC folder (CMakeLists.txt not found)", true);
             }
         }
 
@@ -197,29 +189,6 @@ void tcApp::draw() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // バージョン選択
-    ImGui::Text("TrussC Version");
-    if (!versions.empty()) {
-        ImGui::SetNextItemWidth(-1);
-        if (ImGui::BeginCombo("##version", versions[selectedVersion].c_str())) {
-            for (int i = 0; i < (int)versions.size(); i++) {
-                bool isSelected = (selectedVersion == i);
-                if (ImGui::Selectable(versions[i].c_str(), isSelected)) {
-                    selectedVersion = i;
-                    scanAddons();
-                }
-                if (isSelected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-    } else {
-        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "No versions found");
-    }
-
-    ImGui::Spacing();
-
     // アドオン選択
     ImGui::Text("Addons");
     ImGui::BeginChild("##addons", ImVec2(0, 100), true);
@@ -240,9 +209,9 @@ void tcApp::draw() {
     // IDE 選択
     ImGui::Text("IDE");
     ImGui::SetNextItemWidth(-1);
-    const char* ideItems[] = { "CMake only", "VSCode", "Xcode (macOS)" };
+    const char* ideItems[] = { "CMake only", "VSCode", "Cursor", "Xcode (macOS)" };
     int ideIndex = static_cast<int>(ideType);
-    if (ImGui::Combo("##ide", &ideIndex, ideItems, 3)) {
+    if (ImGui::Combo("##ide", &ideIndex, ideItems, 4)) {
         ideType = static_cast<IdeType>(ideIndex);
         saveConfig();  // IDE 変更時に保存
     }
@@ -262,8 +231,14 @@ void tcApp::draw() {
         ImGui::Button("Generating...", ImVec2(-1, 40));
         ImGui::PopStyleColor(3);
     } else if (isImportedProject) {
-        if (ImGui::Button("Update Project", ImVec2(-1, 40))) {
+        // Update と Open in IDE を横並びに
+        float buttonWidth = (ImGui::GetContentRegionAvail().x - 8) / 2;
+        if (ImGui::Button("Update Project", ImVec2(buttonWidth, 40))) {
             startUpdate();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Open in IDE", ImVec2(buttonWidth, 40))) {
+            openInIde(importedProjectPath);
         }
     } else {
         if (ImGui::Button("Generate Project", ImVec2(-1, 40))) {
@@ -300,14 +275,14 @@ void tcApp::draw() {
         ImGui::PopTextWrapPos();
     }
 
-    // TC_PATH 設定ボタン（下部）
+    // TC_ROOT 設定ボタン（下部）
     ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 35);
     ImGui::Separator();
     if (ImGui::SmallButton("Settings...")) {
         showSetupDialog = true;
     }
     ImGui::SameLine();
-    ImGui::TextDisabled("TC_PATH: %s", tcPath.c_str());
+    ImGui::TextDisabled("TrussC: %s", tcRoot.c_str());
 
     ImGui::End();
 
@@ -324,8 +299,8 @@ void tcApp::loadConfig() {
     Json config = loadJson(configPath);
     if (config.empty()) return;
 
-    if (config.contains("tc_path")) {
-        tcPath = config["tc_path"].get<string>();
+    if (config.contains("tc_root")) {
+        tcRoot = config["tc_root"].get<string>();
     }
     if (config.contains("last_project_dir")) {
         projectDir = config["last_project_dir"].get<string>();
@@ -347,44 +322,20 @@ void tcApp::saveConfig() {
     }
 
     Json config;
-    config["tc_path"] = tcPath;
+    config["tc_root"] = tcRoot;
     config["last_project_dir"] = projectDir;
     config["last_project_name"] = projectName;
     config["ide_type"] = static_cast<int>(ideType);
     saveJson(config, configPath);
 }
 
-void tcApp::scanVersions() {
-    versions.clear();
-    selectedVersion = 0;
-
-    if (tcPath.empty() || !fs::exists(tcPath)) return;
-
-    // tc_v* フォルダを列挙
-    for (const auto& entry : fs::directory_iterator(tcPath)) {
-        if (entry.is_directory()) {
-            string name = entry.path().filename().string();
-            if (name.substr(0, 4) == "tc_v") {
-                versions.push_back(name);
-            }
-        }
-    }
-
-    // ソート（新しいバージョン順）
-    sort(versions.rbegin(), versions.rend());
-
-    if (!versions.empty()) {
-        scanAddons();
-    }
-}
-
 void tcApp::scanAddons() {
     addons.clear();
     addonSelected.clear();
 
-    if (versions.empty()) return;
+    if (tcRoot.empty()) return;
 
-    string addonsPath = tcPath + "/" + versions[selectedVersion] + "/addons";
+    string addonsPath = tcRoot + "/addons";
     if (!fs::exists(addonsPath)) return;
 
     // アドオンフォルダを列挙
@@ -403,8 +354,8 @@ void tcApp::scanAddons() {
 }
 
 string tcApp::getTemplatePath() {
-    if (versions.empty()) return "";
-    return tcPath + "/" + versions[selectedVersion] + "/examples/templates/emptyExample";
+    if (tcRoot.empty()) return "";
+    return tcRoot + "/examples/templates/emptyExample";
 }
 
 bool tcApp::generateProject() {
@@ -419,8 +370,8 @@ bool tcApp::generateProject() {
         return false;
     }
 
-    if (versions.empty()) {
-        setStatus("No TrussC version available", true);
+    if (tcRoot.empty()) {
+        setStatus("TrussC folder not set", true);
         return false;
     }
 
@@ -466,8 +417,7 @@ bool tcApp::generateProject() {
 
         string content = buffer.str();
 
-        // TC_ROOT を直接設定（環境変数不要に）
-        string tcRoot = tcPath + "/" + versions[selectedVersion];
+        // TC_ROOT を直接設定
         size_t pos = content.find("set(TC_ROOT \"\"");
         if (pos != string::npos) {
             content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
@@ -490,7 +440,7 @@ bool tcApp::generateProject() {
         addonsFile.close();
 
         // IDE 固有のファイル生成
-        if (ideType == IdeType::VSCode) {
+        if (ideType == IdeType::VSCode || ideType == IdeType::Cursor) {
             generateVSCodeFiles(destPath);
         } else if (ideType == IdeType::Xcode) {
             generateXcodeProject(destPath);
@@ -553,6 +503,64 @@ void tcApp::generateXcodeProject(const string& path) {
     }
 }
 
+void tcApp::openInIde(const string& path) {
+    string cmd;
+
+#ifdef __APPLE__
+    switch (ideType) {
+        case IdeType::VSCode:
+            cmd = "open -a \"Visual Studio Code\" \"" + path + "\"";
+            break;
+        case IdeType::Cursor:
+            cmd = "open -a \"Cursor\" \"" + path + "\"";
+            break;
+        case IdeType::Xcode: {
+            // build/*.xcodeproj を探して開く
+            string buildPath = path + "/build";
+            if (fs::exists(buildPath)) {
+                for (const auto& entry : fs::directory_iterator(buildPath)) {
+                    string name = entry.path().filename().string();
+                    if (name.find(".xcodeproj") != string::npos) {
+                        cmd = "open \"" + entry.path().string() + "\"";
+                        break;
+                    }
+                }
+            }
+            if (cmd.empty()) {
+                setStatus("Xcode project not found. Run Update first.", true);
+                return;
+            }
+            break;
+        }
+        case IdeType::CMakeOnly:
+            // ターミナルで開く
+            cmd = "open -a Terminal \"" + path + "\"";
+            break;
+    }
+#else
+    // Windows
+    switch (ideType) {
+        case IdeType::VSCode:
+            cmd = "code \"" + path + "\"";
+            break;
+        case IdeType::Cursor:
+            cmd = "cursor \"" + path + "\"";
+            break;
+        case IdeType::Xcode:
+            setStatus("Xcode is not available on Windows", true);
+            return;
+        case IdeType::CMakeOnly:
+            cmd = "start cmd /k \"cd /d " + path + "\"";
+            break;
+    }
+#endif
+
+    if (!cmd.empty()) {
+        tcLog() << "Open in IDE: " << cmd;
+        system(cmd.c_str());
+    }
+}
+
 void tcApp::setStatus(const string& msg, bool isError) {
     statusMessage = msg;
     statusIsError = isError;
@@ -581,25 +589,20 @@ void tcApp::importProject(const string& path) {
     projectDir = fs::path(path).parent_path().string();
     strncpy(projectDirBuf, projectDir.c_str(), sizeof(projectDirBuf) - 1);
 
-    // バージョンを解析 (TC_ROOT からバージョンを抽出)
+    // TC_ROOT を解析
     // 形式: set(TC_ROOT "/path/to/tc_v0.0.1"
     size_t pos = content.find("set(TC_ROOT \"");
     if (pos != string::npos) {
         size_t start = pos + 13;
         size_t end = content.find("\"", start);
         if (end != string::npos) {
-            string tcRootPath = content.substr(start, end - start);
-            // パスから tc_vX.X.X を抽出
-            size_t lastSlash = tcRootPath.rfind('/');
-            if (lastSlash != string::npos) {
-                string version = tcRootPath.substr(lastSlash + 1);
-                for (int i = 0; i < (int)versions.size(); i++) {
-                    if (versions[i] == version) {
-                        selectedVersion = i;
-                        scanAddons();
-                        break;
-                    }
-                }
+            string importedTcRoot = content.substr(start, end - start);
+            // 有効なパスなら tcRoot を更新
+            if (!importedTcRoot.empty() && fs::exists(importedTcRoot + "/CMakeLists.txt")) {
+                tcRoot = importedTcRoot;
+                strncpy(tcRootBuf, tcRoot.c_str(), sizeof(tcRootBuf) - 1);
+                saveConfig();
+                scanAddons();
             }
         }
     }
@@ -664,7 +667,6 @@ bool tcApp::updateProject() {
         string content = buffer.str();
 
         // TC_ROOT を直接設定
-        string tcRoot = tcPath + "/" + versions[selectedVersion];
         size_t pos = content.find("set(TC_ROOT \"\"");
         if (pos != string::npos) {
             content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
@@ -687,7 +689,7 @@ bool tcApp::updateProject() {
         addonsFile.close();
 
         // IDE 固有のファイル生成
-        if (ideType == IdeType::VSCode) {
+        if (ideType == IdeType::VSCode || ideType == IdeType::Cursor) {
             generateVSCodeFiles(importedProjectPath);
         } else if (ideType == IdeType::Xcode) {
             generateXcodeProject(importedProjectPath);
@@ -718,6 +720,12 @@ void tcApp::resetToNewProject() {
 void tcApp::startGenerate() {
     if (isGenerating) return;
 
+    // 末尾のスラッシュを除去（2文字以上かつ末尾が / の場合）
+    while (projectDir.size() > 1 && projectDir.back() == '/') {
+        projectDir.pop_back();
+    }
+    strncpy(projectDirBuf, projectDir.c_str(), sizeof(projectDirBuf) - 1);
+
     isGenerating = true;
     setStatus("");  // 前回のステータスをクリア
     {
@@ -734,6 +742,12 @@ void tcApp::startGenerate() {
 
 void tcApp::startUpdate() {
     if (isGenerating) return;
+
+    // 末尾のスラッシュを除去（2文字以上かつ末尾が / の場合）
+    while (tcRoot.size() > 1 && tcRoot.back() == '/') {
+        tcRoot.pop_back();
+    }
+    strncpy(tcRootBuf, tcRoot.c_str(), sizeof(tcRootBuf) - 1);
 
     isGenerating = true;
     setStatus("");  // 前回のステータスをクリア
@@ -769,9 +783,9 @@ void tcApp::doGenerateProject() {
         return;
     }
 
-    if (versions.empty()) {
-        log("Error: No TrussC version available");
-        setStatus("No TrussC version available", true);
+    if (tcRoot.empty()) {
+        log("Error: TrussC folder not set");
+        setStatus("TrussC folder not set", true);
         return;
     }
 
@@ -824,8 +838,7 @@ void tcApp::doGenerateProject() {
 
         string content = buffer.str();
 
-        // TC_ROOT を直接設定（環境変数不要に）
-        string tcRoot = tcPath + "/" + versions[selectedVersion];
+        // TC_ROOT を直接設定
         size_t pos = content.find("set(TC_ROOT \"\"");
         if (pos != string::npos) {
             content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
@@ -850,8 +863,8 @@ void tcApp::doGenerateProject() {
         addonsFile.close();
 
         // IDE 固有のファイル生成
-        if (ideType == IdeType::VSCode) {
-            log("Generating VSCode files...");
+        if (ideType == IdeType::VSCode || ideType == IdeType::Cursor) {
+            log("Generating VSCode/Cursor files...");
             generateVSCodeFiles(destPath);
         } else if (ideType == IdeType::Xcode) {
             log("Generating Xcode project (this may take a while)...");
@@ -860,6 +873,11 @@ void tcApp::doGenerateProject() {
 
         log("Done!");
         saveConfig();
+
+        // 生成完了後、自動的に Import 状態に
+        isImportedProject = true;
+        importedProjectPath = destPath;
+
         setStatus("Project created successfully!");
         tc::redraw();  // 完了時に再描画
 
@@ -906,7 +924,6 @@ void tcApp::doUpdateProject() {
         log("Configuring CMakeLists.txt...");
 
         // TC_ROOT を直接設定
-        string tcRoot = tcPath + "/" + versions[selectedVersion];
         size_t pos = content.find("set(TC_ROOT \"\"");
         if (pos != string::npos) {
             content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
@@ -931,8 +948,8 @@ void tcApp::doUpdateProject() {
         addonsFile.close();
 
         // IDE 固有のファイル生成
-        if (ideType == IdeType::VSCode) {
-            log("Generating VSCode files...");
+        if (ideType == IdeType::VSCode || ideType == IdeType::Cursor) {
+            log("Generating VSCode/Cursor files...");
             generateVSCodeFiles(importedProjectPath);
         } else if (ideType == IdeType::Xcode) {
             log("Generating Xcode project (this may take a while)...");

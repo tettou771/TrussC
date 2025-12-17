@@ -13,6 +13,7 @@ using namespace std;
 enum class IdeType {
     CMakeOnly,
     VSCode,
+    Cursor,
     Xcode
 };
 
@@ -31,17 +32,15 @@ public:
 
 private:
     // 設定
-    string tcPath;                      // TC_PATH
+    string tcRoot;                      // TC_ROOT (tc_vX.Y.Z フォルダへのパス)
     string projectName = "myProject";   // プロジェクト名
     string projectDir;                  // 保存先
-    int selectedVersion = 0;            // 選択中のバージョンインデックス
-    vector<string> versions;            // 利用可能なバージョン
     vector<string> addons;              // 利用可能なアドオン
     vector<int> addonSelected;          // アドオン選択状態 (0/1)
     IdeType ideType = IdeType::VSCode;  // デフォルトは VSCode
 
     // UI 状態
-    bool showSetupDialog = false;       // TC_PATH 設定ダイアログ
+    bool showSetupDialog = false;       // TC_ROOT 設定ダイアログ
     string statusMessage;               // ステータスメッセージ
     bool statusIsError = false;
     bool isImportedProject = false;     // インポートされたプロジェクトかどうか
@@ -62,18 +61,18 @@ private:
     // ImGui 用バッファ
     char projectNameBuf[256] = "myProject";
     char projectDirBuf[512] = "";
-    char tcPathBuf[512] = "";
+    char tcRootBuf[512] = "";
 
     // ヘルパー関数
     void loadConfig();
     void saveConfig();
-    void scanVersions();
     void scanAddons();
     bool generateProject();
     bool updateProject();
     void importProject(const string& path);
     void generateVSCodeFiles(const string& path);
     void generateXcodeProject(const string& path);
+    void openInIde(const string& path);
     string getTemplatePath();
     void setStatus(const string& msg, bool isError = false);
     void resetToNewProject();
