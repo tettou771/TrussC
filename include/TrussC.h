@@ -185,6 +185,19 @@ namespace internal {
 
     // パス状態（FBO のためにスワップチェーンパスを一時中断するため）
     inline bool inSwapchainPass = false;
+
+    // FBO パス状態（clear() が FBO 内で呼ばれたときの判定用）
+    inline bool inFboPass = false;
+
+    // 現在アクティブな FBO 用パイプライン（clear() から使用）
+    inline sgl_pipeline currentFboClearPipeline = {};
+    inline sgl_pipeline currentFboBlendPipeline = {};
+
+    // FBO の clearColor 関数ポインタ（tcFbo.h で設定）
+    inline void (*fboClearColorFunc)(float, float, float, float) = nullptr;
+
+    // 現在アクティブな FBO ポインタ（clearColor から使用）
+    inline void* currentFbo = nullptr;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,16 +408,52 @@ inline void beginFrame() {
 }
 
 // 画面クリア (RGB float: 0.0 ~ 1.0)
+// FBO 内や swapchain パス中でも正しく動作（oF 互換）
 inline void clear(float r, float g, float b, float a = 1.0f) {
-    sg_pass pass = {};
-    pass.action.colors[0].load_action = SG_LOADACTION_CLEAR;
-    pass.action.colors[0].clear_value = { r, g, b, a };
-    // 深度バッファもクリア（3D描画用）
-    pass.action.depth.load_action = SG_LOADACTION_CLEAR;
-    pass.action.depth.clear_value = 1.0f;
-    pass.swapchain = sglue_swapchain();
-    sg_begin_pass(&pass);
-    internal::inSwapchainPass = true;
+    if (internal::inFboPass && internal::fboClearColorFunc) {
+        // FBO パス中は FBO の clearColor() を呼んでパスを再開始
+        internal::fboClearColorFunc(r, g, b, a);
+    } else if (internal::inSwapchainPass) {
+        // swapchain パス中
+        BlendMode prevBlendMode = internal::currentBlendMode;
+
+        sgl_push_matrix();
+        sgl_matrix_mode_projection();
+        sgl_push_matrix();
+
+        sgl_load_identity();
+        sgl_ortho(-1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f);
+        sgl_matrix_mode_modelview();
+        sgl_load_identity();
+
+        sgl_load_pipeline(internal::blendPipelines[static_cast<int>(BlendMode::Disabled)]);
+        sgl_disable_texture();
+        sgl_begin_quads();
+        sgl_c4f(r, g, b, a);
+        sgl_v2f(-1.0f, -1.0f);
+        sgl_v2f( 1.0f, -1.0f);
+        sgl_v2f( 1.0f,  1.0f);
+        sgl_v2f(-1.0f,  1.0f);
+        sgl_end();
+
+        sgl_matrix_mode_projection();
+        sgl_pop_matrix();
+        sgl_matrix_mode_modelview();
+        sgl_pop_matrix();
+
+        sgl_load_pipeline(internal::blendPipelines[static_cast<int>(prevBlendMode)]);
+    } else {
+        // パス外では新しい swapchain パスを開始
+        sg_pass pass = {};
+        pass.action.colors[0].load_action = SG_LOADACTION_CLEAR;
+        pass.action.colors[0].clear_value = { r, g, b, a };
+        // 深度バッファもクリア（3D描画用）
+        pass.action.depth.load_action = SG_LOADACTION_CLEAR;
+        pass.action.depth.clear_value = 1.0f;
+        pass.swapchain = sglue_swapchain();
+        sg_begin_pass(&pass);
+        internal::inSwapchainPass = true;
+    }
 }
 
 // 画面クリア (グレースケール)
