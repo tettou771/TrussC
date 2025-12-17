@@ -10,6 +10,12 @@
 
 namespace trussc {
 
+// 前方宣言
+class Fbo;
+
+// FBO の clearColor を呼ぶための static ヘルパー関数
+inline void _fboClearColorHelper(float r, float g, float b, float a);
+
 // ---------------------------------------------------------------------------
 // Fbo クラス - HasTexture を継承
 // ---------------------------------------------------------------------------
@@ -114,12 +120,21 @@ public:
             pipelineBlend_ = sgl_context_make_pipeline(context_, &pip_desc);
         }
 
+        // FBO 用パイプライン（クリア用、ブレンドなし）
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.sample_count = sampleCount_;
+            pip_desc.colors[0].blend.enabled = false;  // ブレンドなし = 上書き
+            pipelineClear_ = sgl_context_make_pipeline(context_, &pip_desc);
+        }
+
         allocated_ = true;
     }
 
     // リソースを解放
     void clear() {
         if (allocated_) {
+            sgl_destroy_pipeline(pipelineClear_);
             sgl_destroy_pipeline(pipelineBlend_);
             sgl_destroy_context(context_);
             sg_destroy_view(depthAttView_);
@@ -155,6 +170,39 @@ public:
         beginInternal(r, g, b, a);
     }
 
+    // FBO 描画中に背景色を変更（パスを再開始）
+    // tc::clear() から呼ばれる
+    void clearColor(float r, float g, float b, float a) {
+        if (!active_) return;
+
+        // 現在のパスを終了
+        sgl_context_draw(context_);
+        sg_end_pass();
+
+        // 新しいクリア色でパスを再開始
+        sg_pass pass = {};
+        if (sampleCount_ > 1) {
+            pass.attachments.colors[0] = msaaColorAttView_;
+            pass.attachments.resolves[0] = resolveAttView_;
+        } else {
+            pass.attachments.colors[0] = colorTexture_.getAttachmentView();
+        }
+        pass.attachments.depth_stencil = depthAttView_;
+        pass.action.colors[0].load_action = SG_LOADACTION_CLEAR;
+        pass.action.colors[0].clear_value = { r, g, b, a };
+        pass.action.depth.load_action = SG_LOADACTION_CLEAR;
+        pass.action.depth.clear_value = 1.0f;
+        sg_begin_pass(&pass);
+
+        // sokol_gl の状態をリセット
+        sgl_defaults();
+        sgl_load_pipeline(pipelineBlend_);
+        sgl_matrix_mode_projection();
+        sgl_ortho(0.0f, (float)width_, (float)height_, 0.0f, -10000.0f, 10000.0f);
+        sgl_matrix_mode_modelview();
+        sgl_load_identity();
+    }
+
     // FBO への描画を終了
     void end() {
         if (!active_) return;
@@ -166,6 +214,11 @@ public:
         // デフォルトコンテキストに戻す
         sgl_set_context(sgl_default_context());
         active_ = false;
+        internal::inFboPass = false;
+        internal::currentFboClearPipeline = {};
+        internal::currentFboBlendPipeline = {};
+        internal::currentFbo = nullptr;
+        internal::fboClearColorFunc = nullptr;
 
         // スワップチェーンパスを再開（元々パス中だった場合）
         if (wasInSwapchainPass_) {
@@ -248,6 +301,7 @@ private:
     sg_view depthAttView_ = {};
     sgl_context context_ = {};
     sgl_pipeline pipelineBlend_ = {};
+    sgl_pipeline pipelineClear_ = {};  // clear() 用（ブレンドなし）
 
     void beginInternal(float r, float g, float b, float a) {
         if (!allocated_) return;
@@ -290,7 +344,14 @@ private:
         sgl_load_identity();
 
         active_ = true;
+        internal::inFboPass = true;
+        internal::currentFboClearPipeline = pipelineClear_;
+        internal::currentFboBlendPipeline = pipelineBlend_;
+        internal::currentFbo = this;
+        internal::fboClearColorFunc = _fboClearColorHelper;
     }
+
+private:
 
     void moveFrom(Fbo&& other) {
         width_ = other.width_;
@@ -307,6 +368,7 @@ private:
         depthAttView_ = other.depthAttView_;
         context_ = other.context_;
         pipelineBlend_ = other.pipelineBlend_;
+        pipelineClear_ = other.pipelineClear_;
 
         other.allocated_ = false;
         other.active_ = false;
@@ -321,10 +383,21 @@ private:
         other.depthAttView_ = {};
         other.context_ = {};
         other.pipelineBlend_ = {};
+        other.pipelineClear_ = {};
     }
 
     // プラットフォーム固有のピクセル読み取り（tcFbo_platform.h で実装）
     bool readPixelsPlatform(unsigned char* pixels) const;
 };
+
+// ---------------------------------------------------------------------------
+// tc::clear() から呼ばれるヘルパー関数
+// ---------------------------------------------------------------------------
+inline void _fboClearColorHelper(float r, float g, float b, float a) {
+    Fbo* fbo = static_cast<Fbo*>(internal::currentFbo);
+    if (fbo) {
+        fbo->clearColor(r, g, b, a);
+    }
+}
 
 } // namespace trussc
