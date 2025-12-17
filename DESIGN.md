@@ -100,6 +100,97 @@ tc::disable3D();  // 2D描画に戻す
 
 ---
 
+## Lighting System（CPU-based Phong）
+
+### 制約と設計判断
+
+sokol_gl は即時モード API であり、以下の制限がある：
+- 法線属性をシェーダーに渡せない
+- カスタムシェーダーが使えない（内蔵シェーダーのみ）
+
+そのため、**CPU 側でライティング計算を行い、結果を頂点カラーに反映する**方式を採用。
+
+### アーキテクチャ
+
+```
+Light + Material + Normal
+        ↓
+  CPU で Phong 計算
+        ↓
+  頂点カラーとして sokol_gl に渡す
+```
+
+### Phong ライティングモデル
+
+```cpp
+finalColor = emission + ambient + diffuse + specular
+
+ambient  = lightAmbient × materialAmbient
+diffuse  = lightDiffuse × materialDiffuse × max(0, N·L)
+specular = lightSpecular × materialSpecular × pow(max(0, R·V), shininess)
+```
+
+- N: 法線ベクトル（正規化）
+- L: ライト方向（正規化）
+- R: 反射ベクトル
+- V: 視線方向（正規化）
+
+### ライトタイプ
+
+| タイプ | 説明 |
+|--------|------|
+| Directional | 平行光源（太陽光）。全頂点に同じ方向から光が当たる |
+| Point | 点光源（電球）。位置から放射状に光り、距離による減衰あり |
+| ~~Spot~~ | 未実装。将来対応予定 |
+
+### マテリアルプリセット
+
+```cpp
+Material::gold()      // 金
+Material::silver()    // 銀
+Material::copper()    // 銅
+Material::bronze()    // 青銅
+Material::emerald()   // エメラルド
+Material::ruby()      // ルビー
+Material::plastic(color)  // プラスチック（任意色）
+Material::rubber(color)   // ゴム（任意色）
+```
+
+### 使用例
+
+```cpp
+void tcApp::setup() {
+    // ライト設定
+    light_.setDirectional(Vec3(-1, -1, -1));
+    light_.setAmbient(0.2f, 0.2f, 0.25f);
+    light_.setDiffuse(1.0f, 1.0f, 0.95f);
+
+    // マテリアル
+    material_ = Material::gold();
+}
+
+void tcApp::draw() {
+    tc::enable3DPerspective(fov, near, far);
+
+    tc::enableLighting();
+    tc::addLight(light_);
+    tc::setMaterial(material_);
+
+    sphere.draw();  // ライティング適用
+
+    tc::disableLighting();
+    tc::disable3D();
+}
+```
+
+### 注意点
+
+- CPU 計算のため、頂点数が多いと負荷が高くなる
+- 1フレームごとに全頂点を再計算する
+- スペキュラー計算には `setCameraPosition()` が必要
+
+---
+
 ## Module / Addon アーキテクチャ
 
 TrussC では機能を「コアモジュール」と「アドオン」の2種類に分けて管理する。

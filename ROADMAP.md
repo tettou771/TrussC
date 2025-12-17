@@ -13,9 +13,10 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 - [x] TrueTypeFont（stb_truetype ベース）
 - [x] Shape API（beginShape/vertex/endShape）
 - [x] Polyline（頂点配列・曲線生成）
-- [x] Mesh（頂点・色・インデックス）
+- [x] Mesh（頂点・色・インデックス・法線）
 - [x] StrokeMesh（太線描画）
 - [x] Scissor Clipping（再帰対応）
+- [x] ブレンドモード（Alpha, Add, Multiply, Screen, Subtract, Disabled）
 
 ### 3D
 - [x] 3D変形（translate/rotate/scale）
@@ -24,6 +25,9 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 - [x] EasyCam（マウス操作3Dカメラ）
 - [x] Node（シーングラフ）
 - [x] RectNode（2D UI、Ray-based Hit Test）
+- [x] ライティング（Ambient, Diffuse, Specular / Phong モデル）
+- [x] マテリアル（プリセット: gold, silver, copper, emerald 等）
+- [x] Light（Directional, Point）
 
 ### Math
 - [x] Vec2, Vec3, Vec4
@@ -40,6 +44,7 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 - [x] Event<T> テンプレート
 - [x] EventListener（RAII）
 - [x] RectNode イベント（mousePressed/Released/Dragged/Scrolled）
+- [x] ドラッグ&ドロップ（ファイル受け取り）
 
 ### GL
 - [x] Shader（フルスクリーンシェーダー）
@@ -50,6 +55,20 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 - [x] Thread, ThreadChannel
 - [x] Serial通信
 - [x] フレーム制御（FPS/VSync）
+- [x] Log（tcLog: Verbose/Notice/Warning/Error/Fatal）
+- [x] JSON / XML（nlohmann/json, pugixml）
+- [x] ファイルダイアログ（OS標準ダイアログ）
+- [x] ネットワーク（TCP/UDP）
+
+### Sound
+- [x] Sound（sokol_audio + dr_libs）
+- [x] SoundStream（オーディオ入力）
+
+### Video
+- [x] VideoGrabber（Webカメラ入力）
+
+### UI
+- [x] Dear ImGui 統合
 
 ---
 
@@ -59,11 +78,7 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 
 | 機能 | 説明 | 難易度 |
 |------|------|--------|
-| **ブレンドモード** | ADD, MULTIPLY, SCREEN 等 | 中 |
-| **ライティング** | Ambient, Diffuse, Specular | 高 |
 | **テクスチャ詳細制御** | NEAREST/LINEAR補間、WRAP/CLAMP | 中 |
-| **ファイルダイアログ** | OS標準のファイル選択ダイアログ | 中 |
-| **Log機能** | 柔軟なログシステム（詳細は下記） | 中 |
 
 ### 優先度: 中
 
@@ -71,8 +86,9 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 |------|------|--------|
 | パス描画（曲線） | ベジェ曲線、円弧 | 中 |
 | 3Dモデル読み込み | obj/gltf | 高 |
-| マテリアル | テクスチャ・法線マップ | 高 |
-| ドラッグ&ドロップ | ファイルD&D受け取り | 低 |
+| テクスチャマッピング | Mesh へのテクスチャ適用 | 中 |
+| 法線マップ | バンプマッピング | 高 |
+| ビデオ再生 | 動画ファイル再生 | 高 |
 
 ### 優先度: 低
 
@@ -81,86 +97,11 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 | VBO詳細制御 | 動的頂点バッファ | 中 |
 | パーティクルシステム | アドオン化も検討 | 中 |
 | タッチ入力 | iOS/Android向け | 高 |
-| ネットワーク | TCP/UDP | 高 |
-
-### 別ワークツリーで進行中
-
-| 機能 | 状態 |
-|------|------|
-| サウンド再生/入力 | 進行中 |
-| VideoGrabber（Webカメラ） | 進行中 |
-| ビデオ再生 | 未着手 |
+| Spot ライト | スポットライト対応 | 中 |
 
 ---
 
 ## 機能設計メモ
-
-### Log機能（tcLog）
-
-oFのofLogをベースに、以下の改良を加える:
-
-```
-設計方針:
-- 複数出力先を同時サポート（Console + File + カスタム）
-- チャンネル（カテゴリ）ごとにログレベルを個別設定
-- リスナーパターンで画面表示等に対応
-```
-
-**API案:**
-```cpp
-// 基本使用
-tc::log(tc::LogLevel::Warning, "Something happened");
-tc::logVerbose("詳細情報");
-tc::logNotice("通知");
-tc::logWarning("警告");
-tc::logError("エラー");
-
-// 出力先追加（複数同時可能）
-tc::Log::addChannel<tc::ConsoleLogChannel>();
-tc::Log::addChannel<tc::FileLogChannel>("app.log");
-tc::Log::addChannel<MyCustomChannel>();  // 画面表示等
-
-// チャンネル別ログレベル設定
-tc::Log::getChannel("console")->setLevel(tc::LogLevel::Notice);
-tc::Log::getChannel("file")->setLevel(tc::LogLevel::Verbose);
-
-// カテゴリ別ログレベル
-tc::Log::setLevelForModule("network", tc::LogLevel::Verbose);
-tc::Log::setLevelForModule("graphics", tc::LogLevel::Warning);
-
-// リスナー（画面表示用など）
-tc::Log::addListener([](const tc::LogMessage& msg) {
-    // 画面にログを表示
-    myLogDisplay.add(msg.text);
-});
-```
-
-**LogLevel:**
-```cpp
-enum class LogLevel {
-    Verbose,  // 詳細デバッグ
-    Notice,   // 通知
-    Warning,  // 警告
-    Error,    // エラー
-    Fatal,    // 致命的エラー
-    Silent    // 出力なし
-};
-```
-
-### ブレンドモード
-
-```cpp
-enum class BlendMode {
-    Alpha,      // デフォルト
-    Add,        // 加算
-    Multiply,   // 乗算
-    Screen,     // スクリーン
-    Subtract,   // 減算
-    Disabled    // ブレンドなし
-};
-
-tc::setBlendMode(tc::BlendMode::Add);
-```
 
 ### テクスチャ詳細制御
 
@@ -194,22 +135,25 @@ img.setWrap(tc::TextureWrap::Repeat);
 | カテゴリ | サンプル |
 |---------|---------|
 | templates/ | emptyExample |
-| graphics/ | graphicsExample, colorExample, clippingExample |
-| 3d/ | ofNodeExample, 3DPrimitivesExample, easyCamExample |
-| math/ | vectorMathExample |
-| events/ | hitTestExample, uiExample |
-| gl/ | screenshotExample（FBO） |
+| graphics/ | graphicsExample, colorExample, clippingExample, blendingExample, fontExample, polylinesExample, strokeMeshExample |
+| 3d/ | ofNodeExample, 3DPrimitivesExample（ライティング込み）, easyCamExample |
+| math/ | vectorMathExample, noiseField2dExample |
+| events/ | eventsExample, hitTestExample, uiExample |
+| gl/ | shaderExample, textureExample |
+| input_output/ | fileDialogExample, imageLoaderExample, screenshotExample, dragDropExample, jsonXmlExample, keyboardExample, mouseExample |
+| sound/ | soundPlayerExample, soundPlayerFFTExample, micInputExample |
+| video/ | videoGrabberExample |
+| network/ | tcpExample, udpExample |
+| communication/ | serialExample |
+| gui/ | imguiExample |
+| threads/ | threadExample, threadChannelExample |
+| windowing/ | loopModeExample |
 
 ### 今後
 
 | カテゴリ | サンプル | 優先度 |
 |---------|---------|--------|
-| graphics/ | fontsExample, blendingExample | 高 |
-| 3d/ | lightingExample | 高 |
-| input_output/ | fileDialogExample | 高 |
-| gl/ | shaderExample, textureExample | 中 |
-| sound/ | soundPlayerExample | 進行中 |
-| video/ | videoCaptureExample | 進行中 |
+| 3d/ | modelLoaderExample | 中 |
 
 ---
 
