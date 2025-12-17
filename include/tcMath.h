@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <random>
 
 // =============================================================================
 // TrussC 数学ライブラリ
@@ -700,5 +701,52 @@ T max(T a, T b) { return (a > b) ? a : b; }
 
 // 絶対値
 inline float abs(float value) { return std::abs(value); }
+
+// =============================================================================
+// 乱数
+// =============================================================================
+
+namespace internal {
+    // スレッドローカルな乱数生成器
+    inline std::mt19937& getRandomEngine() {
+        static thread_local std::mt19937 engine(std::random_device{}());
+        return engine;
+    }
+}
+
+// 0.0 ~ 1.0 の乱数
+inline float random() {
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    return dist(internal::getRandomEngine());
+}
+
+// 0.0 ~ max の乱数
+inline float random(float max) {
+    std::uniform_real_distribution<float> dist(0.0f, max);
+    return dist(internal::getRandomEngine());
+}
+
+// min ~ max の乱数
+inline float random(float min, float max) {
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(internal::getRandomEngine());
+}
+
+// 整数版: 0 ~ max-1 の乱数
+inline int randomInt(int max) {
+    std::uniform_int_distribution<int> dist(0, max - 1);
+    return dist(internal::getRandomEngine());
+}
+
+// 整数版: min ~ max の乱数（両端含む）
+inline int randomInt(int min, int max) {
+    std::uniform_int_distribution<int> dist(min, max);
+    return dist(internal::getRandomEngine());
+}
+
+// シードを設定
+inline void randomSeed(unsigned int seed) {
+    internal::getRandomEngine().seed(seed);
+}
 
 } // namespace trussc
