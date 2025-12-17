@@ -9,29 +9,87 @@
 
 ---
 
-## 1. コマンドライン（cmake 直打ち）
+## 環境変数の設定
 
-最もシンプルな方法。どのプラットフォームでも動く。
+TrussC を使うには `TRUSSC_PATH` 環境変数を設定する。
+
+### フォルダ構造
+
+```
+/path/to/TrussC/           ← TRUSSC_PATH はここを指す
+├── trussc_v0.0.1/         ← バージョンごとのフォルダ
+├── trussc_v0.1.0/
+└── ...
+```
+
+### macOS / Linux
 
 ```bash
-# サンプルのフォルダに移動
-cd examples/graphics/graphicsExample
-
-# build フォルダを作成して移動
-mkdir -p build && cd build
-
-# CMake で構成
-cmake ..
-
-# ビルド
-cmake --build .
-
-# 実行（macOS）
-open ./graphicsExample.app
-
-# 実行（Windows）
-./graphicsExample.exe
+# ~/.zshrc または ~/.bashrc に追加
+export TRUSSC_PATH="/path/to/TrussC"
 ```
+
+設定を反映：
+```bash
+source ~/.zshrc
+```
+
+### Windows
+
+```powershell
+# システム環境変数に追加
+setx TRUSSC_PATH "C:\path\to\TrussC"
+```
+
+または「システムのプロパティ」→「環境変数」から GUI で設定。
+
+---
+
+## 新規プロジェクトの作成
+
+### 1. テンプレートをコピー
+
+```bash
+cp -r /path/to/TrussC/trussc_v0.0.1/examples/templates/emptyExample ~/myProject
+cd ~/myProject
+```
+
+### 2. バージョンを確認・変更（任意）
+
+`CMakeLists.txt` の先頭付近：
+
+```cmake
+set(TRUSSC_VERSION "0.0.1" CACHE STRING "TrussC version to use")
+```
+
+使いたいバージョンに変更可能。
+
+### 3. ビルド
+
+```bash
+mkdir build && cd build
+cmake ..
+cmake --build .
+```
+
+### 4. 実行
+
+```bash
+# macOS
+open bin/myProject.app
+
+# Windows
+./bin/myProject.exe
+
+# Linux
+./bin/myProject
+```
+
+**注意:** 出力先は `bin/` フォルダ（openFrameworks と同じスタイル）。
+
+---
+
+## ビルドオプション
 
 ### リリースビルド
 
@@ -48,95 +106,118 @@ cmake ..
 cmake --build .
 ```
 
----
+### バージョンを cmake コマンドで指定
 
-## 2. VSCode
-
-### 準備
-
-拡張機能をインストール：
 ```bash
-code --install-extension ms-vscode.cmake-tools
-code --install-extension ms-vscode.cpptools
+cmake .. -DTRUSSC_VERSION=0.1.0
 ```
 
-または VSCode 内で `Cmd+Shift+X`（macOS）/ `Ctrl+Shift+X`（Windows）から検索してインストール。
+---
 
-### 使い方
+## アドオンの追加
 
-1. サンプルフォルダを VSCode で開く
-   ```bash
-   code examples/graphics/graphicsExample
-   ```
+`CMakeLists.txt` に1行追加するだけ：
 
-2. CMake Tools が自動で `CMakeLists.txt` を検出
+```cmake
+# TrussC をリンク
+target_link_libraries(${PROJECT_NAME} PRIVATE tc::TrussC)
 
-3. コンパイラを選択（初回のみ）
-   - `Cmd+Shift+P` → `CMake: Select a Kit`
+# アドオンを追加
+use_addon(${PROJECT_NAME} tcxBox2d)
+```
 
-4. ビルド
-   - `Cmd+Shift+P` → `CMake: Build`
-   - または `F7`
-
-5. 実行
-   - `Cmd+Shift+P` → `CMake: Run Without Debugging`
-   - または下部ステータスバーの再生ボタン
+詳しくは [ADDONS.md](ADDONS.md) を参照。
 
 ---
 
-## 3. Xcode（macOS）
+## IDE での開発
+
+### VSCode
+
+1. 拡張機能をインストール：
+   ```bash
+   code --install-extension ms-vscode.cmake-tools
+   code --install-extension ms-vscode.cpptools
+   ```
+
+2. プロジェクトフォルダを開く：
+   ```bash
+   code ~/myProject
+   ```
+
+3. CMake Tools が自動で検出
+
+4. ビルド: `F7` または `Cmd+Shift+P` → `CMake: Build`
+
+5. 実行: `Cmd+Shift+P` → `CMake: Run Without Debugging`
+
+### Xcode（macOS）
 
 ```bash
-cd examples/graphics/graphicsExample
-mkdir -p build && cd build
-
-# Xcode プロジェクトを生成
+cd ~/myProject
+mkdir build && cd build
 cmake -G Xcode ..
-
-# Xcode で開く
 open *.xcodeproj
 ```
 
 Xcode 内で `Cmd+R` で実行。
 
----
-
-## 4. Visual Studio（Windows）
+### Visual Studio（Windows）
 
 ```bash
-cd examples\graphics\graphicsExample
+cd myProject
 mkdir build && cd build
-
-# Visual Studio プロジェクトを生成
 cmake -G "Visual Studio 17 2022" ..
-
-# Visual Studio で開く
 start *.sln
 ```
 
 Visual Studio 内で `F5` で実行。
 
----
+### CLion
 
-## 5. CLion
-
-1. CLion でサンプルフォルダを開く
+1. CLion でプロジェクトフォルダを開く
 2. 自動で CMake を認識
 3. 右上の再生ボタンでビルド & 実行
 
 ---
 
-## 全サンプル一括ビルド
+## TrussC 同梱サンプルのビルド
 
-プロジェクトルートにビルドスクリプトがある場合：
+TrussC に同梱されているサンプルをビルドする場合（開発者向け）：
 
 ```bash
-./build_all_examples.sh
+cd /path/to/TrussC/trussc_v0.0.1/examples/graphics/graphicsExample
+mkdir build && cd build
+cmake ..
+cmake --build .
+open bin/graphicsExample.app
 ```
 
 ---
 
 ## トラブルシューティング
+
+### TRUSSC_PATH が設定されていない
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║   ERROR: TRUSSC_PATH environment variable is not set!           ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+→ 環境変数を設定して、ターミナルを再起動。
+
+### 指定したバージョンが見つからない
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║   ERROR: TrussC v0.0.1 not found!                               ║
+║   Available versions in /path/to/TrussC:                        ║
+║     - trussc_v0.0.1                                             ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+→ CMakeLists.txt の `TRUSSC_VERSION` を利用可能なバージョンに変更。
 
 ### CMake が見つからない
 
