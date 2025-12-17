@@ -49,6 +49,7 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 ### GL
 - [x] Shader（フルスクリーンシェーダー）
 - [x] FBO（フレームバッファオブジェクト）
+- [x] テクスチャ詳細制御（Filter: Nearest/Linear、Wrap: Repeat/MirroredRepeat/ClampToEdge）
 
 ### Utils
 - [x] Timer（Node::addTimerFunction）
@@ -74,12 +75,6 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 
 ## 未実装機能（優先度別）
 
-### 優先度: 高
-
-| 機能 | 説明 | 難易度 |
-|------|------|--------|
-| **テクスチャ詳細制御** | NEAREST/LINEAR補間、WRAP/CLAMP | 中 |
-
 ### 優先度: 中
 
 | 機能 | 説明 | 難易度 |
@@ -98,33 +93,6 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 | パーティクルシステム | アドオン化も検討 | 中 |
 | タッチ入力 | iOS/Android向け | 高 |
 | Spot ライト | スポットライト対応 | 中 |
-
----
-
-## 機能設計メモ
-
-### テクスチャ詳細制御
-
-```cpp
-// 補間モード
-enum class TextureFilter {
-    Nearest,    // ドット絵向け
-    Linear      // デフォルト
-};
-
-// ラップモード
-enum class TextureWrap {
-    Repeat,
-    ClampToEdge,
-    MirroredRepeat
-};
-
-// 使用例
-tc::Image img;
-img.setMinFilter(tc::TextureFilter::Nearest);
-img.setMagFilter(tc::TextureFilter::Nearest);
-img.setWrap(tc::TextureWrap::Repeat);
-```
 
 ---
 

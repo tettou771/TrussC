@@ -234,7 +234,7 @@ void TcpServer::clientThreadFunc(int clientId) {
     }
 
     while (running_) {
-        int received = recv(clientSocket, buffer.data(), (int)buffer.size(), 0);
+        int received = static_cast<int>(recv(clientSocket, buffer.data(), buffer.size(), 0));
 
         if (received > 0) {
             TcpServerReceiveEventArgs args;
@@ -371,7 +371,7 @@ bool TcpServer::send(int clientId, const void* data, size_t size) {
     size_t remaining = size;
 
     while (remaining > 0) {
-        int sent = ::send(it->second.socket, ptr, (int)remaining, 0);
+        int sent = static_cast<int>(::send(it->second.socket, ptr, remaining, 0));
         if (sent == SOCKET_ERROR) {
             notifyError("Send failed", SOCKET_ERROR_CODE, clientId);
             return false;

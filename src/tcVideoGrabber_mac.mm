@@ -129,11 +129,12 @@ std::vector<VideoDeviceInfo> VideoGrabber::listDevicesPlatform() {
     @autoreleasepool {
         NSArray<AVCaptureDevice*>* avDevices = nil;
 
-        // macOS 14.0+ では AVCaptureDeviceTypeExternal を使用
+        // macOS 14.0+ では AVCaptureDeviceTypeExternal と AVCaptureDeviceTypeContinuityCamera を使用
         if (@available(macOS 14.0, *)) {
             NSArray<AVCaptureDeviceType>* deviceTypes = @[
                 AVCaptureDeviceTypeBuiltInWideAngleCamera,
-                AVCaptureDeviceTypeExternal
+                AVCaptureDeviceTypeExternal,
+                AVCaptureDeviceTypeContinuityCamera
             ];
             AVCaptureDeviceDiscoverySession* discoverySession =
                 [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceTypes
@@ -187,11 +188,12 @@ bool VideoGrabber::setupPlatform() {
 
         // デバイスを取得
         NSArray<AVCaptureDevice*>* devices = nil;
-        // macOS 14.0+ では AVCaptureDeviceTypeExternal を使用
+        // macOS 14.0+ では AVCaptureDeviceTypeExternal と AVCaptureDeviceTypeContinuityCamera を使用
         if (@available(macOS 14.0, *)) {
             NSArray<AVCaptureDeviceType>* deviceTypes = @[
                 AVCaptureDeviceTypeBuiltInWideAngleCamera,
-                AVCaptureDeviceTypeExternal
+                AVCaptureDeviceTypeExternal,
+                AVCaptureDeviceTypeContinuityCamera
             ];
             AVCaptureDeviceDiscoverySession* discoverySession =
                 [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceTypes
