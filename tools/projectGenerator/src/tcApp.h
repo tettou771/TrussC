@@ -29,12 +29,14 @@ private:
     vector<string> versions;            // 利用可能なバージョン
     vector<string> addons;              // 利用可能なアドオン
     vector<int> addonSelected;          // アドオン選択状態 (0/1)
-    IdeType ideType = IdeType::CMakeOnly;
+    IdeType ideType = IdeType::VSCode;  // デフォルトは VSCode
 
     // UI 状態
     bool showSetupDialog = false;       // TC_PATH 設定ダイアログ
     string statusMessage;               // ステータスメッセージ
     bool statusIsError = false;
+    bool isImportedProject = false;     // インポートされたプロジェクトかどうか
+    string importedProjectPath;         // インポートされたプロジェクトのパス
 
     // 設定ファイル
     string configPath;
@@ -50,8 +52,11 @@ private:
     void scanVersions();
     void scanAddons();
     bool generateProject();
+    bool updateProject();
+    void importProject(const string& path);
     void generateVSCodeFiles(const string& path);
     void generateXcodeProject(const string& path);
     string getTemplatePath();
     void setStatus(const string& msg, bool isError = false);
+    void resetToNewProject();
 };

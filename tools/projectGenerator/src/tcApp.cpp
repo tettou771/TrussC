@@ -39,6 +39,14 @@ void tcApp::setup() {
         projectDir = home + "/Projects";
     }
     strncpy(projectDirBuf, projectDir.c_str(), sizeof(projectDirBuf) - 1);
+
+    // 前回のプロジェクトが既存なら自動で Update モードに
+    if (!projectDir.empty() && !projectName.empty()) {
+        string lastProjectPath = projectDir + "/" + projectName;
+        if (fs::exists(lastProjectPath + "/CMakeLists.txt")) {
+            importProject(lastProjectPath);
+        }
+    }
 }
 
 void tcApp::draw() {
@@ -109,22 +117,47 @@ void tcApp::draw() {
 
     // プロジェクト名
     ImGui::Text("Project Name");
-    ImGui::SetNextItemWidth(-1);
+    ImGui::SetNextItemWidth(-80);
+    if (isImportedProject) {
+        ImGui::BeginDisabled();
+    }
     ImGui::InputText("##projectName", projectNameBuf, sizeof(projectNameBuf));
+    if (isImportedProject) {
+        ImGui::EndDisabled();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Import")) {
+        auto result = loadDialog("Select existing project", true);
+        if (result.success) {
+            importProject(result.filePath);
+        }
+    }
 
     ImGui::Spacing();
 
     // 保存先
     ImGui::Text("Location");
     ImGui::SetNextItemWidth(-80);
+    if (isImportedProject) {
+        ImGui::BeginDisabled();
+    }
     ImGui::InputText("##projectDir", projectDirBuf, sizeof(projectDirBuf));
+    if (isImportedProject) {
+        ImGui::EndDisabled();
+    }
     ImGui::SameLine();
-    if (ImGui::Button("Browse##dir")) {
-        auto result = loadDialog("Select project location", true);
-        if (result.success) {
-            strncpy(projectDirBuf, result.filePath.c_str(), sizeof(projectDirBuf) - 1);
-            projectDir = projectDirBuf;
-            saveConfig();
+    if (isImportedProject) {
+        if (ImGui::Button("New")) {
+            resetToNewProject();
+        }
+    } else {
+        if (ImGui::Button("Browse##dir")) {
+            auto result = loadDialog("Select project location", true);
+            if (result.success) {
+                strncpy(projectDirBuf, result.filePath.c_str(), sizeof(projectDirBuf) - 1);
+                projectDir = projectDirBuf;
+                saveConfig();
+            }
         }
     }
 
@@ -179,29 +212,40 @@ void tcApp::draw() {
     int ideIndex = static_cast<int>(ideType);
     if (ImGui::Combo("##ide", &ideIndex, ideItems, 3)) {
         ideType = static_cast<IdeType>(ideIndex);
+        saveConfig();  // IDE 変更時に保存
     }
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
-    // 生成ボタン
-    if (ImGui::Button("Generate Project", ImVec2(-1, 40))) {
-        projectName = projectNameBuf;
-        projectDir = projectDirBuf;
-        if (generateProject()) {
-            setStatus("Project created successfully!");
+    // 生成/更新ボタン
+    if (isImportedProject) {
+        if (ImGui::Button("Update Project", ImVec2(-1, 40))) {
+            if (updateProject()) {
+                setStatus("Project updated successfully!");
+            }
+        }
+    } else {
+        if (ImGui::Button("Generate Project", ImVec2(-1, 40))) {
+            projectName = projectNameBuf;
+            projectDir = projectDirBuf;
+            if (generateProject()) {
+                setStatus("Project created successfully!");
+            }
         }
     }
 
-    // ステータスメッセージ
+    // ステータスメッセージ（ウィンドウ幅-10pxで折り返し）
     if (!statusMessage.empty()) {
         ImGui::Spacing();
+        ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - 10);
         if (statusIsError) {
             ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "%s", statusMessage.c_str());
         } else {
             ImGui::TextColored(ImVec4(0.4f, 1, 0.4f, 1), "%s", statusMessage.c_str());
         }
+        ImGui::PopTextWrapPos();
     }
 
     // TC_PATH 設定ボタン（下部）
@@ -234,6 +278,13 @@ void tcApp::loadConfig() {
     if (config.contains("last_project_dir")) {
         projectDir = config["last_project_dir"].get<string>();
     }
+    if (config.contains("last_project_name")) {
+        projectName = config["last_project_name"].get<string>();
+        strncpy(projectNameBuf, projectName.c_str(), sizeof(projectNameBuf) - 1);
+    }
+    if (config.contains("ide_type")) {
+        ideType = static_cast<IdeType>(config["ide_type"].get<int>());
+    }
 }
 
 void tcApp::saveConfig() {
@@ -246,6 +297,8 @@ void tcApp::saveConfig() {
     Json config;
     config["tc_path"] = tcPath;
     config["last_project_dir"] = projectDir;
+    config["last_project_name"] = projectName;
+    config["ide_type"] = static_cast<int>(ideType);
     saveJson(config, configPath);
 }
 
@@ -352,7 +405,7 @@ bool tcApp::generateProject() {
                      fs::copy_options::recursive);
         }
 
-        // CMakeLists.txt を書き換え
+        // CMakeLists.txt を書き換え（TC_ROOT を直接設定）
         string cmakePath = destPath + "/CMakeLists.txt";
         ifstream inFile(cmakePath);
         stringstream buffer;
@@ -361,33 +414,28 @@ bool tcApp::generateProject() {
 
         string content = buffer.str();
 
-        // バージョン書き換え（tc_v0.0.1 → 選択したバージョン）
-        string versionNum = versions[selectedVersion].substr(4); // "tc_v0.0.1" → "0.0.1"
-        size_t pos = content.find("TC_VERSION \"0.0.1\"");
+        // TC_ROOT を直接設定（環境変数不要に）
+        string tcRoot = tcPath + "/" + versions[selectedVersion];
+        size_t pos = content.find("set(TC_ROOT \"\"");
         if (pos != string::npos) {
-            content.replace(pos, 18, "TC_VERSION \"" + versionNum + "\"");
-        }
-
-        // アドオン追加
-        string addonLines;
-        for (size_t i = 0; i < addons.size(); i++) {
-            if (addonSelected[i]) {
-                addonLines += "use_addon(${PROJECT_NAME} " + addons[i] + ")\n";
-            }
-        }
-
-        if (!addonLines.empty()) {
-            // コメントアウトされた use_addon を置き換え
-            pos = content.find("# use_addon(${PROJECT_NAME} tcxBox2d)");
-            if (pos != string::npos) {
-                content.replace(pos, 37, addonLines);
-            }
+            content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
         }
 
         // 書き戻し
         ofstream outFile(cmakePath);
         outFile << content;
         outFile.close();
+
+        // addons.make を生成
+        string addonsMakePath = destPath + "/addons.make";
+        ofstream addonsFile(addonsMakePath);
+        addonsFile << "# TrussC addons - one addon per line\n";
+        for (size_t i = 0; i < addons.size(); i++) {
+            if (addonSelected[i]) {
+                addonsFile << addons[i] << "\n";
+            }
+        }
+        addonsFile.close();
 
         // IDE 固有のファイル生成
         if (ideType == IdeType::VSCode) {
@@ -434,19 +482,183 @@ void tcApp::generateVSCodeFiles(const string& path) {
 }
 
 void tcApp::generateXcodeProject(const string& path) {
-    // build フォルダを作成して cmake -G Xcode を実行
+    // build フォルダを削除して cmake -G Xcode を実行
+    // （既存の CMakeCache があると Xcode ジェネレータに切り替えられないため）
     string buildPath = path + "/build";
+    if (fs::exists(buildPath)) {
+        fs::remove_all(buildPath);
+    }
     fs::create_directories(buildPath);
 
-    string cmd = "cd \"" + buildPath + "\" && cmake -G Xcode ..";
+    // GUI アプリから実行すると PATH が通ってないので cmake のフルパスを使用
+    // TC_ROOT は CMakeLists.txt に直接書いてあるので環境変数不要
+    string cmd = "cd \"" + buildPath + "\" && /opt/homebrew/bin/cmake -G Xcode ..";
+    tcLog() << "Xcode cmd: " << cmd;
     int result = system(cmd.c_str());
 
     if (result != 0) {
-        tcLogWarning() << "Failed to generate Xcode project";
+        tcLogWarning() << "Failed to generate Xcode project (exit code: " << result << ")";
     }
 }
 
 void tcApp::setStatus(const string& msg, bool isError) {
     statusMessage = msg;
     statusIsError = isError;
+}
+
+void tcApp::importProject(const string& path) {
+    // CMakeLists.txt が存在するか確認
+    string cmakePath = path + "/CMakeLists.txt";
+    if (!fs::exists(cmakePath)) {
+        setStatus("Not a valid TrussC project (CMakeLists.txt not found)", true);
+        return;
+    }
+
+    // CMakeLists.txt を解析
+    ifstream inFile(cmakePath);
+    stringstream buffer;
+    buffer << inFile.rdbuf();
+    inFile.close();
+    string content = buffer.str();
+
+    // プロジェクト名を取得（フォルダ名）
+    projectName = fs::path(path).filename().string();
+    strncpy(projectNameBuf, projectName.c_str(), sizeof(projectNameBuf) - 1);
+
+    // 保存先を設定
+    projectDir = fs::path(path).parent_path().string();
+    strncpy(projectDirBuf, projectDir.c_str(), sizeof(projectDirBuf) - 1);
+
+    // バージョンを解析 (TC_ROOT からバージョンを抽出)
+    // 形式: set(TC_ROOT "/path/to/tc_v0.0.1"
+    size_t pos = content.find("set(TC_ROOT \"");
+    if (pos != string::npos) {
+        size_t start = pos + 13;
+        size_t end = content.find("\"", start);
+        if (end != string::npos) {
+            string tcRootPath = content.substr(start, end - start);
+            // パスから tc_vX.X.X を抽出
+            size_t lastSlash = tcRootPath.rfind('/');
+            if (lastSlash != string::npos) {
+                string version = tcRootPath.substr(lastSlash + 1);
+                for (int i = 0; i < (int)versions.size(); i++) {
+                    if (versions[i] == version) {
+                        selectedVersion = i;
+                        scanAddons();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // addons.make からアドオンを読み込み
+    for (size_t i = 0; i < addons.size(); i++) {
+        addonSelected[i] = 0;
+    }
+
+    string addonsMakePath = path + "/addons.make";
+    if (fs::exists(addonsMakePath)) {
+        ifstream addonsFile(addonsMakePath);
+        string line;
+        while (getline(addonsFile, line)) {
+            // 空白を除去
+            size_t start = line.find_first_not_of(" \t");
+            if (start == string::npos) continue;
+            size_t end = line.find_last_not_of(" \t\r\n");
+            string addonName = line.substr(start, end - start + 1);
+
+            // コメント行をスキップ
+            if (addonName.empty() || addonName[0] == '#') continue;
+
+            // アドオンリストから探して選択
+            for (size_t i = 0; i < addons.size(); i++) {
+                if (addons[i] == addonName) {
+                    addonSelected[i] = 1;
+                    break;
+                }
+            }
+        }
+        addonsFile.close();
+    }
+
+    // インポート状態を設定
+    isImportedProject = true;
+    importedProjectPath = path;
+    setStatus("Project imported: " + projectName);
+}
+
+bool tcApp::updateProject() {
+    if (!isImportedProject || importedProjectPath.empty()) {
+        setStatus("No project imported", true);
+        return false;
+    }
+
+    string cmakePath = importedProjectPath + "/CMakeLists.txt";
+    if (!fs::exists(cmakePath)) {
+        setStatus("CMakeLists.txt not found", true);
+        return false;
+    }
+
+    try {
+        // テンプレートから新しい CMakeLists.txt を読み込み
+        string templatePath = getTemplatePath();
+        string templateCmakePath = templatePath + "/CMakeLists.txt";
+
+        ifstream inFile(templateCmakePath);
+        stringstream buffer;
+        buffer << inFile.rdbuf();
+        inFile.close();
+        string content = buffer.str();
+
+        // TC_ROOT を直接設定
+        string tcRoot = tcPath + "/" + versions[selectedVersion];
+        size_t pos = content.find("set(TC_ROOT \"\"");
+        if (pos != string::npos) {
+            content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
+        }
+
+        // 書き戻し
+        ofstream outFile(cmakePath);
+        outFile << content;
+        outFile.close();
+
+        // addons.make を更新
+        string addonsMakePath = importedProjectPath + "/addons.make";
+        ofstream addonsFile(addonsMakePath);
+        addonsFile << "# TrussC addons - one addon per line\n";
+        for (size_t i = 0; i < addons.size(); i++) {
+            if (addonSelected[i]) {
+                addonsFile << addons[i] << "\n";
+            }
+        }
+        addonsFile.close();
+
+        // IDE 固有のファイル生成
+        if (ideType == IdeType::VSCode) {
+            generateVSCodeFiles(importedProjectPath);
+        } else if (ideType == IdeType::Xcode) {
+            generateXcodeProject(importedProjectPath);
+        }
+
+        return true;
+
+    } catch (const exception& e) {
+        setStatus(string("Error: ") + e.what(), true);
+        return false;
+    }
+}
+
+void tcApp::resetToNewProject() {
+    isImportedProject = false;
+    importedProjectPath = "";
+    projectName = "myProject";
+    strncpy(projectNameBuf, projectName.c_str(), sizeof(projectNameBuf) - 1);
+
+    // アドオン選択をリセット
+    for (size_t i = 0; i < addonSelected.size(); i++) {
+        addonSelected[i] = 0;
+    }
+
+    setStatus("");
 }
