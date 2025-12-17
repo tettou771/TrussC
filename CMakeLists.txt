@@ -48,6 +48,8 @@ if(TC_PLATFORM_MACOS)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcSound_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcAudio_impl.cpp
     )
 elseif(TC_PLATFORM_WINDOWS)
     add_library(TrussC STATIC
@@ -59,6 +61,8 @@ elseif(TC_PLATFORM_WINDOWS)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcSound_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcAudio_impl.cpp
     )
 elseif(TC_PLATFORM_LINUX)
     add_library(TrussC STATIC
@@ -70,6 +74,8 @@ elseif(TC_PLATFORM_LINUX)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcSound_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcAudio_impl.cpp
     )
 else()
     add_library(TrussC STATIC
@@ -80,6 +86,8 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcSound_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcAudio_impl.cpp
     )
 endif()
 

@@ -1608,5 +1608,8 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 #include "tc/network/tcTcpClient.h"
 #include "tc/network/tcTcpServer.h"
 
+// TrussC サウンド
+#include "tc/sound/tcSound.h"
+
 // 短縮エイリアス
 namespace tc = trussc;
