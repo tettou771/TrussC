@@ -1576,5 +1576,10 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 // TrussC EasyCam（3Dカメラ）
 #include "tc/3d/tcEasyCam.h"
 
+// TrussC ネットワーク
+#include "tc/network/tcUdpSocket.h"
+#include "tc/network/tcTcpClient.h"
+#include "tc/network/tcTcpServer.h"
+
 // 短縮エイリアス
 namespace tc = trussc;

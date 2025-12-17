@@ -42,23 +42,35 @@ if(TC_PLATFORM_MACOS)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFbo_mac.mm
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcVideoGrabber_mac.mm
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_mac.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
     )
 elseif(TC_PLATFORM_WINDOWS)
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_win.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
     )
 elseif(TC_PLATFORM_LINUX)
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_linux.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
     )
 else()
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
     )
 endif()
@@ -178,4 +190,10 @@ function(trussc_setup_icon TARGET_NAME)
         MACOSX_PACKAGE_LOCATION "Resources"
     )
     target_sources(${TARGET_NAME} PRIVATE "${APP_ICNS}")
+
+    # ビルド後に quarantine 属性を削除（Finder からダブルクリックで開けるように）
+    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+        COMMAND xattr -cr "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>"
+        COMMENT "Removing quarantine attribute from ${TARGET_NAME}.app"
+    )
 endfunction()
