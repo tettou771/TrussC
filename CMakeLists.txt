@@ -42,6 +42,9 @@ if(TC_PLATFORM_MACOS)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFbo_mac.mm
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcVideoGrabber_mac.mm
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_mac.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.mm
@@ -50,6 +53,9 @@ elseif(TC_PLATFORM_WINDOWS)
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_win.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.cpp
@@ -58,6 +64,9 @@ elseif(TC_PLATFORM_LINUX)
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_linux.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.cpp
@@ -65,6 +74,9 @@ elseif(TC_PLATFORM_LINUX)
 else()
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpServer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/stb_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pugixml_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl.cpp

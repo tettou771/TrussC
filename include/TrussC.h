@@ -1603,5 +1603,10 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 // TrussC ImGui 統合
 #include "tc/gui/tcImGui.h"
 
+// TrussC ネットワーク
+#include "tc/network/tcUdpSocket.h"
+#include "tc/network/tcTcpClient.h"
+#include "tc/network/tcTcpServer.h"
+
 // 短縮エイリアス
 namespace tc = trussc;
