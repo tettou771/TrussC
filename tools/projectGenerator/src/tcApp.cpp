@@ -5,11 +5,16 @@
 #include "tcApp.h"
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 namespace fs = std::filesystem;
 
 void tcApp::setup() {
     imguiSetup();
+
+    // 省電力モード: update は 30fps、draw はイベント駆動
+    tc::setUpdateFps(30);
+    tc::setDrawFps(0);  // 自動描画停止
 
     // 設定ファイルパス (~/.trussc/config.json)
     string home = getenv("HOME") ? getenv("HOME") : "";
@@ -47,6 +52,33 @@ void tcApp::setup() {
             importProject(lastProjectPath);
         }
     }
+
+    // 初回描画
+    tc::redraw();
+}
+
+void tcApp::update() {
+    // 生成中は毎フレーム再描画（明滅アニメーション用）
+    if (isGenerating) {
+        tc::redraw();
+    }
+}
+
+// マウスイベントで再描画
+void tcApp::mousePressed(int x, int y, int button) {
+    tc::redraw();
+}
+
+void tcApp::mouseReleased(int x, int y, int button) {
+    tc::redraw();
+}
+
+void tcApp::mouseMoved(int x, int y) {
+    tc::redraw();
+}
+
+void tcApp::mouseDragged(int x, int y, int button) {
+    tc::redraw();
 }
 
 void tcApp::draw() {
@@ -220,20 +252,40 @@ void tcApp::draw() {
     ImGui::Spacing();
 
     // 生成/更新ボタン
-    if (isImportedProject) {
+    if (isGenerating) {
+        // 生成中: 明滅するボタン
+        float t = tc::getElapsedTime();
+        float pulse = 0.5f + 0.3f * sinf(t * 4.0f);  // 明滅
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, pulse));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.4f, 0.8f, pulse));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f, 0.4f, 0.8f, pulse));
+        ImGui::Button("Generating...", ImVec2(-1, 40));
+        ImGui::PopStyleColor(3);
+    } else if (isImportedProject) {
         if (ImGui::Button("Update Project", ImVec2(-1, 40))) {
-            if (updateProject()) {
-                setStatus("Project updated successfully!");
-            }
+            startUpdate();
         }
     } else {
         if (ImGui::Button("Generate Project", ImVec2(-1, 40))) {
             projectName = projectNameBuf;
             projectDir = projectDirBuf;
-            if (generateProject()) {
-                setStatus("Project created successfully!");
-            }
+            startGenerate();
         }
+    }
+
+    // 生成ログ表示
+    if (isGenerating || !generatingLog.empty()) {
+        ImGui::Spacing();
+        ImGui::BeginChild("##log", ImVec2(0, 85), true);
+        lock_guard<mutex> lock(logMutex);
+        ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - 10);
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "%s", generatingLog.c_str());
+        ImGui::PopTextWrapPos();
+        // 自動スクロール（一番下へ）
+        if (isGenerating) {
+            ImGui::SetScrollHereY(1.0f);
+        }
+        ImGui::EndChild();
     }
 
     // ステータスメッセージ（ウィンドウ幅-10pxで折り返し）
@@ -661,4 +713,239 @@ void tcApp::resetToNewProject() {
     }
 
     setStatus("");
+}
+
+void tcApp::startGenerate() {
+    if (isGenerating) return;
+
+    isGenerating = true;
+    setStatus("");  // 前回のステータスをクリア
+    {
+        lock_guard<mutex> lock(logMutex);
+        generatingLog = "Starting project generation...";
+    }
+
+    // スレッドで実行
+    thread([this]() {
+        doGenerateProject();
+        isGenerating = false;
+    }).detach();
+}
+
+void tcApp::startUpdate() {
+    if (isGenerating) return;
+
+    isGenerating = true;
+    setStatus("");  // 前回のステータスをクリア
+    {
+        lock_guard<mutex> lock(logMutex);
+        generatingLog = "Starting project update...";
+    }
+
+    // スレッドで実行
+    thread([this]() {
+        doUpdateProject();
+        isGenerating = false;
+    }).detach();
+}
+
+void tcApp::doGenerateProject() {
+    auto log = [this](const string& msg) {
+        lock_guard<mutex> lock(logMutex);
+        generatingLog += msg + "\n";
+        tc::redraw();
+    };
+
+    // バリデーション
+    if (projectName.empty()) {
+        log("Error: Project name is required");
+        setStatus("Project name is required", true);
+        return;
+    }
+
+    if (projectDir.empty()) {
+        log("Error: Location is required");
+        setStatus("Location is required", true);
+        return;
+    }
+
+    if (versions.empty()) {
+        log("Error: No TrussC version available");
+        setStatus("No TrussC version available", true);
+        return;
+    }
+
+    string templatePath = getTemplatePath();
+    if (!fs::exists(templatePath)) {
+        log("Error: Template not found");
+        setStatus("Template not found", true);
+        return;
+    }
+
+    // プロジェクトパス（末尾のスラッシュを除去）
+    string projDir = projectDir;
+    while (!projDir.empty() && projDir.back() == '/') {
+        projDir.pop_back();
+    }
+    string destPath = projDir + "/" + projectName;
+
+    // 既存チェック
+    if (fs::exists(destPath)) {
+        log("Error: Project already exists");
+        setStatus("Project already exists", true);
+        return;
+    }
+
+    try {
+        log("Creating project directory...");
+
+        // 親ディレクトリを作成
+        fs::create_directories(projDir);
+
+        // テンプレートをコピー（build, bin フォルダは除外）
+        fs::create_directories(destPath);
+        for (const auto& entry : fs::directory_iterator(templatePath)) {
+            string name = entry.path().filename().string();
+            if (name == "build" || name == "bin") {
+                continue;  // スキップ
+            }
+            fs::copy(entry.path(), destPath / entry.path().filename(),
+                     fs::copy_options::recursive);
+        }
+
+        log("Configuring CMakeLists.txt...");
+
+        // CMakeLists.txt を書き換え（TC_ROOT を直接設定）
+        string cmakePath = destPath + "/CMakeLists.txt";
+        ifstream inFile(cmakePath);
+        stringstream buffer;
+        buffer << inFile.rdbuf();
+        inFile.close();
+
+        string content = buffer.str();
+
+        // TC_ROOT を直接設定（環境変数不要に）
+        string tcRoot = tcPath + "/" + versions[selectedVersion];
+        size_t pos = content.find("set(TC_ROOT \"\"");
+        if (pos != string::npos) {
+            content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
+        }
+
+        // 書き戻し
+        ofstream outFile(cmakePath);
+        outFile << content;
+        outFile.close();
+
+        log("Creating addons.make...");
+
+        // addons.make を生成
+        string addonsMakePath = destPath + "/addons.make";
+        ofstream addonsFile(addonsMakePath);
+        addonsFile << "# TrussC addons - one addon per line\n";
+        for (size_t i = 0; i < addons.size(); i++) {
+            if (addonSelected[i]) {
+                addonsFile << addons[i] << "\n";
+            }
+        }
+        addonsFile.close();
+
+        // IDE 固有のファイル生成
+        if (ideType == IdeType::VSCode) {
+            log("Generating VSCode files...");
+            generateVSCodeFiles(destPath);
+        } else if (ideType == IdeType::Xcode) {
+            log("Generating Xcode project (this may take a while)...");
+            generateXcodeProject(destPath);
+        }
+
+        log("Done!");
+        saveConfig();
+        setStatus("Project created successfully!");
+        tc::redraw();  // 完了時に再描画
+
+    } catch (const exception& e) {
+        log(string("Error: ") + e.what());
+        setStatus(string("Error: ") + e.what(), true);
+        tc::redraw();  // エラー時も再描画
+    }
+}
+
+void tcApp::doUpdateProject() {
+    auto log = [this](const string& msg) {
+        lock_guard<mutex> lock(logMutex);
+        generatingLog += msg + "\n";
+        tc::redraw();
+    };
+
+    if (!isImportedProject || importedProjectPath.empty()) {
+        log("Error: No project imported");
+        setStatus("No project imported", true);
+        return;
+    }
+
+    string cmakePath = importedProjectPath + "/CMakeLists.txt";
+    if (!fs::exists(cmakePath)) {
+        log("Error: CMakeLists.txt not found");
+        setStatus("CMakeLists.txt not found", true);
+        return;
+    }
+
+    try {
+        log("Reading template...");
+
+        // テンプレートから新しい CMakeLists.txt を読み込み
+        string templatePath = getTemplatePath();
+        string templateCmakePath = templatePath + "/CMakeLists.txt";
+
+        ifstream inFile(templateCmakePath);
+        stringstream buffer;
+        buffer << inFile.rdbuf();
+        inFile.close();
+        string content = buffer.str();
+
+        log("Configuring CMakeLists.txt...");
+
+        // TC_ROOT を直接設定
+        string tcRoot = tcPath + "/" + versions[selectedVersion];
+        size_t pos = content.find("set(TC_ROOT \"\"");
+        if (pos != string::npos) {
+            content.replace(pos, 14, "set(TC_ROOT \"" + tcRoot + "\"");
+        }
+
+        // 書き戻し
+        ofstream outFile(cmakePath);
+        outFile << content;
+        outFile.close();
+
+        log("Updating addons.make...");
+
+        // addons.make を更新
+        string addonsMakePath = importedProjectPath + "/addons.make";
+        ofstream addonsFile(addonsMakePath);
+        addonsFile << "# TrussC addons - one addon per line\n";
+        for (size_t i = 0; i < addons.size(); i++) {
+            if (addonSelected[i]) {
+                addonsFile << addons[i] << "\n";
+            }
+        }
+        addonsFile.close();
+
+        // IDE 固有のファイル生成
+        if (ideType == IdeType::VSCode) {
+            log("Generating VSCode files...");
+            generateVSCodeFiles(importedProjectPath);
+        } else if (ideType == IdeType::Xcode) {
+            log("Generating Xcode project (this may take a while)...");
+            generateXcodeProject(importedProjectPath);
+        }
+
+        log("Done!");
+        setStatus("Project updated successfully!");
+        tc::redraw();  // 完了時に再描画
+
+    } catch (const exception& e) {
+        log(string("Error: ") + e.what());
+        setStatus(string("Error: ") + e.what(), true);
+        tc::redraw();  // エラー時も再描画
+    }
 }

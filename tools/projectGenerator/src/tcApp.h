@@ -1,8 +1,10 @@
 #pragma once
 
 #include "tcBaseApp.h"
+#include "tc/utils/tcThread.h"
 #include <vector>
 #include <string>
+#include <atomic>
 
 using namespace trussc;
 using namespace std;
@@ -17,8 +19,15 @@ enum class IdeType {
 class tcApp : public tc::App {
 public:
     void setup() override;
+    void update() override;
     void draw() override;
     void cleanup() override;
+
+    // マウスイベント（redraw 用）
+    void mousePressed(int x, int y, int button) override;
+    void mouseReleased(int x, int y, int button) override;
+    void mouseMoved(int x, int y) override;
+    void mouseDragged(int x, int y, int button) override;
 
 private:
     // 設定
@@ -37,6 +46,15 @@ private:
     bool statusIsError = false;
     bool isImportedProject = false;     // インポートされたプロジェクトかどうか
     string importedProjectPath;         // インポートされたプロジェクトのパス
+
+    // 生成スレッド
+    atomic<bool> isGenerating{false};   // 生成中フラグ
+    string generatingLog;               // 生成ログ
+    mutex logMutex;                     // ログ用ミューテックス
+    void startGenerate();               // 生成開始
+    void startUpdate();                 // 更新開始
+    void doGenerateProject();           // スレッドで実行される生成処理
+    void doUpdateProject();             // スレッドで実行される更新処理
 
     // 設定ファイル
     string configPath;
