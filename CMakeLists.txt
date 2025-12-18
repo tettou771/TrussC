@@ -2,7 +2,13 @@
 # クロスプラットフォーム対応のクリエイティブコーディングフレームワーク
 
 cmake_minimum_required(VERSION 3.20)
-project(TrussC VERSION 0.0.1 LANGUAGES C CXX OBJC OBJCXX)
+
+# プラットフォームに応じて言語を設定（OBJC/OBJCXX は macOS のみ）
+if(APPLE)
+    project(TrussC VERSION 0.0.1 LANGUAGES C CXX OBJC OBJCXX)
+else()
+    project(TrussC VERSION 0.0.1 LANGUAGES C CXX)
+endif()
 
 # C++20 を使用
 set(CMAKE_CXX_STANDARD 20)
@@ -69,6 +75,9 @@ if(TC_PLATFORM_MACOS)
 elseif(TC_PLATFORM_WINDOWS)
     add_library(TrussC STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sokol_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcPlatform_win.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFbo_win.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/tcVideoGrabber_win.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcFileDialog_win.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcUdpSocket.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTcpClient.cpp
@@ -151,6 +160,7 @@ elseif(TC_PLATFORM_WINDOWS)
         SOKOL_D3D11
         WIN32_LEAN_AND_MEAN
         NOMINMAX
+        _USE_MATH_DEFINES
     )
     target_link_libraries(TrussC PUBLIC
         d3d11
@@ -160,6 +170,8 @@ elseif(TC_PLATFORM_WINDOWS)
         shell32
         ole32
     )
+    # MSVC: ソースファイルをUTF-8として扱う
+    target_compile_options(TrussC PUBLIC /utf-8)
 
 elseif(TC_PLATFORM_LINUX)
     target_compile_definitions(TrussC PUBLIC SOKOL_GLCORE)
