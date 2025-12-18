@@ -3,25 +3,41 @@
 # =============================================================================
 
 cmake_minimum_required(VERSION 3.20)
-project(projectGenerator LANGUAGES C CXX OBJC OBJCXX)
+
+# プラットフォームに応じて言語を設定（OBJC/OBJCXX は macOS のみ）
+if(APPLE)
+    project(projectGenerator LANGUAGES C CXX OBJC OBJCXX)
+else()
+    project(projectGenerator LANGUAGES C CXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# TrussC パス（相対パス）
 set(TRUSSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 message(STATUS "[projectGenerator] TrussC: ${TRUSSC_DIR}")
 
+# TrussC を追加
 add_subdirectory(${TRUSSC_DIR} ${CMAKE_BINARY_DIR}/TrussC)
 
+# =============================================================================
+# 実行ファイル
+# =============================================================================
 add_executable(${PROJECT_NAME})
 
+# ソースファイル
 target_sources(${PROJECT_NAME} PRIVATE
     src/main.cpp
     src/tcApp.cpp
 )
 
+# TrussC をリンク
 target_link_libraries(${PROJECT_NAME} PRIVATE tc::TrussC)
 
+# =============================================================================
+# 出力設定
+# =============================================================================
 if(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE TRUE
