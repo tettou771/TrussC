@@ -3,20 +3,29 @@
 # =============================================================================
 
 cmake_minimum_required(VERSION 3.20)
-project(tlsExample LANGUAGES C CXX OBJC OBJCXX)
+
+# プラットフォームに応じて言語を設定
+if(APPLE)
+    project(tlsExample LANGUAGES C CXX OBJC OBJCXX)
+else()
+    project(tlsExample LANGUAGES C CXX)
+endif()
 
 # C++20 を使用
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # =============================================================================
-# TrussC を探す（examples/ 内から親ディレクトリを参照）
+# TrussC と tcxTls アドオンを追加
 # =============================================================================
-set(TRUSSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-message(STATUS "[tlsExample] TrussC: ${TRUSSC_DIR}")
+set(TRUSSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../")
+set(ADDON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
-# TrussC を追加
+message(STATUS "[tlsExample] TrussC: ${TRUSSC_DIR}")
+message(STATUS "[tlsExample] tcxTls: ${ADDON_DIR}")
+
 add_subdirectory(${TRUSSC_DIR} ${CMAKE_BINARY_DIR}/TrussC)
+add_subdirectory(${ADDON_DIR} ${CMAKE_BINARY_DIR}/tcxTls)
 
 # =============================================================================
 # 実行ファイル
@@ -29,8 +38,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     src/tcApp.cpp
 )
 
-# TrussC をリンク
-target_link_libraries(${PROJECT_NAME} PRIVATE tc::TrussC)
+# TrussC と tcxTls をリンク
+target_link_libraries(${PROJECT_NAME} PRIVATE tc::TrussC tc::tcxTls)
 
 # =============================================================================
 # macOS 固有設定 (.app バンドル)

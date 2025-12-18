@@ -1,29 +1,29 @@
 #!/bin/bash
 # =============================================================================
-# TrussC Project Generator ビルドスクリプト (Linux)
+# TrussC Project Generator ビルドスクリプト (macOS)
 # =============================================================================
-# このスクリプトを実行して projectGenerator をビルドできる
-# 使い方: ./buildProjectGenerator_linux.sh
+# このスクリプトをダブルクリックして projectGenerator をビルドできます
 # =============================================================================
 
 # スクリプトのあるディレクトリに移動
-cd "$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
 echo "=========================================="
 echo "  TrussC Project Generator Build Script"
 echo "=========================================="
 echo ""
 
-# projectGenerator ディレクトリに移動
-cd projectGenerator
+# ソースディレクトリ
+SOURCE_DIR="$SCRIPT_DIR/../examples/tools/projectGenerator"
 
 # build フォルダを作成
-if [ ! -d "build" ]; then
+if [ ! -d "$SOURCE_DIR/build" ]; then
     echo "Creating build directory..."
-    mkdir build
+    mkdir -p "$SOURCE_DIR/build"
 fi
 
-cd build
+cd "$SOURCE_DIR/build"
 
 # CMake 設定
 echo "Running CMake..."
@@ -32,10 +32,8 @@ if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: CMake configuration failed!"
     echo "Please make sure CMake is installed."
-    echo "  Ubuntu/Debian: sudo apt install cmake"
-    echo "  Fedora: sudo dnf install cmake"
-    echo "  Arch: sudo pacman -S cmake"
     echo ""
+    read -p "Press Enter to close..."
     exit 1
 fi
 
@@ -47,20 +45,27 @@ if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: Build failed!"
     echo ""
+    read -p "Press Enter to close..."
     exit 1
 fi
+
+# バイナリをコピー
+echo ""
+echo "Copying to distribution folder..."
+rm -rf "$SCRIPT_DIR/projectGenerator.app"
+cp -R "$SOURCE_DIR/bin/projectGenerator.app" "$SCRIPT_DIR/"
 
 echo ""
 echo "=========================================="
 echo "  Build completed successfully!"
 echo "=========================================="
 echo ""
-echo "projectGenerator is located at:"
-echo "  $(pwd)/../bin/projectGenerator"
+echo "projectGenerator.app is located at:"
+echo "  $SCRIPT_DIR/projectGenerator.app"
 echo ""
 
-# アプリを実行するか確認
-read -p "Run projectGenerator now? (y/n): " answer
+# アプリを開くか確認
+read -p "Open projectGenerator now? (y/n): " answer
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
-    ../bin/projectGenerator
+    open "$SCRIPT_DIR/projectGenerator.app"
 fi
