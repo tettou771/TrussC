@@ -2,7 +2,7 @@
 // tcxBox2dCircle.cpp - Box2D 円形ボディ
 // =============================================================================
 
-#include "tcxBox2d/tcxBox2dCircle.h"
+#include "tcxBox2dCircle.h"
 
 namespace tcx::box2d {
 

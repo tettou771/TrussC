@@ -1,42 +1,30 @@
 # =============================================================================
 # tcxTls - TLS/SSL サポートアドオン
 # =============================================================================
-# mbedTLS を使用した暗号化通信機能を提供
-# =============================================================================
 
-# mbedTLS 設定
+cmake_minimum_required(VERSION 3.16)
+
+set(ADDON_NAME tcxTls)
+
+# mbedTLS を FetchContent で取得
+include(FetchContent)
+FetchContent_Declare(
+    mbedtls
+    GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+    GIT_TAG v3.5.0
+)
 set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
 set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
 set(DISABLE_PACKAGE_CONFIG_AND_INSTALL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(mbedtls)
 
-# mbedTLS をサブディレクトリとして追加
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libs/mbedtls/CMakeLists.txt")
-    message(FATAL_ERROR "[tcxTls] mbedTLS not found. Please run:\n  git submodule add https://github.com/Mbed-TLS/mbedtls.git addons/tcxTls/libs/mbedtls")
-endif()
+# ソースファイル
+file(GLOB ADDON_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB ADDON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 
-add_subdirectory(libs/mbedtls)
+add_library(${ADDON_NAME} STATIC ${ADDON_SOURCES} ${ADDON_HEADERS})
+add_library(tc::tcxTls ALIAS ${ADDON_NAME})
 
-# ライブラリ定義
-add_library(tcxTls STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/tcTlsClient.cpp
-)
-
-add_library(tc::tcxTls ALIAS tcxTls)
-
-# インクルードパス
-target_include_directories(tcxTls PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# mbedTLS をリンク（PRIVATE: ユーザーに公開しない）
-target_include_directories(tcxTls PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/mbedtls/include
-)
-
-target_link_libraries(tcxTls
-    PUBLIC tc::TrussC
-    PRIVATE mbedtls mbedx509 mbedcrypto
-)
-
-message(STATUS "[tcxTls] TLS addon enabled with mbedTLS")
+target_include_directories(${ADDON_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(${ADDON_NAME} PUBLIC TrussC PRIVATE mbedtls mbedx509 mbedcrypto)

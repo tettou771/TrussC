@@ -2,7 +2,7 @@
 // tcxBox2dPolygon.cpp - Box2D ポリゴンボディ
 // =============================================================================
 
-#include "tcxBox2d/tcxBox2dPolygon.h"
+#include "tcxBox2dPolygon.h"
 #include <cmath>
 
 namespace tcx::box2d {

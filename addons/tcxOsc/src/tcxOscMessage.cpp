@@ -1,4 +1,4 @@
-#include "tcxOsc/tcxOscMessage.h"
+#include "tcxOscMessage.h"
 #include <sstream>
 
 namespace trussc {
