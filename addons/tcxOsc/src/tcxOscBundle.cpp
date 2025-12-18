@@ -1,4 +1,4 @@
-#include "tcxOsc/tcxOscBundle.h"
+#include "tcxOscBundle.h"
 
 namespace trussc {
 

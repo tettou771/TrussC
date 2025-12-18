@@ -180,6 +180,71 @@ cmake --build .
 
 ---
 
+## アイコン設定
+
+アプリのアイコンは `icon/` フォルダに画像を配置するだけで設定できる。
+
+### 基本的な使い方（推奨）
+
+**PNG を入れるだけでOK:**
+
+```
+myProject/
+├── icon/
+│   └── myicon.png    ← 512x512 以上の PNG を入れるだけ！
+├── src/
+└── CMakeLists.txt
+```
+
+ビルド時に自動で OS 用のフォーマットに変換される。
+
+### 対応フォーマット
+
+| OS | 優先順位 |
+|----|----------|
+| macOS | 1. `.icns` → 2. `.png`（自動変換） → 3. デフォルト |
+| Windows | 1. `.ico` → 2. `.png`（自動変換） → 3. デフォルト |
+
+- **macOS**: PNG があれば sips + iconutil で `.icns` に自動変換（追加ツール不要）
+- **Windows**: PNG があれば ImageMagick で `.ico` に自動変換
+
+### 推奨仕様
+
+- **サイズ**: 512x512 ピクセル以上（1024x1024 推奨）
+- **形式**: PNG（透過対応）
+- **ファイル名**: 何でもOK（最初に見つかったファイルを使用）
+
+### Windows での PNG 自動変換
+
+Windows で PNG → ICO 変換を使うには **ImageMagick** が必要:
+
+1. [ImageMagick 公式サイト](https://imagemagick.org/script/download.php) からインストーラをダウンロード
+2. インストール時に **「Add application directory to your system path」にチェック**
+3. コマンドプロンプトで確認:
+   ```cmd
+   magick --version
+   ```
+
+ImageMagick がない場合は自動的にデフォルトアイコンが使われる。
+事前に `.ico` ファイルを用意しておけば変換は不要。
+
+### すべて手動で用意する場合
+
+PNG 変換に頼らず、プラットフォーム別のアイコンを自分で用意することもできる:
+
+```
+icon/
+├── app.icns    ← macOS 用
+├── app.ico     ← Windows 用
+└── app.png     ← 予備 / Linux 用（将来対応予定）
+```
+
+### アイコンなしの場合
+
+`icon/` フォルダがない、または空の場合は TrussC のデフォルトアイコンが使われる。
+
+---
+
 ## 配布
 
 TrussC で作成したアプリは静的リンクされるため、外部 DLL は不要。

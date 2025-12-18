@@ -2,7 +2,7 @@
 // tcxBox2dRect.cpp - Box2D 矩形ボディ
 // =============================================================================
 
-#include "tcxBox2d/tcxBox2dRect.h"
+#include "tcxBox2dRect.h"
 
 namespace tcx::box2d {
 

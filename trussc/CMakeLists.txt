@@ -14,6 +14,10 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# TC_ROOT（trussc と addons を含むルートディレクトリ）
+get_filename_component(TC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+set(TC_ROOT "${TC_ROOT}" CACHE PATH "TrussC root directory" FORCE)
+
 # =============================================================================
 # プラットフォーム検出
 # =============================================================================
@@ -135,57 +139,202 @@ elseif(TC_PLATFORM_RASPBIAN)
 endif()
 
 # =============================================================================
-# アイコン設定ヘルパー関数
+# アイコン設定ヘルパー関数（クロスプラットフォーム対応）
 # =============================================================================
 # trussc_setup_icon(<target>)
-# - プロジェクトの icns/ フォルダに .icns があればそれを使用
-# - なければ TrussC のデフォルトアイコンを使用
+# - プロジェクトの icon/ フォルダを探す
+# - プラットフォーム用のフォーマットがあればそれを使用
+# - なければ PNG から変換を試みる
+# - 失敗したらデフォルトアイコンを使用
+#
+# 対応フォーマット:
+#   macOS: .icns (または .png から自動変換)
+#   Windows: .ico (または .png から自動変換)
+# =============================================================================
+
 function(trussc_setup_icon TARGET_NAME)
-    if(NOT APPLE)
+    set(ICON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/icon")
+    set(DEFAULT_DIR "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/resources")
+
+    if(APPLE)
+        _trussc_setup_icon_macos(${TARGET_NAME} "${ICON_DIR}" "${DEFAULT_DIR}")
+    elseif(WIN32)
+        _trussc_setup_icon_windows(${TARGET_NAME} "${ICON_DIR}" "${DEFAULT_DIR}")
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------
+# macOS アイコン設定
+# -----------------------------------------------------------------------------
+function(_trussc_setup_icon_macos TARGET_NAME ICON_DIR DEFAULT_DIR)
+    # 1. .icns を探す
+    file(GLOB ICNS_FILES "${ICON_DIR}/*.icns")
+    if(ICNS_FILES)
+        list(GET ICNS_FILES 0 ICON_FILE)
+        get_filename_component(ICON_NAME "${ICON_FILE}" NAME)
+        message(STATUS "[${TARGET_NAME}] Using icon: ${ICON_NAME}")
+        _trussc_apply_macos_icon(${TARGET_NAME} "${ICON_FILE}")
         return()
     endif()
 
-    # プロジェクトの icns/ フォルダを探す
-    set(PROJECT_ICNS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/icns")
-    file(GLOB PROJECT_ICNS_FILES "${PROJECT_ICNS_DIR}/*.icns")
+    # 2. .png から変換を試みる
+    file(GLOB PNG_FILES "${ICON_DIR}/*.png")
+    if(PNG_FILES)
+        list(GET PNG_FILES 0 PNG_FILE)
+        get_filename_component(PNG_NAME "${PNG_FILE}" NAME_WE)
+        set(OUTPUT_ICNS "${ICON_DIR}/${PNG_NAME}.icns")
 
-    # TrussC のデフォルトアイコン
-    set(DEFAULT_ICNS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/resources/default.icns")
-
-    if(PROJECT_ICNS_FILES)
-        # プロジェクト固有のアイコンを使用（最初の.icns）
-        list(GET PROJECT_ICNS_FILES 0 APP_ICNS)
-        get_filename_component(ICNS_NAME "${APP_ICNS}" NAME)
-        message(STATUS "[${TARGET_NAME}] Using custom icon: ${ICNS_NAME}")
-    elseif(EXISTS "${DEFAULT_ICNS}")
-        # デフォルトアイコンを使用
-        set(APP_ICNS "${DEFAULT_ICNS}")
-        get_filename_component(ICNS_NAME "${APP_ICNS}" NAME)
-        message(STATUS "[${TARGET_NAME}] Using default TrussC icon")
-    else()
-        # アイコンなし
-        message(STATUS "[${TARGET_NAME}] No icon found")
-        return()
+        _trussc_convert_png_to_icns("${PNG_FILE}" "${OUTPUT_ICNS}" SUCCESS)
+        if(SUCCESS)
+            message(STATUS "[${TARGET_NAME}] Converted PNG to ICNS: ${PNG_NAME}.icns")
+            _trussc_apply_macos_icon(${TARGET_NAME} "${OUTPUT_ICNS}")
+            return()
+        endif()
     endif()
 
-    # アイコンファイル名（パスなし）
-    get_filename_component(ICNS_FILENAME "${APP_ICNS}" NAME)
+    # 3. デフォルトを使用
+    message(STATUS "[${TARGET_NAME}] Using default TrussC icon")
+    _trussc_apply_macos_icon(${TARGET_NAME} "${DEFAULT_DIR}/default.icns")
+endfunction()
 
-    # バンドルにアイコンを設定
+# macOS アイコン適用
+function(_trussc_apply_macos_icon TARGET_NAME ICON_FILE)
+    get_filename_component(ICON_FILENAME "${ICON_FILE}" NAME)
+
     set_target_properties(${TARGET_NAME} PROPERTIES
-        MACOSX_BUNDLE_ICON_FILE "${ICNS_FILENAME}"
+        MACOSX_BUNDLE_ICON_FILE "${ICON_FILENAME}"
     )
 
-    # アイコンファイルをリソースとして追加
-    set_source_files_properties("${APP_ICNS}" PROPERTIES
+    set_source_files_properties("${ICON_FILE}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources"
     )
-    target_sources(${TARGET_NAME} PRIVATE "${APP_ICNS}")
+    target_sources(${TARGET_NAME} PRIVATE "${ICON_FILE}")
 
-    # ビルド後に quarantine 属性を削除（Finder からダブルクリックで開けるように）
+    # quarantine 属性を削除
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
         COMMAND xattr -cr "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>"
         COMMENT "Removing quarantine attribute from ${TARGET_NAME}.app"
     )
 endfunction()
+
+# PNG → ICNS 変換 (macOS 標準ツール使用)
+function(_trussc_convert_png_to_icns PNG_FILE OUTPUT_ICNS OUT_SUCCESS)
+    set(${OUT_SUCCESS} FALSE PARENT_SCOPE)
+
+    # sips と iconutil が必要
+    find_program(SIPS_EXECUTABLE sips)
+    find_program(ICONUTIL_EXECUTABLE iconutil)
+    if(NOT SIPS_EXECUTABLE OR NOT ICONUTIL_EXECUTABLE)
+        return()
+    endif()
+
+    # 一時ディレクトリ
+    get_filename_component(ICON_DIR "${OUTPUT_ICNS}" DIRECTORY)
+    set(ICONSET_DIR "${ICON_DIR}/_icon.iconset")
+
+    # iconset を作成
+    file(MAKE_DIRECTORY "${ICONSET_DIR}")
+
+    # 各サイズを生成
+    set(SIZES 16 32 128 256 512)
+    foreach(SIZE ${SIZES})
+        math(EXPR SIZE2 "${SIZE} * 2")
+        execute_process(
+            COMMAND ${SIPS_EXECUTABLE} -z ${SIZE} ${SIZE} "${PNG_FILE}" --out "${ICONSET_DIR}/icon_${SIZE}x${SIZE}.png"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+        execute_process(
+            COMMAND ${SIPS_EXECUTABLE} -z ${SIZE2} ${SIZE2} "${PNG_FILE}" --out "${ICONSET_DIR}/icon_${SIZE}x${SIZE}@2x.png"
+            OUTPUT_QUIET ERROR_QUIET
+        )
+    endforeach()
+
+    # icns に変換
+    execute_process(
+        COMMAND ${ICONUTIL_EXECUTABLE} -c icns "${ICONSET_DIR}" -o "${OUTPUT_ICNS}"
+        RESULT_VARIABLE RESULT
+        OUTPUT_QUIET ERROR_QUIET
+    )
+
+    # 一時ディレクトリ削除
+    file(REMOVE_RECURSE "${ICONSET_DIR}")
+
+    if(RESULT EQUAL 0 AND EXISTS "${OUTPUT_ICNS}")
+        set(${OUT_SUCCESS} TRUE PARENT_SCOPE)
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------
+# Windows アイコン設定
+# -----------------------------------------------------------------------------
+function(_trussc_setup_icon_windows TARGET_NAME ICON_DIR DEFAULT_DIR)
+    # 1. .ico を探す
+    file(GLOB ICO_FILES "${ICON_DIR}/*.ico")
+    if(ICO_FILES)
+        list(GET ICO_FILES 0 ICON_FILE)
+        get_filename_component(ICON_NAME "${ICON_FILE}" NAME)
+        message(STATUS "[${TARGET_NAME}] Using icon: ${ICON_NAME}")
+        _trussc_apply_windows_icon(${TARGET_NAME} "${ICON_FILE}")
+        return()
+    endif()
+
+    # 2. .png から変換を試みる
+    file(GLOB PNG_FILES "${ICON_DIR}/*.png")
+    if(PNG_FILES)
+        list(GET PNG_FILES 0 PNG_FILE)
+        get_filename_component(PNG_NAME "${PNG_FILE}" NAME_WE)
+        set(OUTPUT_ICO "${ICON_DIR}/${PNG_NAME}.ico")
+
+        _trussc_convert_png_to_ico("${PNG_FILE}" "${OUTPUT_ICO}" SUCCESS)
+        if(SUCCESS)
+            message(STATUS "[${TARGET_NAME}] Converted PNG to ICO: ${PNG_NAME}.ico")
+            _trussc_apply_windows_icon(${TARGET_NAME} "${OUTPUT_ICO}")
+            return()
+        endif()
+    endif()
+
+    # 3. デフォルトを使用
+    message(STATUS "[${TARGET_NAME}] Using default TrussC icon")
+    _trussc_apply_windows_icon(${TARGET_NAME} "${DEFAULT_DIR}/default.ico")
+endfunction()
+
+# Windows アイコン適用 (.rc ファイル経由)
+function(_trussc_apply_windows_icon TARGET_NAME ICON_FILE)
+    # .rc ファイルを生成
+    get_filename_component(ICON_FILENAME "${ICON_FILE}" NAME)
+    set(RC_FILE "${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}_icon.rc")
+
+    file(WRITE "${RC_FILE}" "IDI_ICON1 ICON \"${ICON_FILE}\"\n")
+
+    target_sources(${TARGET_NAME} PRIVATE "${RC_FILE}")
+endfunction()
+
+# PNG → ICO 変換 (ImageMagick 使用)
+function(_trussc_convert_png_to_ico PNG_FILE OUTPUT_ICO OUT_SUCCESS)
+    set(${OUT_SUCCESS} FALSE PARENT_SCOPE)
+
+    # ImageMagick (magick または convert) が必要
+    find_program(MAGICK_EXECUTABLE magick)
+    if(NOT MAGICK_EXECUTABLE)
+        find_program(MAGICK_EXECUTABLE convert)
+    endif()
+    if(NOT MAGICK_EXECUTABLE)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND ${MAGICK_EXECUTABLE} "${PNG_FILE}" -define icon:auto-resize=256,128,64,48,32,16 "${OUTPUT_ICO}"
+        RESULT_VARIABLE RESULT
+        OUTPUT_QUIET ERROR_QUIET
+    )
+
+    if(RESULT EQUAL 0 AND EXISTS "${OUTPUT_ICO}")
+        set(${OUT_SUCCESS} TRUE PARENT_SCOPE)
+    endif()
+endfunction()
+
+# =============================================================================
+# アドオンマクロを自動インクルード（use_addon が使えるようになる）
+# =============================================================================
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/use_addon.cmake)
 

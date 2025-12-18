@@ -2,8 +2,15 @@
 # use_addon.cmake - TrussC アドオン追加マクロ
 # =============================================================================
 #
-# 使い方:
-#   include(${TC_ROOT}/cmake/use_addon.cmake)
+# 使い方1: addons.make を使用（推奨）
+#   add_executable(myapp ...)
+#   apply_addons(myapp)
+#
+#   addons.make ファイルにアドオン名を1行ずつ記述:
+#     tcxOsc
+#     tcxBox2d
+#
+# 使い方2: 直接指定
 #   add_executable(myapp ...)
 #   use_addon(myapp tcxBox2d)
 #
@@ -14,10 +21,9 @@
 #   2. CMakeLists.txt がない場合 → src/ と libs/ を自動収集
 #
 #   tcxSomeAddon/
-#   ├── CMakeLists.txt  (オプション)
-#   ├── src/            ← ソース自動収集 (*.cpp, *.c, *.mm)
-#   ├── include/        ← インクルードパス自動追加
-#   └── libs/           ← サードパーティ自動収集
+#   ├── CMakeLists.txt  (オプション - 特殊処理が必要な場合のみ)
+#   ├── src/            ← アドオンのコード (.h + .cpp)
+#   └── libs/           ← 外部ライブラリ (git submodule等)
 #       └── somelib/
 #           ├── src/
 #           └── include/
@@ -137,4 +143,24 @@ macro(_tc_auto_addon ADDON_NAME ADDON_PATH)
     endif()
 
     message(STATUS "[${ADDON_NAME}] Auto-configured addon")
+endmacro()
+
+# =============================================================================
+# apply_addons - addons.make からアドオンを自動適用
+# =============================================================================
+# addons.make ファイルを読み込み、記述されたアドオンを全て適用する
+# コメント（#で始まる行）と空行は無視される
+macro(apply_addons TARGET_NAME)
+    set(_ADDONS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/addons.make")
+    if(EXISTS "${_ADDONS_FILE}")
+        file(STRINGS "${_ADDONS_FILE}" _ADDON_LINES)
+        foreach(_LINE ${_ADDON_LINES})
+            # 空白をトリム
+            string(STRIP "${_LINE}" _LINE)
+            # 空行とコメント行をスキップ
+            if(_LINE AND NOT _LINE MATCHES "^#")
+                use_addon(${TARGET_NAME} ${_LINE})
+            endif()
+        endforeach()
+    endif()
 endmacro()

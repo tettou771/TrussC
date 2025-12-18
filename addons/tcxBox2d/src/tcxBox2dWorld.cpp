@@ -2,8 +2,8 @@
 // tcxBox2dWorld.cpp - Box2D ワールド管理
 // =============================================================================
 
-#include "tcxBox2d/tcxBox2dWorld.h"
-#include "tcxBox2d/tcxBox2dBody.h"
+#include "tcxBox2dWorld.h"
+#include "tcxBox2dBody.h"
 
 namespace tcx::box2d {
 
