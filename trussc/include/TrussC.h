@@ -62,6 +62,7 @@
 
 // TrussC ユーティリティ
 #include "tc/utils/tcUtils.h"
+#include "tc/utils/tcTime.h"
 #include "tc/utils/tcLog.h"
 
 // TrussC ファイルダイアログ
@@ -190,6 +191,9 @@ namespace internal {
     inline double frameTimeBuffer[10] = {};
     inline int frameTimeIndex = 0;
     inline bool frameTimeBufferFilled = false;
+
+    // フレームカウント（update 呼び出し回数）
+    inline uint64_t updateFrameCount = 0;
 
     // 経過時間計測用
     inline std::chrono::high_resolution_clock::time_point startTime;
@@ -1041,8 +1045,20 @@ inline double getElapsedTime() {
     return duration.count();
 }
 
-inline uint64_t getFrameCount() {
+// update の呼び出し回数
+// Decoupled モードでは draw より高頻度で呼ばれる可能性がある
+inline uint64_t getUpdateCount() {
+    return internal::updateFrameCount;
+}
+
+// 描画フレームカウント（sokol の frame_count）
+inline uint64_t getDrawCount() {
     return sapp_frame_count();
+}
+
+// getUpdateCount のエイリアス（一般的な用途向け）
+inline uint64_t getFrameCount() {
+    return internal::updateFrameCount;
 }
 
 inline double getDeltaTime() {
@@ -1597,6 +1613,7 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
         app->setup();
     };
     internal::appUpdateFunc = []() {
+        internal::updateFrameCount++;  // update フレームカウント
         if (app) {
             app->updateTree();  // シーングラフ全体を更新
             // ホバー状態を更新（毎フレーム1回だけ raycast）
