@@ -51,7 +51,7 @@ public:
         desc.width = width;
         desc.height = height;
         desc.delta_time = deltaTime;
-        desc.dpi_scale = 1.0f;  // TODO: DPI スケーリング対応
+        desc.dpi_scale = sapp_dpi_scale();
         simgui_new_frame(&desc);
     }
 

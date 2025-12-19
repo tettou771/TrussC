@@ -12,7 +12,7 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 - [x] BitmapFont（テクスチャアトラス）
 - [x] TrueTypeFont（stb_truetype ベース）
 - [x] Shape API（beginShape/vertex/endShape）
-- [x] Polyline（頂点配列・曲線生成）
+- [x] Polyline（頂点配列・曲線生成・ベジェ曲線・円弧）
 - [x] Mesh（頂点・色・インデックス・法線）
 - [x] StrokeMesh（太線描画）
 - [x] Scissor Clipping（再帰対応）
@@ -84,7 +84,6 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 
 | 機能 | 説明 | 難易度 |
 |------|------|--------|
-| パス描画（曲線） | ベジェ曲線、円弧 | 中 |
 | 3Dモデル読み込み | obj/gltf | 高 |
 | テクスチャマッピング | Mesh へのテクスチャ適用 | 中 |
 | 法線マップ | バンプマッピング | 高 |
