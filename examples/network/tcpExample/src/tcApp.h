@@ -2,6 +2,7 @@
 
 #include "tcBaseApp.h"
 using namespace tc;
+using namespace std;
 
 class tcApp : public App {
 public:

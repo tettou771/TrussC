@@ -1,7 +1,8 @@
 #pragma once
 
 #include "tcBaseApp.h"
-using namespace tc;  // App, Node, TrussC.h を含む
+using namespace tc;
+using namespace std;  // App, Node, TrussC.h を含む
 #include <cstdio>       // snprintf
 
 // =============================================================================

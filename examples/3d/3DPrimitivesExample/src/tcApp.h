@@ -2,6 +2,7 @@
 
 #include "tcBaseApp.h"
 using namespace tc;
+using namespace std;
 
 // =============================================================================
 // tcApp - 3Dプリミティブデモ
