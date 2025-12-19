@@ -24,6 +24,9 @@ public:
     // ウィンドウイベント
     void windowResized(int width, int height) override;
 
+    // 終了
+    void exit() override;
+
     // ファイルドロップ
     void filesDropped(const vector<string>& files) override;
 };
