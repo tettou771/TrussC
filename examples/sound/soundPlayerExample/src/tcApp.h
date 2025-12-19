@@ -2,6 +2,7 @@
 
 #include "tcBaseApp.h"
 using namespace tc;
+using namespace std;
 #include "tc/sound/tcSound.h"
 
 class tcApp : public App {

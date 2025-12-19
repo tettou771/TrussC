@@ -3,6 +3,7 @@
 #include "TrussC.h"
 #include "tcBaseApp.h"
 using namespace tc;
+using namespace std;
 #include "tc/gl/tcShader.h"
 
 class tcApp : public App {

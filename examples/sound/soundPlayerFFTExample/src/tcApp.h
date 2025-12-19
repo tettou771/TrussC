@@ -2,6 +2,7 @@
 
 #include "tcBaseApp.h"
 using namespace tc;
+using namespace std;
 #include "tc/sound/tcSound.h"
 #include "tc/math/tcFFT.h"
 #include <vector>
