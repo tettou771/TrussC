@@ -61,6 +61,11 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 - [x] ファイルダイアログ（OS標準ダイアログ）
 - [x] ネットワーク（TCP/UDP）
 
+### Addons（オプショナル）
+- [x] tcxTls - TLS/SSL 通信（mbedTLS）
+- [x] tcxOsc - OSC プロトコル
+- [x] tcxBox2d - Box2D 物理エンジン
+
 ### Sound
 - [x] Sound（sokol_audio + dr_libs）
 - [x] SoundStream（オーディオ入力）
@@ -93,7 +98,6 @@ openFrameworksとの機能比較に基づいた開発ロードマップ。
 | パーティクルシステム | アドオン化も検討 | 中 |
 | タッチ入力 | iOS/Android向け | 高 |
 | Spot ライト | スポットライト対応 | 中 |
-| TLS/SSL 対応 | TCP通信の暗号化（OpenSSL or mbedTLS） | 高 |
 
 ---
 
@@ -126,7 +130,7 @@ TrussC はいくつかの外部ライブラリに依存している。
 | 問題 | 説明 | 解決策案 |
 |------|------|----------|
 | コンソールウィンドウ表示 | 実行ファイルをダブルクリックするとコマンドプロンプトが背後に表示される | `#pragma comment(linker, "/SUBSYSTEM:WINDOWS")` + `WinMain` 対応。デフォルトで非表示、マクロ定義で表示可能にする |
-| アイコン未適用 | 実行ファイルに .ico が適用されていない | Windows リソースファイル (.rc) の設定が必要 |
+| ~~アイコン未適用~~ | ~~実行ファイルに .ico が適用されていない~~ | ✅ 解決済み: `trussc_setup_icon()` で .rc ファイル自動生成 |
 
 ### クロスプラットフォーム
 
