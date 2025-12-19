@@ -1413,6 +1413,9 @@ namespace internal {
             if (appDrawFunc) appDrawFunc();
             present();
             needsRedraw = false;
+        } else {
+            // 描画しないときは Present をスキップ（ダブルバッファのちらつき防止）
+            sapp_skip_present();
         }
 
         // 前フレームのマウス位置を保存
