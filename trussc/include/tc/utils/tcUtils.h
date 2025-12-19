@@ -247,4 +247,152 @@ inline unsigned int hexToUInt(const std::string& hexStr) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 文字列操作
+// ---------------------------------------------------------------------------
+
+/// 文字列内に別の文字列が含まれているか検索
+/// oFの ofIsStringInString と同じ
+inline bool isStringInString(const std::string& haystack, const std::string& needle) {
+    return haystack.find(needle) != std::string::npos;
+}
+
+/// 文字列内に別の文字列が何回出現するかカウント
+/// oFの ofStringTimesInString と同じ
+inline std::size_t stringTimesInString(const std::string& haystack, const std::string& needle) {
+    const size_t step = needle.size();
+    size_t count = 0;
+    size_t pos = 0;
+    while ((pos = haystack.find(needle, pos)) != std::string::npos) {
+        pos += step;
+        ++count;
+    }
+    return count;
+}
+
+/// 文字列を区切り文字で分割
+/// oFの ofSplitString と同じ引数順
+/// @param source 元の文字列
+/// @param delimiter 区切り文字列
+/// @param ignoreEmpty 空の要素を無視するか
+/// @param trim 各要素の前後の空白を削除するか
+inline std::vector<std::string> splitString(const std::string& source, const std::string& delimiter, bool ignoreEmpty = false, bool trim = false) {
+    std::vector<std::string> result;
+    if (delimiter.empty()) {
+        result.push_back(source);
+        return result;
+    }
+    std::string::const_iterator substart = source.begin(), subend;
+    while (true) {
+        subend = std::search(substart, source.end(), delimiter.begin(), delimiter.end());
+        std::string sub(substart, subend);
+        if (trim) {
+            // 前後の空白を削除
+            size_t start = sub.find_first_not_of(" \t\r\n");
+            size_t end = sub.find_last_not_of(" \t\r\n");
+            if (start != std::string::npos && end != std::string::npos) {
+                sub = sub.substr(start, end - start + 1);
+            } else if (start == std::string::npos) {
+                sub.clear();
+            }
+        }
+        if (!ignoreEmpty || !sub.empty()) {
+            result.push_back(sub);
+        }
+        if (subend == source.end()) {
+            break;
+        }
+        substart = subend + delimiter.size();
+    }
+    return result;
+}
+
+/// 文字列配列を区切り文字で結合
+/// oFの ofJoinString と同じ
+inline std::string joinString(const std::vector<std::string>& stringElements, const std::string& delimiter) {
+    std::string str;
+    if (stringElements.empty()) {
+        return str;
+    }
+    auto numStrings = stringElements.size();
+    std::string::size_type strSize = delimiter.size() * (numStrings - 1);
+    for (const std::string& s : stringElements) {
+        strSize += s.size();
+    }
+    str.reserve(strSize);
+    str += stringElements[0];
+    for (decltype(numStrings) i = 1; i < numStrings; ++i) {
+        str += delimiter;
+        str += stringElements[i];
+    }
+    return str;
+}
+
+/// 文字列内の検索文字列を置換（破壊的）
+/// oFの ofStringReplace と同じ
+inline void stringReplace(std::string& input, const std::string& searchStr, const std::string& replaceStr) {
+    auto pos = input.find(searchStr);
+    while (pos != std::string::npos) {
+        input.replace(pos, searchStr.size(), replaceStr);
+        pos += replaceStr.size();
+        std::string nextfind(input.begin() + pos, input.end());
+        auto nextpos = nextfind.find(searchStr);
+        if (nextpos == std::string::npos) {
+            break;
+        }
+        pos += nextpos;
+    }
+}
+
+/// 文字列の前後の空白を削除
+/// oFの ofTrim と同じ
+inline std::string trim(const std::string& src) {
+    size_t start = src.find_first_not_of(" \t\r\n");
+    size_t end = src.find_last_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+        return "";
+    }
+    return src.substr(start, end - start + 1);
+}
+
+/// 文字列の先頭の空白を削除
+/// oFの ofTrimFront と同じ
+inline std::string trimFront(const std::string& src) {
+    size_t start = src.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+        return "";
+    }
+    return src.substr(start);
+}
+
+/// 文字列の末尾の空白を削除
+/// oFの ofTrimBack と同じ
+inline std::string trimBack(const std::string& src) {
+    size_t end = src.find_last_not_of(" \t\r\n");
+    if (end == std::string::npos) {
+        return "";
+    }
+    return src.substr(0, end + 1);
+}
+
+/// 文字列を小文字に変換
+/// oFの ofToLower と同じ
+inline std::string toLower(const std::string& src) {
+    std::string dst = src;
+    for (auto& c : dst) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return dst;
+}
+
+/// 文字列を大文字に変換
+/// oFの ofToUpper と同じ
+inline std::string toUpper(const std::string& src) {
+    std::string dst = src;
+    for (auto& c : dst) {
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+    return dst;
+}
+
 } // namespace trussc
