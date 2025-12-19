@@ -44,6 +44,10 @@ void tcApp::windowResized(int width, int height) {
 
 }
 
+void tcApp::exit() {
+
+}
+
 void tcApp::filesDropped(const vector<string>& files) {
 
 }
