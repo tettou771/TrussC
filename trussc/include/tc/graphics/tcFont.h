@@ -614,9 +614,12 @@ public:
 
     // -------------------------------------------------------------------------
     // Draw string (virtual - customizable in subclass)
+    // Uses alignment set by global setTextAlign()
     // -------------------------------------------------------------------------
     virtual void drawString(const std::string& text, float x, float y) const {
-        drawStringInternal(text, x, y, alignH_, alignV_);
+        Direction h = getDefaultContext().getTextAlignH();
+        Direction v = getDefaultContext().getTextAlignV();
+        drawStringInternal(text, x, y, h, v);
     }
 
     virtual void drawString(const std::string& text, float x, float y,

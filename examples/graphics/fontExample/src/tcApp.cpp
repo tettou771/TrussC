@@ -29,6 +29,7 @@ void tcApp::draw() {
     setColor(0.16f);
 
     // Horizontal alignment (top of screen)
+    // Use setTextAlign + pushStyle/popStyle for style management
     float y = 80;
     float centerX = w / 2;
 
@@ -37,10 +38,19 @@ void tcApp::draw() {
     drawLine(centerX, 40, centerX, 150);
     drawLine(50, y, w - 50, y);
 
+    pushStyle();
     setColor(0.16f);
-    font.drawString("Left", centerX, y, Left, Top);
-    font.drawString("Center", centerX, y + 30, Center, Top);
-    font.drawString("Right", centerX, y + 60, Right, Top);
+
+    setTextAlign(Left, Top);
+    font.drawString("Left", centerX, y);
+
+    setTextAlign(Center, Top);
+    font.drawString("Center", centerX, y + 30);
+
+    setTextAlign(Right, Top);
+    font.drawString("Right", centerX, y + 60);
+
+    popStyle();
 
     // Vertical alignment
     float x = 120;
@@ -110,17 +120,28 @@ void tcApp::draw() {
     fontLarge.drawString("Centered!", cx, cy, Center, Center);
 
     // =========================================================================
-    // BitmapFont alignment demo
+    // BitmapFont + setTextAlign / pushStyle demo
     // =========================================================================
     y = 620;
 
     setColor(0.78f);
     drawLine(centerX, y - 10, centerX, y + 60);
 
+    // Use setTextAlign() to set default alignment
+    // Use pushStyle/popStyle to save/restore styles
+    pushStyle();
     setColor(0.3f);
-    drawBitmapString("BitmapFont Left", centerX, y, Left, Top);
-    drawBitmapString("BitmapFont Center", centerX, y + 18, Center, Top);
-    drawBitmapString("BitmapFont Right", centerX, y + 36, Right, Top);
+
+    setTextAlign(Left, Top);
+    drawBitmapString("BitmapFont Left", centerX, y);
+
+    setTextAlign(Center, Top);
+    drawBitmapString("BitmapFont Center", centerX, y + 18);
+
+    setTextAlign(Right, Top);
+    drawBitmapString("BitmapFont Right", centerX, y + 36);
+
+    popStyle();  // Restores color and alignment
 
     // getBBox demo
     y = 710;

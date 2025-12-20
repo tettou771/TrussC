@@ -35,6 +35,9 @@ public:
     void keyPressed(int key) override;
     void keyReleased(int key) override;
 
+    // ドラッグ&ドロップ
+    void filesDropped(const vector<string>& files) override;
+
 private:
     // Settings
     string tcRoot;                      // TC_ROOT (path to tc_vX.Y.Z folder)
