@@ -1419,6 +1419,9 @@ namespace internal {
             lastDrawTimeInitialized = true;
         }
 
+        // コンソール入力を処理（イベント発火）
+        console::processQueue();
+
         // --- Update Loop 処理 ---
         if (updateSyncedToDraw) {
             // Draw に同期: 後で shouldDraw と連動
@@ -1485,6 +1488,9 @@ namespace internal {
     }
 
     inline void _cleanup_cb() {
+        // コンソール入力スレッドを停止
+        console::stop();
+
         if (appCleanupFunc) appCleanupFunc();
         cleanup();
     }
