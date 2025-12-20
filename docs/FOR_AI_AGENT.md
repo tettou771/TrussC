@@ -485,6 +485,95 @@ saveScreenshot(getDataPath("output/frame_" + toString(getFrameNum()) + ".png"));
 
 ---
 
+## コンソール入力（stdin からのコマンド）
+
+TrussC アプリは stdin からコマンドを受け取り、stdout に JSON で応答する機能を持つ。これにより AI エージェントが実行中のアプリと対話できる。
+
+### 組み込みコマンド
+
+```bash
+# アプリ情報を取得
+echo "tcdebug info" | ./myApp
+# 出力: {"fps":60.0,"width":800,"height":600,"updateCount":123,"drawCount":123,"elapsedTime":2.05}
+
+# スクリーンショットを保存
+echo "tcdebug screenshot /tmp/shot.png" | ./myApp
+# 出力: {"status":"ok","path":"/tmp/shot.png"}
+```
+
+### AI エージェントからの使用
+
+FIFO（名前付きパイプ）を使うと、アプリを起動したまま複数のコマンドを送信できる：
+
+```bash
+# FIFO を作成
+mkfifo /tmp/app_fifo
+
+# アプリをバックグラウンドで起動（FIFO から読む）
+./myApp < /tmp/app_fifo &
+APP_PID=$!
+
+# FIFO を書き込み用に開く
+exec 3>/tmp/app_fifo
+
+# コマンドを送信
+echo "tcdebug info" >&3
+sleep 1
+echo "tcdebug screenshot /tmp/debug.png" >&3
+sleep 1
+
+# クリーンアップ
+exec 3>&-
+kill $APP_PID
+rm /tmp/app_fifo
+```
+
+### カスタムコマンドの実装
+
+アプリ側でカスタムコマンドを処理できる：
+
+```cpp
+class tcApp : public App {
+public:
+    void setup() override {
+        // リスナーをメンバ変数に保持（重要！）
+        consoleListener_ = events().console.listen([this](ConsoleEventArgs& e) {
+            if (e.args.empty()) return;
+
+            if (e.args[0] == "spawn" && e.args.size() >= 3) {
+                float x = stof(e.args[1]);
+                float y = stof(e.args[2]);
+                spawnObject(x, y);
+                cout << "{\"status\":\"ok\",\"command\":\"spawn\"}" << endl;
+            }
+            else if (e.args[0] == "getState") {
+                cout << "{\"objectCount\":" << objects.size()
+                     << ",\"score\":" << score << "}" << endl;
+            }
+        });
+    }
+
+private:
+    EventListener consoleListener_;  // リスナーを保持しないと即座に解除される
+};
+```
+
+**重要**: `events().console.listen()` の戻り値（`EventListener`）は必ずメンバ変数に保持すること。保持しないとスコープ終了時にリスナーが自動解除される（RAII パターン）。
+
+### コンソール機能の無効化
+
+stdin を他の用途で使いたい場合は、setup() 内で無効化できる：
+
+```cpp
+void setup() override {
+    console::stop();  // stdin 読み取りスレッドを停止
+}
+```
+
+**AI エージェント向け情報**: この機能により、AI はビルド済みの TrussC アプリに対してリアルタイムでコマンドを送信し、アプリの状態を確認したり、スクリーンショットを取得したりできる。デバッグ、テスト、自動化に非常に有用。
+
+---
+
 ## 3D 描画
 
 ### EasyCam
