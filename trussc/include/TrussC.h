@@ -166,7 +166,7 @@ namespace internal {
     // Draw Loop 設定
     inline bool drawVsyncEnabled = true;   // VSync 有効（デフォルト）
     inline int drawTargetFps = 0;          // 0 = VSync使用, >0 = 固定FPS, <0 = 自動描画停止
-    inline bool needsRedraw = true;        // redraw() フラグ
+    inline int redrawCount = 1;            // redraw() カウンター（残り描画回数）
 
     // Update Loop 設定
     inline bool updateSyncedToDraw = true; // true = draw直前にupdate（デフォルト）
@@ -692,6 +692,16 @@ inline void popMatrix() {
     getDefaultContext().popMatrix();
 }
 
+// スタイルをスタックに保存（色、fill/stroke、textAlign など）
+inline void pushStyle() {
+    getDefaultContext().pushStyle();
+}
+
+// スタイルをスタックから復元
+inline void popStyle() {
+    getDefaultContext().popStyle();
+}
+
 // 平行移動
 inline void translate(float x, float y) {
     getDefaultContext().translate(x, y);
@@ -911,9 +921,18 @@ inline void drawBitmapString(const std::string& text, float x, float y,
     getDefaultContext().drawBitmapString(text, x, y, h, v);
 }
 
-// ビットマップ文字列のデフォルトアラインメントを設定
-inline void setBitmapTextAlign(Direction h, Direction v) {
-    getDefaultContext().setBitmapTextAlign(h, v);
+// テキストアラインメントを設定
+inline void setTextAlign(Direction h, Direction v) {
+    getDefaultContext().setTextAlign(h, v);
+}
+
+// 現在のテキストアラインメントを取得
+inline Direction getTextAlignH() {
+    return getDefaultContext().getTextAlignH();
+}
+
+inline Direction getTextAlignV() {
+    return getDefaultContext().getTextAlignV();
 }
 
 // ビットマップフォントの行の高さを取得
@@ -949,20 +968,35 @@ inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
     // パディング
     const float padding = 4.0f;
 
-    // ローカル座標をワールド座標に変換
+    // 現在のアラインメントに基づいてオフセットを計算
+    float offsetX = 0, offsetY = 0;
+    switch (getTextAlignH()) {
+        case Direction::Left:   offsetX = 0; break;
+        case Direction::Center: offsetX = -textWidth / 2; break;
+        case Direction::Right:  offsetX = -textWidth; break;
+        default: break;
+    }
+    switch (getTextAlignV()) {
+        case Direction::Top:      offsetY = 0; break;
+        case Direction::Center:   offsetY = -textHeight / 2; break;
+        case Direction::Bottom:   offsetY = -textHeight; break;
+        case Direction::Baseline: offsetY = -textHeight + 3; break;  // 近似値
+        default: break;
+    }
+
+    // ローカル座標をワールド座標に変換（オフセット込み）
     Mat4 currentMat = getCurrentMatrix();
-    float worldX = currentMat.m[0]*x + currentMat.m[1]*y + currentMat.m[3];
-    float worldY = currentMat.m[4]*x + currentMat.m[5]*y + currentMat.m[7];
+    float worldX = currentMat.m[0]*(x + offsetX) + currentMat.m[1]*(y + offsetY) + currentMat.m[3];
+    float worldY = currentMat.m[4]*(x + offsetX) + currentMat.m[5]*(y + offsetY) + currentMat.m[7];
 
     // 行列を保存
     pushMatrix();
     resetMatrix();
 
     // アルファブレンドパイプラインで背景を描画
-    // y はベースライン位置なので、背景は textHeight 分上から始める
     sgl_load_pipeline(internal::fontPipeline);
     setColor(background);
-    drawRect(worldX - padding, worldY - textHeight - padding,
+    drawRect(worldX - padding, worldY - padding,
              textWidth + padding * 2, textHeight + padding * 2);
     sgl_load_default_pipeline();
 
@@ -1210,8 +1244,11 @@ inline void setVsync(bool enabled) {
 }
 
 // 再描画をリクエスト（自動描画停止時に使用）
-inline void redraw() {
-    internal::needsRedraw = true;
+// count: 描画回数（複数回呼ばれた場合は最大値を採用）
+inline void redraw(int count = 1) {
+    if (count > internal::redrawCount) {
+        internal::redrawCount = count;
+    }
 }
 
 // アプリケーション終了をリクエスト
@@ -1463,7 +1500,7 @@ namespace internal {
             }
         } else {
             // 自動描画停止: redraw() 時のみ描画
-            shouldDraw = needsRedraw;
+            shouldDraw = (redrawCount > 0);
         }
 
         if (shouldDraw) {
@@ -1476,7 +1513,11 @@ namespace internal {
 
             if (appDrawFunc) appDrawFunc();
             present();
-            needsRedraw = false;
+
+            // redrawCount をデクリメント（0未満にはしない）
+            if (redrawCount > 0) {
+                redrawCount--;
+            }
         } else {
             // 描画しないときは Present をスキップ（ダブルバッファのちらつき防止）
             sapp_skip_present();
