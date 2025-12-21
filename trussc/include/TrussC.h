@@ -1396,6 +1396,8 @@ namespace internal {
 
         // Start console input thread (enabled by default)
         // To disable, call console::stop() in setup()
+        // Note: Console is not available on web platform (no stdin/threads)
+        #ifndef __EMSCRIPTEN__
         console::start();
 
         // Register built-in command handler (hold listener in static)
@@ -1424,6 +1426,7 @@ namespace internal {
                 }
             }
         });
+        #endif
 
         if (appSetupFunc) appSetupFunc();
     }

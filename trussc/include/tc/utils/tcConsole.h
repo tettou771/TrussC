@@ -86,17 +86,27 @@ inline void readThread() {
 /// Start console input thread
 /// Called automatically within runApp() in TrussC.h
 inline void start() {
+#ifdef __EMSCRIPTEN__
+    // Console input is not available on web (no stdin/threads)
+    std::cerr << "[TrussC] console::start() is not available on web platform" << std::endl;
+    return;
+#else
     if (detail::isRunning().load()) {
         return; // Already running
     }
 
     detail::isRunning().store(true);
     detail::getThread() = std::make_unique<std::thread>(detail::readThread);
+#endif
 }
 
 /// Stop console input thread
 /// Call in setup() to disable
 inline void stop() {
+#ifdef __EMSCRIPTEN__
+    // No-op on web
+    return;
+#else
     if (!detail::isRunning().load()) {
         return; // Already stopped
     }
@@ -110,12 +120,17 @@ inline void stop() {
         detail::getThread()->detach();
     }
     detail::getThread().reset();
+#endif
 }
 
 /// Process commands in queue
 /// Called every frame within _frame_cb() in TrussC.h
 /// Fires events to events().console if commands exist
 inline void processQueue() {
+#ifdef __EMSCRIPTEN__
+    // No-op on web
+    return;
+#else
     if (!detail::isRunning().load()) {
         return;
     }
@@ -124,11 +139,16 @@ inline void processQueue() {
     while (detail::getChannel().tryReceive(args)) {
         events().console.notify(args);
     }
+#endif
 }
 
 /// Whether console is enabled
 inline bool isEnabled() {
+#ifdef __EMSCRIPTEN__
+    return false;
+#else
     return detail::isRunning().load();
+#endif
 }
 
 } // namespace console

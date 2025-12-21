@@ -636,6 +636,24 @@ void tcApp::generateVSCodeFiles(const string& path) {
 
     tasks["tasks"] = Json::array();
     tasks["tasks"].push_back(task);
+
+    // Add Web Build task if enabled
+    if (generateWebBuild) {
+        Json webTask;
+        webTask["label"] = "Build Web";
+        webTask["type"] = "shell";
+#ifdef __APPLE__
+        webTask["command"] = "./build-web.command";
+#elif defined(_WIN32)
+        webTask["command"] = ".\\build-web.bat";
+#else
+        webTask["command"] = "./build-web.sh";
+#endif
+        webTask["problemMatcher"] = Json::array();
+        webTask["group"] = "build";
+        tasks["tasks"].push_back(webTask);
+    }
+
     saveJson(tasks, vscodePath + "/tasks.json");
 
     // extensions.json (recommended extensions based on IDE and OS)
@@ -661,17 +679,17 @@ void tcApp::generateVSCodeFiles(const string& path) {
 }
 
 void tcApp::generateXcodeProject(const string& path) {
-    // Delete build folder and run cmake -G Xcode
+    // Delete xcode folder and run cmake -G Xcode
     // (Can't switch to Xcode generator if existing CMakeCache exists)
-    string buildPath = path + "/build";
-    if (fs::exists(buildPath)) {
-        fs::remove_all(buildPath);
+    string xcodePath = path + "/xcode";
+    if (fs::exists(xcodePath)) {
+        fs::remove_all(xcodePath);
     }
-    fs::create_directories(buildPath);
+    fs::create_directories(xcodePath);
 
     // Use full path for cmake since PATH may not be set when running from GUI app
     // TRUSSC_DIR is written directly in CMakeLists.txt, no environment variable needed
-    string cmd = "cd \"" + buildPath + "\" && /opt/homebrew/bin/cmake -G Xcode ..";
+    string cmd = "cd \"" + xcodePath + "\" && /opt/homebrew/bin/cmake -G Xcode ..";
     tcLogNotice("tcApp") << "Xcode cmd: " << cmd;
     int result = system(cmd.c_str());
 
@@ -687,20 +705,20 @@ void tcApp::generateXcodeProject(const string& path) {
 void tcApp::generateXcodeSchemes(const string& path) {
     tcLogNotice("tcApp") << "generateXcodeSchemes called with path: " << path;
 
-    string buildPath = path + "/build";
+    string xcodePath = path + "/xcode";
     string projectName = fs::path(path).filename().string();
-    tcLogNotice("tcApp") << "buildPath: " << buildPath << ", projectName: " << projectName;
+    tcLogNotice("tcApp") << "xcodePath: " << xcodePath << ", projectName: " << projectName;
 
     // Find .xcodeproj
     string xcodeprojPath;
-    for (const auto& entry : fs::directory_iterator(buildPath)) {
+    for (const auto& entry : fs::directory_iterator(xcodePath)) {
         if (entry.path().extension() == ".xcodeproj") {
             xcodeprojPath = entry.path().string();
             break;
         }
     }
     if (xcodeprojPath.empty()) {
-        tcLogWarning("tcApp") << "No .xcodeproj found in " << buildPath;
+        tcLogWarning("tcApp") << "No .xcodeproj found in " << xcodePath;
         return;
     }
     tcLogNotice("tcApp") << "Found xcodeproj: " << xcodeprojPath;
@@ -755,18 +773,18 @@ void tcApp::generateXcodeSchemes(const string& path) {
 }
 
 void tcApp::generateVisualStudioProject(const string& path) {
-    // Delete build folder and run cmake -G "Visual Studio 17 2022"
-    string buildPath = path + "/build";
-    if (fs::exists(buildPath)) {
-        fs::remove_all(buildPath);
+    // Delete vs folder and run cmake -G "Visual Studio 17 2022"
+    string vsPath = path + "/vs";
+    if (fs::exists(vsPath)) {
+        fs::remove_all(vsPath);
     }
-    fs::create_directories(buildPath);
+    fs::create_directories(vsPath);
 
 #ifdef _WIN32
-    string cmd = "cd /d \"" + buildPath + "\" && cmake -G \"Visual Studio 17 2022\" ..";
+    string cmd = "cd /d \"" + vsPath + "\" && cmake -G \"Visual Studio 17 2022\" ..";
 #else
     // Generation only from macOS/Linux (open on Windows)
-    string cmd = "cd \"" + buildPath + "\" && cmake -G \"Visual Studio 17 2022\" ..";
+    string cmd = "cd \"" + vsPath + "\" && cmake -G \"Visual Studio 17 2022\" ..";
 #endif
     tcLogNotice("tcApp") << "Visual Studio cmd: " << cmd;
     int result = system(cmd.c_str());
@@ -788,10 +806,10 @@ void tcApp::openInIde(const string& path) {
             cmd = "open -a \"Cursor\" \"" + path + "\"";
             break;
         case IdeType::Xcode: {
-            // Find and open build/*.xcodeproj
-            string buildPath = path + "/build";
-            if (fs::exists(buildPath)) {
-                for (const auto& entry : fs::directory_iterator(buildPath)) {
+            // Find and open xcode/*.xcodeproj
+            string xcodePath = path + "/xcode";
+            if (fs::exists(xcodePath)) {
+                for (const auto& entry : fs::directory_iterator(xcodePath)) {
                     string name = entry.path().filename().string();
                     if (name.find(".xcodeproj") != string::npos) {
                         cmd = "open \"" + entry.path().string() + "\"";
@@ -826,10 +844,10 @@ void tcApp::openInIde(const string& path) {
             setStatus("Xcode is not available on Windows/Linux", true);
             return;
         case IdeType::VisualStudio: {
-            // Find and open build/*.sln
-            string buildPath = path + "/build";
-            if (fs::exists(buildPath)) {
-                for (const auto& entry : fs::directory_iterator(buildPath)) {
+            // Find and open vs/*.sln
+            string vsPath = path + "/vs";
+            if (fs::exists(vsPath)) {
+                for (const auto& entry : fs::directory_iterator(vsPath)) {
                     string name = entry.path().filename().string();
                     if (name.find(".sln") != string::npos) {
 #ifdef _WIN32
@@ -1324,68 +1342,85 @@ void tcApp::doUpdateProject() {
 }
 
 void tcApp::generateWebBuildFiles(const string& path) {
-    // build-web.sh (macOS / Linux)
-    string shPath = path + "/build-web.sh";
-    ofstream shFile(shPath);
-    shFile << "#!/bin/bash\n";
-    shFile << "# TrussC Web Build Script (Emscripten)\n";
-    shFile << "# Requires: Emscripten SDK (https://emscripten.org/docs/getting_started/downloads.html)\n";
-    shFile << "\n";
-    shFile << "set -e\n";
-    shFile << "\n";
-    shFile << "# Create build directory\n";
-    shFile << "mkdir -p build-web\n";
-    shFile << "cd build-web\n";
-    shFile << "\n";
-    shFile << "# CMake configuration (Emscripten)\n";
-    shFile << "emcmake cmake ..\n";
-    shFile << "\n";
-    shFile << "# Build\n";
-    shFile << "cmake --build .\n";
-    shFile << "\n";
-    shFile << "echo \"\"\n";
-    shFile << "echo \"Build complete! Output files are in bin/\"\n";
-    shFile << "echo \"To test locally:\"\n";
-    shFile << "echo \"  cd ../bin && python3 -m http.server 8080\"\n";
-    shFile << "echo \"  Open http://localhost:8080/$(basename $(pwd)).html\"\n";
-    shFile.close();
-
-    // Set execute permission
-#ifndef _WIN32
-    chmod(shPath.c_str(), 0755);
+    // Generate platform-specific build script
+#ifdef __APPLE__
+    // macOS: .command file (double-clickable)
+    string scriptPath = path + "/build-web.command";
+    ofstream file(scriptPath);
+    file << "#!/bin/bash\n";
+    file << "# TrussC Web Build Script (Emscripten)\n";
+    file << "# Requires: Emscripten SDK (https://emscripten.org/docs/getting_started/downloads.html)\n";
+    file << "\n";
+    file << "cd \"$(dirname \"$0\")\"\n";
+    file << "set -e\n";
+    file << "\n";
+    file << "mkdir -p emscripten\n";
+    file << "cd emscripten\n";
+    file << "\n";
+    file << "emcmake cmake ..\n";
+    file << "cmake --build .\n";
+    file << "\n";
+    file << "echo \"\"\n";
+    file << "echo \"Build complete! Output files are in bin/\"\n";
+    file << "echo \"To test locally:\"\n";
+    file << "echo \"  cd ../bin && python3 -m http.server 8080\"\n";
+    file << "echo \"  Open http://localhost:8080/$(basename $(pwd)).html\"\n";
+    file.close();
+    chmod(scriptPath.c_str(), 0755);
+#elif defined(_WIN32)
+    // Windows: .bat file
+    string scriptPath = path + "/build-web.bat";
+    ofstream file(scriptPath);
+    file << "@echo off\r\n";
+    file << "REM TrussC Web Build Script (Emscripten)\r\n";
+    file << "REM Requires: Emscripten SDK (https://emscripten.org/docs/getting_started/downloads.html)\r\n";
+    file << "\r\n";
+    file << "if not exist emscripten mkdir emscripten\r\n";
+    file << "cd emscripten\r\n";
+    file << "\r\n";
+    file << "call emcmake cmake ..\r\n";
+    file << "if errorlevel 1 goto error\r\n";
+    file << "\r\n";
+    file << "cmake --build .\r\n";
+    file << "if errorlevel 1 goto error\r\n";
+    file << "\r\n";
+    file << "echo.\r\n";
+    file << "echo Build complete! Output files are in bin\\\r\n";
+    file << "echo To test locally:\r\n";
+    file << "echo   cd ..\\bin ^&^& python -m http.server 8080\r\n";
+    file << "goto end\r\n";
+    file << "\r\n";
+    file << ":error\r\n";
+    file << "echo Build failed!\r\n";
+    file << "pause\r\n";
+    file << "exit /b 1\r\n";
+    file << "\r\n";
+    file << ":end\r\n";
+    file << "cd ..\r\n";
+    file.close();
+#else
+    // Linux: .sh file
+    string scriptPath = path + "/build-web.sh";
+    ofstream file(scriptPath);
+    file << "#!/bin/bash\n";
+    file << "# TrussC Web Build Script (Emscripten)\n";
+    file << "# Requires: Emscripten SDK (https://emscripten.org/docs/getting_started/downloads.html)\n";
+    file << "\n";
+    file << "cd \"$(dirname \"$0\")\"\n";
+    file << "set -e\n";
+    file << "\n";
+    file << "mkdir -p emscripten\n";
+    file << "cd emscripten\n";
+    file << "\n";
+    file << "emcmake cmake ..\n";
+    file << "cmake --build .\n";
+    file << "\n";
+    file << "echo \"\"\n";
+    file << "echo \"Build complete! Output files are in bin/\"\n";
+    file << "echo \"To test locally:\"\n";
+    file << "echo \"  cd ../bin && python3 -m http.server 8080\"\n";
+    file << "echo \"  Open http://localhost:8080/$(basename $(pwd)).html\"\n";
+    file.close();
+    chmod(scriptPath.c_str(), 0755);
 #endif
-
-    // build-web.bat (Windows)
-    string batPath = path + "/build-web.bat";
-    ofstream batFile(batPath);
-    batFile << "@echo off\r\n";
-    batFile << "REM TrussC Web Build Script (Emscripten)\r\n";
-    batFile << "REM Requires: Emscripten SDK (https://emscripten.org/docs/getting_started/downloads.html)\r\n";
-    batFile << "\r\n";
-    batFile << "REM Create build directory\r\n";
-    batFile << "if not exist build-web mkdir build-web\r\n";
-    batFile << "cd build-web\r\n";
-    batFile << "\r\n";
-    batFile << "REM CMake configuration (Emscripten)\r\n";
-    batFile << "call emcmake cmake ..\r\n";
-    batFile << "if errorlevel 1 goto error\r\n";
-    batFile << "\r\n";
-    batFile << "REM Build\r\n";
-    batFile << "cmake --build .\r\n";
-    batFile << "if errorlevel 1 goto error\r\n";
-    batFile << "\r\n";
-    batFile << "echo.\r\n";
-    batFile << "echo Build complete! Output files are in bin\\\r\n";
-    batFile << "echo To test locally:\r\n";
-    batFile << "echo   cd ..\\bin ^&^& python -m http.server 8080\r\n";
-    batFile << "goto end\r\n";
-    batFile << "\r\n";
-    batFile << ":error\r\n";
-    batFile << "echo Build failed!\r\n";
-    batFile << "pause\r\n";
-    batFile << "exit /b 1\r\n";
-    batFile << "\r\n";
-    batFile << ":end\r\n";
-    batFile << "cd ..\r\n";
-    batFile.close();
 }
