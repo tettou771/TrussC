@@ -1,11 +1,13 @@
 #!/bin/bash
 # =============================================================================
-# TrussC Project Generator ビルドスクリプト (macOS)
+# TrussC Project Generator Build Script (macOS)
 # =============================================================================
-# このスクリプトをダブルクリックして projectGenerator をビルドできます
+# Double-click this script to build projectGenerator
+#
+# NOTE: If macOS blocks this script, right-click and select "Open"
 # =============================================================================
 
-# スクリプトのあるディレクトリに移動
+# Move to script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -14,10 +16,10 @@ echo "  TrussC Project Generator Build Script"
 echo "=========================================="
 echo ""
 
-# ソースディレクトリ
+# Source directory
 SOURCE_DIR="$SCRIPT_DIR/../examples/tools/projectGenerator"
 
-# build フォルダを作成
+# Create build folder
 if [ ! -d "$SOURCE_DIR/build" ]; then
     echo "Creating build directory..."
     mkdir -p "$SOURCE_DIR/build"
@@ -25,19 +27,20 @@ fi
 
 cd "$SOURCE_DIR/build"
 
-# CMake 設定
+# CMake configuration
 echo "Running CMake..."
 cmake ..
 if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: CMake configuration failed!"
     echo "Please make sure CMake is installed."
+    echo "  brew install cmake"
     echo ""
     read -p "Press Enter to close..."
     exit 1
 fi
 
-# ビルド
+# Build
 echo ""
 echo "Building..."
 cmake --build .
@@ -49,7 +52,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# バイナリをコピー
+# Copy binary to distribution folder
 echo ""
 echo "Copying to distribution folder..."
 rm -rf "$SCRIPT_DIR/projectGenerator.app"
@@ -60,12 +63,5 @@ echo "=========================================="
 echo "  Build completed successfully!"
 echo "=========================================="
 echo ""
-echo "projectGenerator.app is located at:"
-echo "  $SCRIPT_DIR/projectGenerator.app"
-echo ""
-
-# アプリを開くか確認
-read -p "Open projectGenerator now? (y/n): " answer
-if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
-    open "$SCRIPT_DIR/projectGenerator.app"
-fi
+echo "Launching projectGenerator..."
+open "$SCRIPT_DIR/projectGenerator.app"
