@@ -59,14 +59,5 @@ echo ==========================================
 echo   Build completed successfully!
 echo ==========================================
 echo.
-echo projectGenerator.exe is located at:
-echo   %SCRIPT_DIR%\projectGenerator.exe
-echo.
-
-REM Ask to open
-set /p answer="Open projectGenerator now? (y/n): "
-if /i "%answer%"=="y" (
-    start "" "%SCRIPT_DIR%\projectGenerator.exe"
-)
-
-pause
+echo Launching projectGenerator...
+start "" "%SCRIPT_DIR%\projectGenerator.exe"

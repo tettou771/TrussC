@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
-# TrussC Project Generator ビルドスクリプト (Linux)
+# TrussC Project Generator Build Script (Linux)
 # =============================================================================
-# このスクリプトを実行して projectGenerator をビルドできる
-# 使い方: ./buildProjectGenerator_linux.sh
+# Run this script to build projectGenerator
+# Usage: ./buildProjectGenerator_linux.sh
 # =============================================================================
 
-# スクリプトのあるディレクトリに移動
+# Move to script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -15,10 +15,10 @@ echo "  TrussC Project Generator Build Script"
 echo "=========================================="
 echo ""
 
-# ソースディレクトリ
+# Source directory
 SOURCE_DIR="$SCRIPT_DIR/../examples/tools/projectGenerator"
 
-# build フォルダを作成
+# Create build folder
 if [ ! -d "$SOURCE_DIR/build" ]; then
     echo "Creating build directory..."
     mkdir -p "$SOURCE_DIR/build"
@@ -26,7 +26,7 @@ fi
 
 cd "$SOURCE_DIR/build"
 
-# CMake 設定
+# CMake configuration
 echo "Running CMake..."
 cmake ..
 if [ $? -ne 0 ]; then
@@ -40,7 +40,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# ビルド
+# Build
 echo ""
 echo "Building..."
 cmake --build .
@@ -51,7 +51,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# バイナリをコピー
+# Copy binary to distribution folder
 echo ""
 echo "Copying to distribution folder..."
 cp "$SOURCE_DIR/bin/projectGenerator" "$SCRIPT_DIR/"
@@ -61,12 +61,5 @@ echo "=========================================="
 echo "  Build completed successfully!"
 echo "=========================================="
 echo ""
-echo "projectGenerator is located at:"
-echo "  $SCRIPT_DIR/projectGenerator"
-echo ""
-
-# アプリを実行するか確認
-read -p "Run projectGenerator now? (y/n): " answer
-if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
-    "$SCRIPT_DIR/projectGenerator"
-fi
+echo "Launching projectGenerator..."
+"$SCRIPT_DIR/projectGenerator"

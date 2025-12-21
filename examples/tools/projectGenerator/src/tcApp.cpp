@@ -595,6 +595,27 @@ void tcApp::generateVSCodeFiles(const string& path) {
     tasks["tasks"] = Json::array();
     tasks["tasks"].push_back(task);
     saveJson(tasks, vscodePath + "/tasks.json");
+
+    // extensions.json (recommended extensions based on IDE and OS)
+    Json extensions;
+    extensions["recommendations"] = Json::array();
+
+    // CMake Tools - required for all
+    extensions["recommendations"].push_back("ms-vscode.cmake-tools");
+
+    // C/C++ IntelliSense - different for VSCode vs Cursor
+    if (ideType == IdeType::Cursor) {
+        // Cursor: use clangd (ms-vscode.cpptools is blocked)
+        extensions["recommendations"].push_back("llvm-vs-code-extensions.vscode-clangd");
+    } else {
+        // VSCode: use Microsoft C/C++
+        extensions["recommendations"].push_back("ms-vscode.cpptools");
+    }
+
+    // Debugger - CodeLLDB for macOS/Linux (Windows uses cppvsdbg, but include anyway)
+    extensions["recommendations"].push_back("vadimcn.vscode-lldb");
+
+    saveJson(extensions, vscodePath + "/extensions.json");
 }
 
 void tcApp::generateXcodeProject(const string& path) {
