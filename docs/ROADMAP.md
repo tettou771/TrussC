@@ -212,7 +212,7 @@ List of samples/features requiring focused testing due to OS-specific code.
 
 | Feature | File | Sample | Status |
 |---------|------|--------|--------|
-| FBO pixel reading | `tcFbo_win.cpp` | gl/fboExample | ✅ Verified |
+| FBO pixel reading | `tcFbo_win.cpp` | graphics/fboExample | ✅ Verified |
 | DPI scaling | `tcPlatform_win.cpp` | All samples | ⬜ Untested |
 | Executable path | `tcPlatform_win.cpp` | Samples using dataPath | ✅ Verified |
 | Console UTF-8 | sokol_app.h | All log output | ✅ Verified |
@@ -282,11 +282,10 @@ List of samples/features requiring focused testing due to OS-specific code.
 | Category | Samples |
 |----------|---------|
 | templates/ | emptyExample |
-| graphics/ | graphicsExample, colorExample, clippingExample, blendingExample, fontExample, polylinesExample, strokeMeshExample |
+| graphics/ | graphicsExample, colorExample, clippingExample, blendingExample, fontExample, polylinesExample, strokeMeshExample, fboExample, shaderExample, textureExample |
 | 3d/ | ofNodeExample, 3DPrimitivesExample (with lighting), easyCamExample |
 | math/ | vectorMathExample, noiseField2dExample |
 | events/ | eventsExample, hitTestExample, uiExample |
-| gl/ | shaderExample, textureExample |
 | input_output/ | fileDialogExample, imageLoaderExample, screenshotExample, dragDropExample, jsonXmlExample, keyboardExample, mouseExample |
 | sound/ | soundPlayerExample, soundPlayerFFTExample, micInputExample |
 | video/ | videoGrabberExample |
