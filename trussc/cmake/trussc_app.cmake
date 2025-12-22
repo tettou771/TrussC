@@ -91,6 +91,13 @@ macro(trussc_app)
             -sFULL_ES3=1
             --shell-file=${_TC_SHELL_FILE}
         )
+        # bin/data フォルダが存在する場合は自動的にプリロード
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bin/data")
+            target_link_options(${PROJECT_NAME} PRIVATE
+                --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/bin/data@/data
+            )
+            message(STATUS "[${PROJECT_NAME}] Preloading data folder for Emscripten")
+        endif()
     elseif(APPLE)
         set_target_properties(${PROJECT_NAME} PROPERTIES
             MACOSX_BUNDLE TRUE

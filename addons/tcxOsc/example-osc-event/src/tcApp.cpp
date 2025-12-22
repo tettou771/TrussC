@@ -1,42 +1,42 @@
 // =============================================================================
-// tcApp.cpp - OSC イベント形式サンプル
+// tcApp.cpp - OSC Event-based Example
 // =============================================================================
-// このサンプルは「イベントハンドラ形式」で OSC を受信する。
+// This sample receives OSC using "event handler" style.
 //
-// 【重要】非同期処理と排他制御について
-// OSC の受信は別スレッドで行われるため、イベントハンドラは
-// メインスレッド（update/draw）とは別のスレッドから呼ばれる。
-// そのため、共有データへのアクセスには mutex による排他制御が必須。
+// [IMPORTANT] About async processing and thread safety
+// OSC reception runs on a separate thread, so event handlers are called
+// from a different thread than the main thread (update/draw).
+// Therefore, mutex protection is required when accessing shared data.
 //
-// 例: このサンプルでは receiveLogs_ を mutex で保護している
-//   - addReceiveLog(): lock_guard<mutex> で書き込み
-//   - draw(): lock_guard<mutex> で読み込み
+// Example: This sample protects receiveLogs_ with mutex
+//   - addReceiveLog(): writes with lock_guard<mutex>
+//   - draw(): reads with lock_guard<mutex>
 //
-// 同期的に処理したい場合は example-osc-polling を参照。
+// For synchronous processing, see example-osc-polling.
 // =============================================================================
 
 #include "TrussC.h"
 #include "tcApp.h"
 
 void tcApp::setup() {
-    // ImGui 初期化
+    // Initialize ImGui
     imguiSetup();
 
     // ---------------------------------------------------------------------------
-    // 受信イベントの登録
+    // Register receive events
     // ---------------------------------------------------------------------------
-    // 【注意】リスナーを保存しないと即座に解除される！
-    // 【注意】このコールバックは別スレッドから呼ばれる！
-    //        共有データへのアクセスには必ず mutex を使うこと
+    // [NOTE] Listener must be stored or it will be unregistered immediately!
+    // [NOTE] This callback is called from a different thread!
+    //        Always use mutex when accessing shared data
     // ---------------------------------------------------------------------------
 
-    // ラムダ版
+    // Lambda version
     receiver_.onMessageReceived.listen(messageListener_, [this](OscMessage& msg) {
-        // ここは受信スレッドから呼ばれる！
-        addReceiveLog("[RECEIVED] " + msg.toString());  // mutex で保護された関数
+        // This is called from the receive thread!
+        addReceiveLog("[RECEIVED] " + msg.toString());  // mutex-protected function
     });
 
-    // メンバ関数ポインタ版（oF風）
+    // Member function pointer version (oF style)
     receiver_.onParseError.listen(errorListener_, this, &tcApp::onParseError);
 
     if (!receiver_.setup(port_)) {
@@ -46,14 +46,14 @@ void tcApp::setup() {
         addReceiveLog("Listening on port " + to_string(port_));
     }
 
-    // 送信設定（自分自身に送信）
+    // Setup sender (send to self)
     if (!sender_.setup("127.0.0.1", port_)) {
         addSendLog("[ERROR] Failed to setup sender");
     }
 }
 
 void tcApp::update() {
-    // 特に更新処理なし
+    // No update processing needed
 }
 
 void tcApp::draw() {
@@ -224,7 +224,7 @@ void tcApp::cleanup() {
 }
 
 void tcApp::keyPressed(int key) {
-    // Enter キーで送信
+    // Send with Enter key
     if (key == KEY_ENTER) {
         sendMessage();
     }

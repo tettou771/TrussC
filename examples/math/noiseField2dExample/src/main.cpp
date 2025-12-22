@@ -1,5 +1,7 @@
 #include "tcApp.h"
 
 int main() {
-    return runApp<tcApp>();
+    WindowSettings settings;
+    settings.setHighDpi(false);
+    return runApp<tcApp>(settings);
 }
