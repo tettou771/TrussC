@@ -1,39 +1,39 @@
 # TrussC
 
-sokol ベースの軽量クリエイティブコーディングフレームワーク。
-openFrameworks に近い API を目指しつつ、モダンな C++ でシンプルに実装。
+A lightweight creative coding framework based on sokol.
+Inspired by openFrameworks, implemented simply with modern C++.
 
-## 特徴
+## Features
 
-- **軽量**: sokol ライブラリをベースに、最小限の依存関係
-- **ヘッダーオンリー**: ほとんどの機能がヘッダーファイルのみで完結
-- **C++20**: モダンな C++ 機能を活用
-- **クロスプラットフォーム**: macOS (Metal)、将来的に Windows/Linux 対応予定
-- **oF ライク API**: openFrameworks ユーザーが馴染みやすい設計
+- **Lightweight**: Minimal dependencies, built on sokol
+- **Header-only**: Most features are header-only
+- **C++20**: Leverages modern C++ features
+- **Cross-platform**: macOS (Metal), Windows (D3D11), Web (WebGPU). Linux/Raspberry Pi planned.
+- **oF-like API**: Familiar design for openFrameworks users
 
-## クイックスタート
+## Quick Start
 
-### Project Generator を使う（推奨）
+**-> See [GET_STARTED.md](docs/GET_STARTED.md) to get up and running!**
 
-`tools/projectGenerator` で GUI からプロジェクトを作成できる。
-VSCode, Cursor, Xcode, Visual Studio に対応。
+### Using Project Generator (Recommended)
 
-詳細は [docs/GET_STARTED.md](docs/GET_STARTED.md) を参照。
+Use `examples/tools/projectGenerator` to create projects via GUI.
+Supports VSCode, Cursor, Xcode, and Visual Studio.
 
-### コマンドラインでビルド
+### Command Line Build
 
 ```bash
-# サンプルをビルド
+# Build an example
 cd examples/graphics/graphicsExample
 mkdir build && cd build
 cmake ..
 cmake --build .
 
-# 実行（macOS）
+# Run (macOS)
 ./bin/graphicsExample.app/Contents/MacOS/graphicsExample
 ```
 
-### 最小限のコード
+### Minimal Code
 
 ```cpp
 #include "TrussC.h"
@@ -42,14 +42,14 @@ cmake --build .
 class MyApp : public tc::App {
 public:
     void setup() override {
-        // 初期化処理
+        // Initialization
     }
 
     void draw() override {
-        tc::clear(30);  // 背景をグレーでクリア
+        tc::clear(30);  // Clear background to gray
 
         tc::setColor(255, 100, 100);
-        tc::drawCircle(400, 300, 100);  // 赤い円を描画
+        tc::drawCircle(400, 300, 100);  // Draw a red circle
     }
 };
 
@@ -63,49 +63,49 @@ int main() {
 }
 ```
 
-## サンプル一覧
+## Examples
 
 ### templates/
-- **emptyExample** - 最小構成テンプレート
+- **emptyExample** - Minimal project template
 
 ### graphics/
-- **graphicsExample** - 基本図形描画
-- **colorExample** - 色空間と補間
+- **graphicsExample** - Basic shape drawing
+- **colorExample** - Color spaces and interpolation
 
 ### 3d/
-- **ofNodeExample** - シーングラフ・ノードシステム
-- **3DPrimitivesExample** - 3D プリミティブ
-- **easyCamExample** - マウス操作 3D カメラ
+- **ofNodeExample** - Scene graph / node system
+- **3DPrimitivesExample** - 3D primitives
+- **easyCamExample** - Mouse-controlled 3D camera
 
 ### math/
-- **vectorMathExample** - ベクトル・行列演算
+- **vectorMathExample** - Vector and matrix operations
 
 ### input_output/
-- **imageLoaderExample** - 画像読み込み・描画
-- **screenshotExample** - FBO を使ったスクリーンショット
+- **imageLoaderExample** - Image loading and drawing
+- **screenshotExample** - Screenshot using FBO
 
 ### events/
-- **keyPressedExample** - キーボードイベント
-- **mouseExample** - マウスイベント
-- **allEventsExample** - 全イベント一覧
+- **keyPressedExample** - Keyboard events
+- **mouseExample** - Mouse events
+- **allEventsExample** - All events overview
 
 ### threads/
-- **threadExample** - マルチスレッド処理
+- **threadExample** - Multithreading
 
-## 主な API
+## Main API
 
-### 描画
+### Drawing
 
 ```cpp
-tc::clear(r, g, b);              // 背景クリア
-tc::setColor(r, g, b, a);        // 描画色設定
-tc::drawRect(x, y, w, h);        // 矩形
-tc::drawCircle(x, y, radius);    // 円
-tc::drawLine(x1, y1, x2, y2);    // 線
-tc::drawTriangle(x1, y1, ...);   // 三角形
+tc::clear(r, g, b);              // Clear background
+tc::setColor(r, g, b, a);        // Set draw color
+tc::drawRect(x, y, w, h);        // Rectangle
+tc::drawCircle(x, y, radius);    // Circle
+tc::drawLine(x1, y1, x2, y2);    // Line
+tc::drawTriangle(x1, y1, ...);   // Triangle
 ```
 
-### 変形
+### Transform
 
 ```cpp
 tc::translate(x, y);
@@ -115,7 +115,7 @@ tc::pushMatrix();
 tc::popMatrix();
 ```
 
-### 入力
+### Input
 
 ```cpp
 tc::getMouseX();
@@ -123,62 +123,61 @@ tc::getMouseY();
 tc::isMousePressed();
 ```
 
-### 時間
+### Time
 
 ```cpp
-tc::getElapsedTime();    // 経過秒数
-tc::getDeltaTime();      // フレーム間隔
+tc::getElapsedTime();    // Seconds since start
+tc::getDeltaTime();      // Seconds since last frame
 tc::getFrameRate();      // FPS
 ```
 
-### 色
+### Color
 
 ```cpp
 tc::Color c(1.0f, 0.5f, 0.0f);           // RGB
-tc::colorFromHSB(hue, sat, brightness);  // HSB から生成
-tc::colors::cornflowerBlue;              // 定義済みカラー
+tc::colorFromHSB(hue, sat, brightness);  // From HSB
+tc::colors::cornflowerBlue;              // Predefined colors
 ```
 
-## 依存関係
+## Dependencies
 
-sokol, Dear ImGui, stb, miniaudio など、すべて `trussc/include/` 以下に同梱済み。
-詳細は [LICENSE.md](docs/LICENSE.md) を参照。
+sokol, Dear ImGui, stb, miniaudio, etc. are all bundled in `trussc/include/`.
+See [LICENSE.md](docs/LICENSE.md) for details.
 
-## ディレクトリ構成
+## Directory Structure
 
 ```
 include/
-├── TrussC.h          # メインヘッダー（これを include）
-├── tcBaseApp.h       # App 基底クラス
-├── tc/               # 機能別ヘッダー
-│   ├── graphics/     # 描画関連
-│   ├── math/         # 数学ユーティリティ
-│   ├── types/        # Color, Vec2 など
-│   ├── events/       # イベントシステム
-│   ├── 3d/           # 3D 機能
-│   └── gl/           # FBO, シェーダーなど
-├── sokol/            # sokol ライブラリ
-└── stb/              # stb ライブラリ
+├── TrussC.h          # Main header (include this)
+├── tcBaseApp.h       # App base class
+├── tc/               # Feature headers
+│   ├── graphics/     # Drawing
+│   ├── math/         # Math utilities
+│   ├── types/        # Color, Vec2, etc.
+│   ├── events/       # Event system
+│   ├── 3d/           # 3D features
+│   └── gl/           # FBO, shaders, etc.
+├── sokol/            # sokol library
+└── stb/              # stb library
 
-examples/             # サンプル集
-src/                  # プラットフォーム固有実装
+examples/             # Example projects
+src/                  # Platform-specific implementations
 ```
 
-## ドキュメント
+## Documentation
 
-- [GET_STARTED.md](docs/GET_STARTED.md) - はじめの一歩
-- [TrussC_vs_openFrameworks.md](docs/TrussC_vs_openFrameworks.md) - oF ユーザー向け API 対応表
-- [HOW_TO_BUILD.md](docs/HOW_TO_BUILD.md) - 詳細ビルド方法、アイコン設定、配布
-- [ADDONS.md](docs/ADDONS.md) - アドオンの使い方
-- [DESIGN.md](docs/DESIGN.md) - 設計詳細
-- [PHILOSOPHY.md](docs/PHILOSOPHY.md) - コンセプト・哲学
-- [ROADMAP.md](docs/ROADMAP.md) - 実装ロードマップ
+- [GET_STARTED.md](docs/GET_STARTED.md) - Getting started guide
+- [TrussC_vs_openFrameworks.md](docs/TrussC_vs_openFrameworks.md) - API mapping for oF users
+- [ADDONS.md](docs/ADDONS.md) - How to use addons
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Design philosophy and architecture
+- [BUILD_SYSTEM.md](docs/BUILD_SYSTEM.md) - CMake build system details
+- [ROADMAP.md](docs/ROADMAP.md) - Development roadmap
 
-## ライセンス
+## License
 
-MIT License - 詳細は [LICENSE.md](docs/LICENSE.md) を参照。
+MIT License - See [LICENSE.md](docs/LICENSE.md) for details.
 
-## 参考
+## References
 
 - [openFrameworks](https://openframeworks.cc/)
 - [sokol](https://github.com/floooh/sokol)
