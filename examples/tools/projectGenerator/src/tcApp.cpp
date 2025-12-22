@@ -47,6 +47,33 @@ void tcApp::setup() {
     // Load config
     loadConfig();
 
+    // Auto-detect TC_ROOT if not set
+    // Search up to 5 parent directories from executable location
+    if (tcRoot.empty()) {
+        fs::path exePath = platform::getExecutablePath();
+        fs::path searchPath = exePath.parent_path();
+
+        // On macOS, executable is in .app/Contents/MacOS/, go up to .app's parent
+        #ifdef __APPLE__
+        // Go up 3 levels: MacOS -> Contents -> .app -> parent
+        for (int i = 0; i < 3 && searchPath.has_parent_path(); i++) {
+            searchPath = searchPath.parent_path();
+        }
+        #endif
+
+        // Search up to 5 parent directories
+        for (int i = 0; i < 5 && searchPath.has_parent_path(); i++) {
+            fs::path checkPath = searchPath / "trussc" / "CMakeLists.txt";
+            if (fs::exists(checkPath)) {
+                tcRoot = searchPath.string();
+                strncpy(tcRootBuf, tcRoot.c_str(), sizeof(tcRootBuf) - 1);
+                tcLogNotice("tcApp") << "Auto-detected TC_ROOT: " << tcRoot;
+                break;
+            }
+            searchPath = searchPath.parent_path();
+        }
+    }
+
     // Show dialog if TC_ROOT is not set
     if (tcRoot.empty()) {
         showSetupDialog = true;
@@ -119,9 +146,15 @@ void tcApp::filesDropped(const vector<string>& files) {
     // Only process the first file/folder
     const string& path = files[0];
 
-    // Check if it's a directory and import as project
+    // Check if it's a directory
     if (fs::is_directory(path)) {
-        importProject(path);
+        if (showSetupDialog) {
+            // In setup dialog: set as TC_ROOT
+            strncpy(tcRootBuf, path.c_str(), sizeof(tcRootBuf) - 1);
+        } else {
+            // In main window: import as project
+            importProject(path);
+        }
     }
 
     // Draw twice: UI changes may not reflect until the next frame
