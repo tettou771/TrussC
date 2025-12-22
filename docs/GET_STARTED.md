@@ -225,4 +225,5 @@ The PNG is automatically converted to `.icns` (macOS) or `.ico` (Windows) at bui
 - [TrussC_vs_openFrameworks.md](TrussC_vs_openFrameworks.md) - API mapping for oF users
 - [FOR_AI_AGENT.md](FOR_AI_AGENT.md) - Complete API reference
 - [ADDONS.md](ADDONS.md) - How to use addons
-- [DESIGN.md](DESIGN.md) - Internal design details
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Design philosophy and architecture
+- [BUILD_SYSTEM.md](BUILD_SYSTEM.md) - CMake build system details
