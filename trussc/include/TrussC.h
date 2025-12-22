@@ -968,8 +968,16 @@ inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
     float textWidth, textHeight;
     getBitmapStringBounds(text, textWidth, textHeight);
 
-    // Padding
-    const float padding = 4.0f;
+    // Calculate exact height based on line count and lineHeight
+    int lineCount = 1;
+    for (char c : text) {
+        if (c == '\n') lineCount++;
+    }
+    float lineHeight = bitmapfont::CHAR_TEX_HEIGHT;
+    float exactHeight = lineCount * lineHeight;
+
+    // Horizontal padding only (no vertical padding to prevent overlap with adjacent lines)
+    const float paddingH = 4.0f;
 
     // Calculate offset based on current alignment
     float offsetX = 0, offsetY = 0;
@@ -997,10 +1005,10 @@ inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
     resetMatrix();
 
     // Draw background with alpha blend pipeline
+    // Height is exactly lineHeight * lineCount so adjacent lines don't overlap
     sgl_load_pipeline(internal::fontPipeline);
     setColor(background);
-    drawRect(worldX - padding, worldY - padding,
-             textWidth + padding * 2, textHeight + padding * 2);
+    drawRect(worldX - paddingH, worldY, textWidth + paddingH * 2, exactHeight);
     sgl_load_default_pipeline();
 
     popMatrix();

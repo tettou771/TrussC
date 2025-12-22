@@ -18,13 +18,13 @@ public:
     void keyPressed(int key) override;
 
 private:
-    // OSC 送受信
+    // OSC sender/receiver
     OscSender sender_;
     OscReceiver receiver_;
     EventListener messageListener_;
     EventListener errorListener_;
 
-    // UI 状態
+    // UI state
     char addressBuf_[256] = "/test/message";
     int intValue_ = 42;
     float floatValue_ = 3.14f;
@@ -33,21 +33,21 @@ private:
     bool sendFloat_ = true;
     bool sendString_ = false;
 
-    // ログ（送信・受信別）
+    // Logs (separate for send/receive)
     deque<string> sendLogs_;
     deque<string> receiveLogs_;
     mutex sendLogMutex_;
     mutex receiveLogMutex_;
     static constexpr size_t MAX_LOG_LINES = 20;
 
-    // ポート設定
+    // Port setting
     int port_ = 9000;
 
-    // バンドル用
+    // Bundle
     OscBundle pendingBundle_;
     int bundleMessageCount_ = 0;
 
-    // ヘルパー
+    // Helpers
     OscMessage createMessage();
     void sendMessage();
     void addToBundle();
@@ -55,6 +55,6 @@ private:
     void addSendLog(const string& msg);
     void addReceiveLog(const string& msg);
 
-    // イベントハンドラ（メンバ関数ポインタ版の例）
+    // Event handler (member function pointer example)
     void onParseError(string& error);
 };

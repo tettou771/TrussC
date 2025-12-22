@@ -17,12 +17,12 @@ public:
     void keyPressed(int key) override;
 
 private:
-    // OSC 送受信
+    // OSC sender/receiver
     OscSender sender_;
     OscReceiver receiver_;
-    // ポーリング形式なので EventListener は不要
+    // No EventListener needed for polling style
 
-    // UI 状態
+    // UI state
     char addressBuf_[256] = "/test/message";
     int intValue_ = 42;
     float floatValue_ = 3.14f;
@@ -31,20 +31,20 @@ private:
     bool sendFloat_ = true;
     bool sendString_ = false;
 
-    // ログ（送信・受信別）
-    // ポーリング形式なので mutex は不要（メインスレッドでのみアクセス）
+    // Logs (separate for send/receive)
+    // No mutex needed for polling (only accessed from main thread)
     deque<string> sendLogs_;
     deque<string> receiveLogs_;
     static constexpr size_t MAX_LOG_LINES = 20;
 
-    // ポート設定（event版は9000、polling版は9001）
+    // Port setting (event uses 9000, polling uses 9001)
     int port_ = 9001;
 
-    // バンドル用
+    // Bundle
     OscBundle pendingBundle_;
     int bundleMessageCount_ = 0;
 
-    // ヘルパー
+    // Helpers
     OscMessage createMessage();
     void sendMessage();
     void addToBundle();
