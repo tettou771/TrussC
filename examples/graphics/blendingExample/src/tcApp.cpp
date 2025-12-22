@@ -5,15 +5,6 @@
 #include "tcApp.h"
 
 void tcApp::setup() {
-    cout << "=== blendingExample ===" << endl;
-    cout << "Blend Mode Comparison Demo" << endl;
-    cout << "[1-6] Switch blend mode" << endl;
-    cout << "  1: Alpha (default)" << endl;
-    cout << "  2: Add" << endl;
-    cout << "  3: Multiply" << endl;
-    cout << "  4: Screen" << endl;
-    cout << "  5: Subtract" << endl;
-    cout << "  6: Disabled" << endl;
 }
 
 void tcApp::update() {
@@ -29,8 +20,6 @@ void tcApp::draw() {
     // Title
     setColor(1.0f, 1.0f, 1.0f);
     drawBitmapString("Blend Mode Comparison", 20, 30);
-    setColor(0.7f, 0.7f, 0.7f);
-    drawBitmapString("Press 1-6 to switch modes, each column shows different blend mode", 20, 50);
 
     // Description of each blend mode
     BlendMode modes[] = {
@@ -120,27 +109,6 @@ void tcApp::draw() {
 }
 
 void tcApp::keyPressed(int key) {
-    // Demo to switch current mode immediately (not applied to entire screen, just for confirmation)
-    switch (key) {
-        case '1':
-            cout << "Alpha mode (default)" << endl;
-            break;
-        case '2':
-            cout << "Add mode" << endl;
-            break;
-        case '3':
-            cout << "Multiply mode" << endl;
-            break;
-        case '4':
-            cout << "Screen mode" << endl;
-            break;
-        case '5':
-            cout << "Subtract mode" << endl;
-            break;
-        case '6':
-            cout << "Disabled mode" << endl;
-            break;
-    }
 }
 
 string tcApp::getBlendModeName(BlendMode mode) {
