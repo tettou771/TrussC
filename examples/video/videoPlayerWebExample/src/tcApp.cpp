@@ -15,6 +15,7 @@
 // =============================================================================
 
 #include "tcApp.h"
+#include "TrussC.h"
 
 void tcApp::setup() {
     setWindowTitle("Video Player Example (Web)");
@@ -46,7 +47,7 @@ void tcApp::update() {
 }
 
 void tcApp::draw() {
-    clear(30);
+    clear(0.12f);
 
     if (video_.isLoaded()) {
         // Draw video centered
@@ -59,22 +60,28 @@ void tcApp::draw() {
 
         video_.draw(x, y, w, h);
 
+        // Reset color after texture draw
+        setColor(1.0f);
+
         // Progress bar
-        float barY = getWindowHeight() - 30;
         float barHeight = 10;
+        float barY = getWindowHeight() - barHeight;
         float progress = video_.getPosition();
 
         // Background
-        setColor(50);
+        setColor(0.2f);
         drawRect(20, barY, getWindowWidth() - 40, barHeight);
 
         // Progress
-        setColor(100, 200, 100);
+        setColor(0.4f, 0.78f, 0.4f);
         drawRect(20, barY, (getWindowWidth() - 40) * progress, barHeight);
 
         // Info display
         if (showInfo_) {
-            setColor(255);
+            pushStyle();
+
+            setTextAlign(Left, Baseline);
+            setColor(1.0f);
             int currentFrame = video_.getCurrentFrame();
             int totalFrames = video_.getTotalFrames();
             float currentTime = video_.getPosition() * video_.getDuration();
@@ -87,21 +94,30 @@ void tcApp::draw() {
             drawBitmapString(info, 20, 20);
 
             string state = video_.isPlaying() ? "Playing" :
-                          video_.isPaused() ? "Paused" : "Stopped";
-            drawBitmapString("State: " + state, 20, 40);
-            drawBitmapString("Volume: " + to_string((int)(video_.getVolume() * 100)) + "%", 20, 60);
+                           video_.isPaused() ? "Paused" : "Stopped";
+            setTextAlign(Center, Baseline);
+            drawBitmapString("State: " + state, getWindowWidth() / 2, 20);
+
+            setTextAlign(Right, Baseline);
+            drawBitmapString("Volume: " + to_string((int)(video_.getVolume() * 100)) + "%", getWindowWidth() - 20, 20);
+
+            popStyle();
         }
     } else {
+        pushStyle();
         // Loading / Ready to play
-        setColor(255);
-        drawBitmapString("Press Space to play", getWindowWidth() / 2 - 60, getWindowHeight() / 2 - 20);
-        drawBitmapString("Big Buck Bunny (CC BY 3.0)", getWindowWidth() / 2 - 80, getWindowHeight() / 2);
+        setColor(1.0f);
+
+        setTextAlign(Center, Baseline);
+        drawBitmapString("Press Space to play", getWindowWidth() / 2, getWindowHeight() / 2 - 20);
+        drawBitmapString("Big Buck Bunny (CC BY 3.0)", getWindowWidth() / 2, getWindowHeight() / 2);
+        popStyle();
     }
 
     // Controls help
-    setColor(200);
+    setColor(0.78f);
     drawBitmapString("Space: Play/Pause | R: Restart | Arrows: Seek/Volume | I: Info",
-                    20, getWindowHeight() - 50);
+                    20, getWindowHeight() - 30);
 }
 
 string tcApp::formatTime(float seconds) {
