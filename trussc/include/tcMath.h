@@ -668,10 +668,10 @@ struct Mat4 {
 // =============================================================================
 
 // Degrees to radians
-inline float radians(float degrees) { return degrees * TAU / 360.0f; }
+inline float deg2rad(float deg) { return deg * TAU / 360.0f; }
 
 // Radians to degrees
-inline float degrees(float radians) { return radians * 360.0f / TAU; }
+inline float rad2deg(float rad) { return rad * 360.0f / TAU; }
 
 // Linear interpolation
 inline float lerp(float a, float b, float t) { return a + (b - a) * t; }

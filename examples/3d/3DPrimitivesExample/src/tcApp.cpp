@@ -77,7 +77,7 @@ void tcApp::draw() {
     clear(0.1f, 0.1f, 0.12f);
 
     // Enable 3D drawing mode (perspective + depth test)
-    enable3DPerspective(radians(45.0f), 0.1f, 100.0f);
+    enable3DPerspective(deg2rad(45.0f), 0.1f, 100.0f);
 
     float t = getElapsedTime();
 
