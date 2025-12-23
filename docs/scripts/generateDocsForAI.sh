@@ -1,20 +1,23 @@
 #!/bin/bash
 
-# Generate comprehensive documentation for AI consumption
-# Output: docs/scripts/docsForAI.md
+# Generate documentation for AI consumption
+# Output:
+#   - trussc_docs.md     : Documentation (markdown files)
+#   - trussc_examples.md : Example source code
+#   - trussc_api.md      : API headers
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-OUTPUT_FILE="$SCRIPT_DIR/docsForAI.md"
 
-echo "# TrussC Complete Reference" > "$OUTPUT_FILE"
-echo "" >> "$OUTPUT_FILE"
-echo "Generated: $(date)" >> "$OUTPUT_FILE"
-echo "" >> "$OUTPUT_FILE"
+# Output files
+DOCS_FILE="$SCRIPT_DIR/trussc_docs.md"
+EXAMPLES_FILE="$SCRIPT_DIR/trussc_examples.md"
+API_FILE="$SCRIPT_DIR/trussc_api.md"
 
 # Function to add a file with path and code block
 add_file() {
     local file="$1"
+    local output="$2"
     local rel_path="${file#$ROOT_DIR/}"
     local ext="${file##*.}"
 
@@ -29,70 +32,76 @@ add_file() {
         *) lang="" ;;
     esac
 
-    echo "" >> "$OUTPUT_FILE"
-    echo "## $rel_path" >> "$OUTPUT_FILE"
-    echo "" >> "$OUTPUT_FILE"
-    echo "\`\`\`$lang" >> "$OUTPUT_FILE"
-    cat "$file" >> "$OUTPUT_FILE"
-    echo "" >> "$OUTPUT_FILE"
-    echo "\`\`\`" >> "$OUTPUT_FILE"
+    echo "" >> "$output"
+    echo "## $rel_path" >> "$output"
+    echo "" >> "$output"
+    echo "\`\`\`$lang" >> "$output"
+    cat "$file" >> "$output"
+    echo "" >> "$output"
+    echo "\`\`\`" >> "$output"
 }
 
-echo "Collecting files..."
+echo "Generating TrussC documentation for AI..."
 
-# 1. All markdown files (excluding third-party libs)
-echo "--- Markdown Documentation ---" >> "$OUTPUT_FILE"
+# =============================================================================
+# 1. Documentation (trussc_docs.md)
+# =============================================================================
+echo "# TrussC Documentation" > "$DOCS_FILE"
+echo "" >> "$DOCS_FILE"
+echo "Generated: $(date)" >> "$DOCS_FILE"
+
+echo "  [1/3] Collecting documentation..."
+
 find "$ROOT_DIR" -name "*.md" -type f \
     ! -path "*/build/*" \
     ! -path "*/.git/*" \
     ! -path "*/libs/*" \
-    ! -name "docsForAI.md" | sort | while read f; do
-    add_file "$f"
+    ! -path "*/docs/scripts/*" \
+    ! -name "*_jp.md" | sort | while read f; do
+    add_file "$f" "$DOCS_FILE"
 done
 
-# 2. All example source files (.h, .cpp)
-echo "" >> "$OUTPUT_FILE"
-echo "--- Examples Source Code ---" >> "$OUTPUT_FILE"
-find "$ROOT_DIR/examples" \( -name "*.h" -o -name "*.cpp" \) -type f ! -path "*/build/*" | sort | while read f; do
-    add_file "$f"
+# =============================================================================
+# 2. Examples (trussc_examples.md)
+# =============================================================================
+echo "# TrussC Examples" > "$EXAMPLES_FILE"
+echo "" >> "$EXAMPLES_FILE"
+echo "Generated: $(date)" >> "$EXAMPLES_FILE"
+
+echo "  [2/3] Collecting examples..."
+
+find "$ROOT_DIR/examples" \( -name "*.h" -o -name "*.cpp" \) -type f \
+    ! -path "*/build/*" | sort | while read f; do
+    add_file "$f" "$EXAMPLES_FILE"
 done
 
-# 3. TrussC header files (excluding third-party libraries)
-echo "" >> "$OUTPUT_FILE"
-echo "--- TrussC Headers ---" >> "$OUTPUT_FILE"
+# =============================================================================
+# 3. API Headers (trussc_api.md)
+# =============================================================================
+echo "# TrussC API" > "$API_FILE"
+echo "" >> "$API_FILE"
+echo "Generated: $(date)" >> "$API_FILE"
 
-# TrussC's own headers in tc/ directory
+echo "  [3/3] Collecting API headers..."
+
+# TrussC's own headers in tc/ directory (headers only, no .cpp)
 find "$ROOT_DIR/trussc/include/tc" -name "*.h" -type f | sort | while read f; do
-    add_file "$f"
+    add_file "$f" "$API_FILE"
 done
 
 # TrussC's own headers in root include (tc*.h and TrussC.h only)
 find "$ROOT_DIR/trussc/include" -maxdepth 1 -name "tc*.h" -type f | sort | while read f; do
-    add_file "$f"
+    add_file "$f" "$API_FILE"
 done
-add_file "$ROOT_DIR/trussc/include/TrussC.h"
+add_file "$ROOT_DIR/trussc/include/TrussC.h" "$API_FILE"
 
-# Note: Excluding third-party libraries (sokol/, imgui/, stb/, miniaudio.h, dr_*.h, pugixml/, etc.)
-
-# 4. TrussC implementation files (.cpp, .mm)
-echo "" >> "$OUTPUT_FILE"
-echo "--- TrussC Implementation ---" >> "$OUTPUT_FILE"
-
-# tc/*.cpp (network, sound, etc.)
-find "$ROOT_DIR/trussc/include/tc" -name "*.cpp" -type f | sort | while read f; do
-    add_file "$f"
-done
-
-# platform/*.cpp and *.mm
-find "$ROOT_DIR/trussc/platform" \( -name "*.cpp" -o -name "*.mm" \) -type f | sort | while read f; do
-    add_file "$f"
-done
-
-# Calculate size
-SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
-LINES=$(wc -l < "$OUTPUT_FILE")
-
+# =============================================================================
+# Summary
+# =============================================================================
 echo ""
-echo "Generated: $OUTPUT_FILE"
-echo "Size: $SIZE"
-echo "Lines: $LINES"
+echo "Generated files:"
+for f in "$DOCS_FILE" "$EXAMPLES_FILE" "$API_FILE"; do
+    SIZE=$(du -h "$f" | cut -f1)
+    LINES=$(wc -l < "$f")
+    echo "  $(basename "$f"): $SIZE ($LINES lines)"
+done
