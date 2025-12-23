@@ -7,7 +7,11 @@ Built on C++20 + sokol, it's simple to write and runs cross-platform.
 
 ## AI Assistant
 
-[![TrussC Assistant](images/TrussC_assistant.png)](https://gemini.google.com/gem/16aq3ccVPl33j6xSMyE7MWXDjaZvauL0I)
+<p align="center">
+  <a href="https://gemini.google.com/gem/16aq3ccVPl33j6xSMyE7MWXDjaZvauL0I">
+    <img src="images/TrussC_assistant.png" width="400" alt="TrussC Assistant">
+  </a>
+</p>
 
 **[TrussC Assistant](https://gemini.google.com/gem/16aq3ccVPl33j6xSMyE7MWXDjaZvauL0I)** - A Gemini-based AI that knows TrussC. Ask questions about APIs, get code examples, or troubleshoot issues.
 
@@ -67,7 +71,9 @@ Build the project creation tool (first time only).
 
 ## 3. Create a Project
 
-![Project Generator](images/projectGenerator_generate.png)
+<p align="center">
+  <img src="images/projectGenerator_generate.png" width="500" alt="Project Generator">
+</p>
 
 1. Enter a **Project Name**
 2. Select a **Location** to save
@@ -122,7 +128,9 @@ Run examples the same way:
 
 ## 6. Update Existing Projects
 
-![Project Generator - Update](images/projectGenerator_update.png)
+<p align="center">
+  <img src="images/projectGenerator_update.png" width="500" alt="Project Generator - Update">
+</p>
 
 When you clone a TrussC project or example (e.g., `examples/graphics/graphicsExample`), you need to generate the IDE project files before building.
 
@@ -226,12 +234,3 @@ The PNG is automatically converted to `.icns` (macOS) or `.ico` (Windows) at bui
 
 **Windows:** Requires [ImageMagick](https://imagemagick.org/) for PNG → ICO conversion. Alternatively, prepare an `.ico` file directly.
 
----
-
-## Next Steps
-
-- [TrussC_vs_openFrameworks.md](TrussC_vs_openFrameworks.md) - API mapping for oF users
-- [FOR_AI_AGENT.md](FOR_AI_AGENT.md) - Complete API reference
-- [ADDONS.md](ADDONS.md) - How to use addons
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Design philosophy and architecture
-- [BUILD_SYSTEM.md](BUILD_SYSTEM.md) - CMake build system details
