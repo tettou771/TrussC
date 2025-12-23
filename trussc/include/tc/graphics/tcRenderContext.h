@@ -155,18 +155,18 @@ public:
         }
     }
 
-    void translate(float x, float y) {
-        currentMatrix_ = currentMatrix_ * Mat4::translate(x, y, 0.0f);
-        sgl_translate(x, y, 0.0f);
-    }
-
+    // Main implementation (Vec3)
     void translate(Vec3 pos) {
-        translate(pos.x, pos.y, pos.z);
+        currentMatrix_ = currentMatrix_ * Mat4::translate(pos.x, pos.y, pos.z);
+        sgl_translate(pos.x, pos.y, pos.z);
     }
 
     void translate(float x, float y, float z) {
-        currentMatrix_ = currentMatrix_ * Mat4::translate(x, y, z);
-        sgl_translate(x, y, z);
+        translate(Vec3(x, y, z));
+    }
+
+    void translate(float x, float y) {
+        translate(Vec3(x, y, 0));
     }
 
     void rotate(float radians) {
@@ -225,28 +225,7 @@ public:
     // Basic shape drawing
     // -----------------------------------------------------------------------
 
-    void drawRect(float x, float y, float w, float h) {
-        if (fillEnabled_) {
-            sgl_begin_quads();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v2f(x, y);
-            sgl_v2f(x + w, y);
-            sgl_v2f(x + w, y + h);
-            sgl_v2f(x, y + h);
-            sgl_end();
-        }
-        if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v2f(x, y);
-            sgl_v2f(x + w, y);
-            sgl_v2f(x + w, y + h);
-            sgl_v2f(x, y + h);
-            sgl_v2f(x, y);
-            sgl_end();
-        }
-    }
-
+    // Main implementation (Vec3)
     void drawRect(Vec3 pos, Vec2 size) {
         float x = pos.x, y = pos.y, z = pos.z;
         float w = size.x, h = size.y;
@@ -275,34 +254,11 @@ public:
         drawRect(pos, Vec2(w, h));
     }
 
-    void drawCircle(float cx, float cy, float radius) {
-        int segments = circleResolution_;
-
-        if (fillEnabled_) {
-            sgl_begin_triangle_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            for (int i = 0; i <= segments; i++) {
-                float angle = (float)i / segments * TAU;
-                float px = cx + cos(angle) * radius;
-                float py = cy + sin(angle) * radius;
-                sgl_v2f(cx, cy);
-                sgl_v2f(px, py);
-            }
-            sgl_end();
-        }
-        if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            for (int i = 0; i <= segments; i++) {
-                float angle = (float)i / segments * TAU;
-                float px = cx + cos(angle) * radius;
-                float py = cy + sin(angle) * radius;
-                sgl_v2f(px, py);
-            }
-            sgl_end();
-        }
+    void drawRect(float x, float y, float w, float h) {
+        drawRect(Vec3(x, y, 0), Vec2(w, h));
     }
 
+    // Main implementation (Vec3)
     void drawCircle(Vec3 center, float radius) {
         int segments = circleResolution_;
         float cx = center.x, cy = center.y, cz = center.z;
@@ -332,34 +288,11 @@ public:
         }
     }
 
-    void drawEllipse(float cx, float cy, float rx, float ry) {
-        int segments = circleResolution_;
-
-        if (fillEnabled_) {
-            sgl_begin_triangle_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            for (int i = 0; i <= segments; i++) {
-                float angle = (float)i / segments * TAU;
-                float px = cx + cos(angle) * rx;
-                float py = cy + sin(angle) * ry;
-                sgl_v2f(cx, cy);
-                sgl_v2f(px, py);
-            }
-            sgl_end();
-        }
-        if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            for (int i = 0; i <= segments; i++) {
-                float angle = (float)i / segments * TAU;
-                float px = cx + cos(angle) * rx;
-                float py = cy + sin(angle) * ry;
-                sgl_v2f(px, py);
-            }
-            sgl_end();
-        }
+    void drawCircle(float cx, float cy, float radius) {
+        drawCircle(Vec3(cx, cy, 0), radius);
     }
 
+    // Main implementation (Vec3)
     void drawEllipse(Vec3 center, Vec2 radii) {
         int segments = circleResolution_;
         float cx = center.x, cy = center.y, cz = center.z;
@@ -394,14 +327,11 @@ public:
         drawEllipse(center, Vec2(rx, ry));
     }
 
-    void drawLine(float x1, float y1, float x2, float y2) {
-        sgl_begin_lines();
-        sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-        sgl_v2f(x1, y1);
-        sgl_v2f(x2, y2);
-        sgl_end();
+    void drawEllipse(float cx, float cy, float rx, float ry) {
+        drawEllipse(Vec3(cx, cy, 0), Vec2(rx, ry));
     }
 
+    // Main implementation (Vec3)
     void drawLine(Vec3 p1, Vec3 p2) {
         sgl_begin_lines();
         sgl_c4f(currentR_, currentG_, currentB_, currentA_);
@@ -410,26 +340,11 @@ public:
         sgl_end();
     }
 
-    void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3) {
-        if (fillEnabled_) {
-            sgl_begin_triangles();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v2f(x1, y1);
-            sgl_v2f(x2, y2);
-            sgl_v2f(x3, y3);
-            sgl_end();
-        }
-        if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v2f(x1, y1);
-            sgl_v2f(x2, y2);
-            sgl_v2f(x3, y3);
-            sgl_v2f(x1, y1);
-            sgl_end();
-        }
+    void drawLine(float x1, float y1, float x2, float y2) {
+        drawLine(Vec3(x1, y1, 0), Vec3(x2, y2, 0));
     }
 
+    // Main implementation (Vec3)
     void drawTriangle(Vec3 p1, Vec3 p2, Vec3 p3) {
         if (fillEnabled_) {
             sgl_begin_triangles();
@@ -450,18 +365,20 @@ public:
         }
     }
 
-    void drawPoint(float x, float y) {
-        sgl_begin_points();
-        sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-        sgl_v2f(x, y);
-        sgl_end();
+    void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3) {
+        drawTriangle(Vec3(x1, y1, 0), Vec3(x2, y2, 0), Vec3(x3, y3, 0));
     }
 
+    // Main implementation (Vec3)
     void drawPoint(Vec3 pos) {
         sgl_begin_points();
         sgl_c4f(currentR_, currentG_, currentB_, currentA_);
         sgl_v3f(pos.x, pos.y, pos.z);
         sgl_end();
+    }
+
+    void drawPoint(float x, float y) {
+        drawPoint(Vec3(x, y, 0));
     }
 
     // -----------------------------------------------------------------------
