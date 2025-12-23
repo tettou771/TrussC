@@ -5,6 +5,18 @@ C++20 + sokol で構築されており、シンプルに書けてクロスプラ
 
 ---
 
+## AI アシスタント
+
+<p align="center">
+  <a href="https://gemini.google.com/gem/16aq3ccVPl33j6xSMyE7MWXDjaZvauL0I">
+    <img src="images/TrussC_assistant.png" width="400" alt="TrussC Assistant">
+  </a>
+</p>
+
+**[TrussC Assistant](https://gemini.google.com/gem/16aq3ccVPl33j6xSMyE7MWXDjaZvauL0I)** - TrussC を熟知した Gemini ベースの AI。API の質問、コード例の取得、トラブルシューティングに対応します。
+
+---
+
 ## 1. 開発環境のセットアップ
 
 ### 必要なもの
@@ -59,7 +71,9 @@ sudo apt install cmake
 
 ## 3. プロジェクトの作成
 
-![Project Generator](images/projectGenerator_generate.png)
+<p align="center">
+  <img src="images/projectGenerator_generate.png" width="500" alt="Project Generator">
+</p>
 
 1. **Project Name** にプロジェクト名を入力
 2. **Location** に保存先を選択
@@ -114,7 +128,9 @@ examples/
 
 ## 6. 既存プロジェクトの更新
 
-![Project Generator - Update](images/projectGenerator_update.png)
+<p align="center">
+  <img src="images/projectGenerator_update.png" width="500" alt="Project Generator - Update">
+</p>
 
 TrussC プロジェクトやサンプル（例: `examples/graphics/graphicsExample`）をクローンした場合、ビルド前に IDE プロジェクトファイルを生成する必要があります。
 
@@ -218,12 +234,3 @@ PNG はビルド時に自動的に `.icns` (macOS) または `.ico` (Windows) �
 
 **Windows:** PNG → ICO 変換には [ImageMagick](https://imagemagick.org/) が必要です。または、`.ico` ファイルを直接用意してください。
 
----
-
-## 次のステップ
-
-- [TrussC_vs_openFrameworks.md](TrussC_vs_openFrameworks.md) - oF ユーザー向け API マッピング
-- [FOR_AI_AGENT.md](FOR_AI_AGENT.md) - 完全な API リファレンス
-- [ADDONS.md](ADDONS.md) - アドオンの使い方
-- [ARCHITECTURE.md](ARCHITECTURE.md) - 設計思想とアーキテクチャ
-- [BUILD_SYSTEM.md](BUILD_SYSTEM.md) - CMake ビルドシステムの詳細
