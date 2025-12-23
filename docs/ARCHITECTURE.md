@@ -191,12 +191,12 @@ Nodes can clip children to their bounds (axis-aligned only, performance priority
 ```cpp
 tc::pushMatrix();
 tc::translate(100, 100);
-tc::rotate(45);
+tc::rotate(TAU / 8.);
 // ... draw ...
 tc::popMatrix();
 
 tc::pushStyle();
-tc::setColor(255, 0, 0);
+tc::setColor(1.f, 0, 0);
 // ... draw ...
 tc::popStyle();
 ```

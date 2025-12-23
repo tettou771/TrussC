@@ -95,7 +95,7 @@ public:
     }
 
     float getPhysicsRotationDeg() const {
-        return tc::degrees(getPhysicsRotation());
+        return tc::rad2deg(getPhysicsRotation());
     }
 
     // -------------------------------------------------------------------------
@@ -118,7 +118,7 @@ public:
     }
 
     void setPhysicsRotationDeg(float deg) {
-        setPhysicsRotation(tc::radians(deg));
+        setPhysicsRotation(tc::deg2rad(deg));
     }
 
     void setPhysicsTransform(const tc::Vec2& pos, float radians) {
