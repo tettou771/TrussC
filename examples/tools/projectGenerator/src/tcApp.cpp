@@ -47,6 +47,13 @@ void tcApp::setup() {
     // Load config
     loadConfig();
 
+    // Validate TC_ROOT - clear if invalid (triggers auto-detection)
+    if (!tcRoot.empty() && !fs::exists(tcRoot + "/trussc/CMakeLists.txt")) {
+        tcLogNotice("tcApp") << "TC_ROOT is invalid, clearing: " << tcRoot;
+        tcRoot.clear();
+        tcRootBuf[0] = '\0';
+    }
+
     // Auto-detect TC_ROOT if not set
     // Search up to 5 parent directories from executable location
     if (tcRoot.empty()) {
