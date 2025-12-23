@@ -706,17 +706,16 @@ inline void popStyle() {
 }
 
 // Translation
-inline void translate(float x, float y) {
-    getDefaultContext().translate(x, y);
-}
-
 inline void translate(Vec3 pos) {
     getDefaultContext().translate(pos);
 }
 
-// 3D translation
 inline void translate(float x, float y, float z) {
     getDefaultContext().translate(x, y, z);
+}
+
+inline void translate(float x, float y) {
+    getDefaultContext().translate(x, y);
 }
 
 // Z-axis rotation (radians)
@@ -849,10 +848,6 @@ inline void disable3D() {
 // ---------------------------------------------------------------------------
 
 // Rectangle (top-left coordinate + size)
-inline void drawRect(float x, float y, float w, float h) {
-    getDefaultContext().drawRect(x, y, w, h);
-}
-
 inline void drawRect(Vec3 pos, Vec2 size) {
     getDefaultContext().drawRect(pos, size);
 }
@@ -861,20 +856,20 @@ inline void drawRect(Vec3 pos, float w, float h) {
     getDefaultContext().drawRect(pos, w, h);
 }
 
-// Circle
-inline void drawCircle(float cx, float cy, float radius) {
-    getDefaultContext().drawCircle(cx, cy, radius);
+inline void drawRect(float x, float y, float w, float h) {
+    getDefaultContext().drawRect(x, y, w, h);
 }
 
+// Circle
 inline void drawCircle(Vec3 center, float radius) {
     getDefaultContext().drawCircle(center, radius);
 }
 
-// Ellipse
-inline void drawEllipse(float cx, float cy, float rx, float ry) {
-    getDefaultContext().drawEllipse(cx, cy, rx, ry);
+inline void drawCircle(float cx, float cy, float radius) {
+    getDefaultContext().drawCircle(cx, cy, radius);
 }
 
+// Ellipse
 inline void drawEllipse(Vec3 center, Vec2 radii) {
     getDefaultContext().drawEllipse(center, radii);
 }
@@ -883,31 +878,35 @@ inline void drawEllipse(Vec3 center, float rx, float ry) {
     getDefaultContext().drawEllipse(center, rx, ry);
 }
 
-// Line
-inline void drawLine(float x1, float y1, float x2, float y2) {
-    getDefaultContext().drawLine(x1, y1, x2, y2);
+inline void drawEllipse(float cx, float cy, float rx, float ry) {
+    getDefaultContext().drawEllipse(cx, cy, rx, ry);
 }
 
+// Line
 inline void drawLine(Vec3 p1, Vec3 p2) {
     getDefaultContext().drawLine(p1, p2);
 }
 
-// Triangle
-inline void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3) {
-    getDefaultContext().drawTriangle(x1, y1, x2, y2, x3, y3);
+inline void drawLine(float x1, float y1, float x2, float y2) {
+    getDefaultContext().drawLine(x1, y1, x2, y2);
 }
 
+// Triangle
 inline void drawTriangle(Vec3 p1, Vec3 p2, Vec3 p3) {
     getDefaultContext().drawTriangle(p1, p2, p3);
 }
 
-// Point
-inline void drawPoint(float x, float y) {
-    getDefaultContext().drawPoint(x, y);
+inline void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3) {
+    getDefaultContext().drawTriangle(x1, y1, x2, y2, x3, y3);
 }
 
+// Point
 inline void drawPoint(Vec3 pos) {
     getDefaultContext().drawPoint(pos);
+}
+
+inline void drawPoint(float x, float y) {
+    getDefaultContext().drawPoint(x, y);
 }
 
 // Set circle resolution
@@ -945,32 +944,32 @@ inline void getBitmapStringBounds(const std::string& text, float& width, float& 
 // Draw bitmap string
 // screenFixed = true (default): fixed to screen (cancel rotation/scale)
 // screenFixed = false: follow current matrix transformation (rotation/scale applied)
-inline void drawBitmapString(const std::string& text, float x, float y, bool screenFixed = true) {
-    getDefaultContext().drawBitmapString(text, x, y, screenFixed);
-}
-
 inline void drawBitmapString(const std::string& text, Vec3 pos, bool screenFixed = true) {
     getDefaultContext().drawBitmapString(text, pos, screenFixed);
 }
 
-// Draw bitmap string (with scale)
-inline void drawBitmapString(const std::string& text, float x, float y, float scale) {
-    getDefaultContext().drawBitmapString(text, x, y, scale);
+inline void drawBitmapString(const std::string& text, float x, float y, bool screenFixed = true) {
+    getDefaultContext().drawBitmapString(text, x, y, screenFixed);
 }
 
+// Draw bitmap string (with scale)
 inline void drawBitmapString(const std::string& text, Vec3 pos, float scale) {
     getDefaultContext().drawBitmapString(text, pos, scale);
 }
 
-// Draw bitmap string (with alignment)
-inline void drawBitmapString(const std::string& text, float x, float y,
-                              Direction h, Direction v) {
-    getDefaultContext().drawBitmapString(text, x, y, h, v);
+inline void drawBitmapString(const std::string& text, float x, float y, float scale) {
+    getDefaultContext().drawBitmapString(text, x, y, scale);
 }
 
+// Draw bitmap string (with alignment)
 inline void drawBitmapString(const std::string& text, Vec3 pos,
                               Direction h, Direction v) {
     getDefaultContext().drawBitmapString(text, pos, h, v);
+}
+
+inline void drawBitmapString(const std::string& text, float x, float y,
+                              Direction h, Direction v) {
+    getDefaultContext().drawBitmapString(text, x, y, h, v);
 }
 
 // Set text alignment
