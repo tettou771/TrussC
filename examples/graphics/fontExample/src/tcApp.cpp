@@ -4,8 +4,14 @@
 void tcApp::setup() {
     setFps(VSYNC);
 
-    // Use system font
+    // Use system font (platform-specific)
+#ifdef _WIN32
+    std::string fontPath = "C:/Windows/Fonts/segoeui.ttf";
+#elif __APPLE__
     std::string fontPath = "/System/Library/Fonts/Geneva.ttf";
+#else
+    std::string fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+#endif
 
     font.load(fontPath, 24);
     fontSmall.load(fontPath, 14);
