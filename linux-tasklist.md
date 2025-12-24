@@ -12,6 +12,11 @@ sudo apt install -y \
     libxrandr-dev \
     libgl1-mesa-dev \
     libasound2-dev \
+    libgtk-3-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libavutil-dev \
     pkg-config
 ```
 
@@ -23,8 +28,12 @@ sudo apt install -y \
 | `libxrandr-dev` | Display settings (resolution, etc.) |
 | `libgl1-mesa-dev` | OpenGL |
 | `libasound2-dev` | ALSA (audio) |
-| `pkg-config` | Library discovery and configuration |
 | `libgtk-3-dev` | GTK3 (file dialogs) |
+| `libavcodec-dev` | FFmpeg video/audio codecs |
+| `libavformat-dev` | FFmpeg container formats |
+| `libswscale-dev` | FFmpeg pixel format conversion |
+| `libavutil-dev` | FFmpeg utilities |
+| `pkg-config` | Library discovery and configuration |
 
 ### TODO
 - [ ] Create setup script (`setup_linux.sh`) to automate package installation
@@ -44,7 +53,7 @@ sudo apt install -y \
 
 ### All Examples (build_all.sh)
 
-**Summary: 38/41 Success (3 failures - all video-related)**
+**Summary: 40/41 Success (serialExample untested - no device)**
 
 | Category | Example | Build | Run | Notes |
 |----------|---------|-------|-----|-------|
@@ -85,9 +94,9 @@ sudo apt install -y \
 | utils | consoleExample | OK | OK | Tested via pipe |
 | utils | timerExample | OK | OK | |
 | utils | utilsExample | OK | OK | |
-| video | videoGrabberExample | FAIL | - | Linux VideoGrabber not implemented |
-| video | videoPlayerExample | FAIL | - | Linux VideoPlayer not implemented |
-| video | videoPlayerWebExample | FAIL | - | Linux VideoPlayer not implemented |
+| video | videoGrabberExample | OK | OK | V4L2 implementation (needs video group) |
+| video | videoPlayerExample | OK | OK | FFmpeg-based implementation |
+| video | videoPlayerWebExample | OK | - | Uses same FFmpeg implementation |
 | windowing | loopModeExample | OK | OK | |
 
 ---

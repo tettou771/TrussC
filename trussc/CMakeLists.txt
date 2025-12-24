@@ -147,13 +147,19 @@ elseif(TC_PLATFORM_LINUX)
     find_package(OpenGL REQUIRED)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
-    target_include_directories(TrussC PUBLIC ${GTK3_INCLUDE_DIRS})
+    # FFmpeg for VideoPlayer
+    pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libswscale libavutil)
+    target_include_directories(TrussC PUBLIC
+        ${GTK3_INCLUDE_DIRS}
+        ${FFMPEG_INCLUDE_DIRS}
+    )
     target_link_libraries(TrussC PUBLIC
         ${X11_LIBRARIES}
         ${X11_Xi_LIB}
         ${X11_Xcursor_LIB}
         ${OPENGL_LIBRARIES}
         ${GTK3_LIBRARIES}
+        ${FFMPEG_LIBRARIES}
         pthread
         dl
     )
