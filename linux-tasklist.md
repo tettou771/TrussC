@@ -53,14 +53,14 @@ sudo apt install -y \
 
 ### All Examples (build_all.sh)
 
-**Summary: 40/41 Success (serialExample untested - no device)**
+**Summary: 41/41 Success! 🎉 Full Linux support achieved**
 
 | Category | Example | Build | Run | Notes |
 |----------|---------|-------|-----|-------|
 | 3d | 3DPrimitivesExample | OK | OK | |
 | 3d | easyCamExample | OK | OK | |
 | 3d | ofNodeExample | OK | OK | |
-| communication | serialExample | OK | - | No serial device to test |
+| communication | serialExample | OK | OK | Tested with Arduino (needs dialout group) |
 | events | eventsExample | OK | OK | |
 | events | hitTestExample | OK | OK | |
 | events | uiExample | OK | OK | |
