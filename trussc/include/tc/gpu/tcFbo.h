@@ -21,8 +21,8 @@ inline void _fboClearColorHelper(float r, float g, float b, float a);
 // ---------------------------------------------------------------------------
 class Fbo : public HasTexture {
 public:
-    Fbo() = default;
-    ~Fbo() { clear(); }
+    Fbo() { internal::fboCount++; }
+    ~Fbo() { clear(); internal::fboCount--; }
 
     // Non-copyable
     Fbo(const Fbo&) = delete;
