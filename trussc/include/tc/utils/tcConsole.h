@@ -55,11 +55,19 @@ inline std::unique_ptr<std::thread>& getThread() {
 }
 
 // Parse line by whitespace and create ConsoleEventArgs
+// Comments: everything after '#' is ignored
 inline ConsoleEventArgs parseLine(const std::string& line) {
     ConsoleEventArgs args;
     args.raw = line;
 
-    std::istringstream iss(line);
+    // Strip comments (everything after '#')
+    std::string stripped = line;
+    size_t commentPos = stripped.find('#');
+    if (commentPos != std::string::npos) {
+        stripped = stripped.substr(0, commentPos);
+    }
+
+    std::istringstream iss(stripped);
     std::string token;
     while (iss >> token) {
         args.args.push_back(token);

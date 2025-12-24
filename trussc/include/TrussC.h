@@ -29,6 +29,16 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <atomic>
+#include <fstream>
+
+// Platform-specific headers for memory usage
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
+#endif
 
 // TrussC math library
 #include "tcMath.h"
@@ -74,6 +84,9 @@
 
 // TrussC console input (accept commands from stdin)
 #include "tc/utils/tcConsole.h"
+
+// TrussC debug input (stdin-based input simulation)
+#include "tc/utils/tcDebugInput.h"
 
 // =============================================================================
 // trussc namespace
@@ -1222,6 +1235,73 @@ inline int getMouseButton() {
     return internal::mouseButton;
 }
 
+// Alias for getGlobalMouseX/Y (for tcDebugInput)
+inline float getMouseX() { return internal::mouseX; }
+inline float getMouseY() { return internal::mouseY; }
+
+// ---------------------------------------------------------------------------
+// System Information
+// ---------------------------------------------------------------------------
+
+// Get graphics backend name
+inline std::string getBackendName() {
+    switch (sg_query_backend()) {
+        case SG_BACKEND_GLCORE: return "OpenGL";
+        case SG_BACKEND_GLES3: return "OpenGL ES 3";
+        case SG_BACKEND_D3D11: return "D3D11";
+        case SG_BACKEND_METAL_IOS: return "Metal (iOS)";
+        case SG_BACKEND_METAL_MACOS: return "Metal (macOS)";
+        case SG_BACKEND_METAL_SIMULATOR: return "Metal (Simulator)";
+        case SG_BACKEND_WGPU: return "WebGPU";
+        default: return "Unknown";
+    }
+}
+
+// Get process memory usage in bytes (resident set size)
+inline size_t getMemoryUsage() {
+#if defined(__APPLE__)
+    mach_task_basic_info info;
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &count) == KERN_SUCCESS) {
+        return info.resident_size;
+    }
+    return 0;
+#elif defined(_WIN32)
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        return pmc.WorkingSetSize;
+    }
+    return 0;
+#elif defined(__linux__)
+    // Read from /proc/self/status
+    std::ifstream status("/proc/self/status");
+    std::string line;
+    while (std::getline(status, line)) {
+        if (line.substr(0, 6) == "VmRSS:") {
+            size_t kb = 0;
+            std::sscanf(line.c_str(), "VmRSS: %zu", &kb);
+            return kb * 1024;
+        }
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// Resource Counters (for debugging)
+// ---------------------------------------------------------------------------
+namespace internal {
+    inline std::atomic<size_t> nodeCount{0};
+    inline std::atomic<size_t> textureCount{0};
+    inline std::atomic<size_t> fboCount{0};
+}
+
+inline size_t getNodeCount() { return internal::nodeCount.load(); }
+inline size_t getTextureCount() { return internal::textureCount.load(); }
+inline size_t getFboCount() { return internal::fboCount.load(); }
+
 // ---------------------------------------------------------------------------
 // Loop Architecture (Decoupled Update/Draw)
 // ---------------------------------------------------------------------------
@@ -1382,6 +1462,7 @@ struct WindowSettings {
     int sampleCount = 4;  // MSAA (default 4x, 8x not supported on some devices)
     bool fullscreen = false;
     int clipboardSize = 65536;  // Clipboard buffer size (default 64KB)
+    bool enableDebugInput = false;  // Enable tcdebug input simulation (security: opt-in)
     // bool headless = false;  // For future use
 
     WindowSettings& setSize(int w, int h) {
@@ -1420,6 +1501,11 @@ struct WindowSettings {
 
     WindowSettings& setClipboardSize(int size) {
         clipboardSize = size;
+        return *this;
+    }
+
+    WindowSettings& setEnableDebugInput(bool enabled) {
+        enableDebugInput = enabled;
         return *this;
     }
 };
@@ -1468,28 +1554,7 @@ namespace internal {
         // Register built-in command handler (hold listener in static)
         static EventListener consoleListener;
         events().console.listen(consoleListener, [](ConsoleEventArgs& e) {
-            if (e.args.empty()) return;
-
-            // Handle tcdebug command
-            if (e.args[0] == "tcdebug" && e.args.size() >= 2) {
-                if (e.args[1] == "info") {
-                    // Output basic info as JSON
-                    std::cout << "{\"fps\":" << getFrameRate()
-                              << ",\"width\":" << getWindowWidth()
-                              << ",\"height\":" << getWindowHeight()
-                              << ",\"updateCount\":" << getUpdateCount()
-                              << ",\"drawCount\":" << getDrawCount()
-                              << ",\"elapsedTime\":" << getElapsedTime()
-                              << "}" << std::endl;
-                }
-                else if (e.args[1] == "screenshot") {
-                    // Save screenshot
-                    std::string path = (e.args.size() >= 3) ? e.args[2] : "/tmp/trussc_screenshot.png";
-                    bool success = saveScreenshot(path);
-                    std::cout << "{\"status\":\"" << (success ? "ok" : "error")
-                              << "\",\"path\":\"" << path << "\"}" << std::endl;
-                }
-            }
+            debuginput::handleCommand(e);
         });
         #endif
 
@@ -1619,6 +1684,11 @@ namespace internal {
                 args.super = hasModSuper;
                 events().keyPressed.notify(args);
 
+                // Stream output (only for real user input, not repeats)
+                if (!ev->key_repeat) {
+                    debuginput::streamOutputKey("key_press", ev->key_code);
+                }
+
                 // Legacy callback (for compatibility)
                 if (!ev->key_repeat && appKeyPressedFunc) {
                     appKeyPressedFunc(ev->key_code);
@@ -1634,6 +1704,9 @@ namespace internal {
                 args.alt = hasModAlt;
                 args.super = hasModSuper;
                 events().keyReleased.notify(args);
+
+                // Stream output
+                debuginput::streamOutputKey("key_release", ev->key_code);
 
                 if (appKeyReleasedFunc) appKeyReleasedFunc(ev->key_code);
                 break;
@@ -1655,6 +1728,13 @@ namespace internal {
                 args.super = hasModSuper;
                 events().mousePressed.notify(args);
 
+                // Stream output + drag tracking for normal mode
+                debuginput::streamOutput("mouse_press", mouseX, mouseY, ev->mouse_button);
+                debuginput::isDragging = true;
+                debuginput::dragStartX = mouseX;
+                debuginput::dragStartY = mouseY;
+                debuginput::dragButton = ev->mouse_button;
+
                 if (appMousePressedFunc) appMousePressedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
             }
@@ -1675,6 +1755,10 @@ namespace internal {
                 args.super = hasModSuper;
                 events().mouseReleased.notify(args);
 
+                // Stream output
+                debuginput::streamOutput("mouse_release", mouseX, mouseY, ev->mouse_button);
+                debuginput::isDragging = false;
+
                 if (appMouseReleasedFunc) appMouseReleasedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
             }
@@ -1693,6 +1777,11 @@ namespace internal {
                     args.button = currentMouseButton;
                     events().mouseDragged.notify(args);
 
+                    // Stream output: detail mode outputs all moves, normal mode skips during drag
+                    if (debuginput::streamMode == debuginput::StreamMode::Detail) {
+                        debuginput::streamOutput("mouse_move", mouseX, mouseY, currentMouseButton);
+                    }
+
                     if (appMouseDraggedFunc) appMouseDraggedFunc((int)mouseX, (int)mouseY, currentMouseButton);
                 } else {
                     MouseMoveEventArgs args;
@@ -1701,6 +1790,11 @@ namespace internal {
                     args.deltaX = mouseX - prevX;
                     args.deltaY = mouseY - prevY;
                     events().mouseMoved.notify(args);
+
+                    // Stream output: detail mode only (normal mode ignores mouse move without button)
+                    if (debuginput::streamMode == debuginput::StreamMode::Detail) {
+                        debuginput::streamOutput("mouse_move", mouseX, mouseY);
+                    }
 
                     if (appMouseMovedFunc) appMouseMovedFunc((int)mouseX, (int)mouseY);
                 }
@@ -1711,6 +1805,9 @@ namespace internal {
                 args.scrollX = ev->scroll_x;
                 args.scrollY = ev->scroll_y;
                 events().mouseScrolled.notify(args);
+
+                // Stream output
+                debuginput::streamOutputScroll(ev->scroll_x, ev->scroll_y);
 
                 if (appMouseScrolledFunc) appMouseScrolledFunc(ev->scroll_x, ev->scroll_y);
                 break;
@@ -1737,6 +1834,9 @@ namespace internal {
                 }
                 events().filesDropped.notify(args);
 
+                // Stream output
+                debuginput::streamOutputDrop(args.files);
+
                 if (appFilesDroppedFunc) appFilesDroppedFunc(args.files);
                 break;
             }
@@ -1754,6 +1854,9 @@ template<typename AppClass>
 int runApp(const WindowSettings& settings = WindowSettings()) {
     // Set pixel perfect mode
     internal::pixelPerfectMode = settings.pixelPerfect;
+
+    // Set debug input mode
+    debuginput::enabled = settings.enableDebugInput;
 
     // Create app instance
     static AppClass* app = nullptr;

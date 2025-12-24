@@ -33,7 +33,8 @@ public:
     using Ptr = std::shared_ptr<Node>;
     using WeakPtr = std::weak_ptr<Node>;
 
-    virtual ~Node() = default;
+    Node() { internal::nodeCount++; }
+    virtual ~Node() { internal::nodeCount--; }
 
     // -------------------------------------------------------------------------
     // Lifecycle (overridable)
