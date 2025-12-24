@@ -130,7 +130,7 @@ macro(trussc_app)
         endif()
 
         # Output languages: Metal macOS, GLES3 for Web, WGSL for WebGPU
-        set(_TC_SOKOL_SLANG "metal_macos:glsl300es:wgsl")
+        set(_TC_SOKOL_SLANG "metal_macos:hlsl5:glsl300es:wgsl")
 
         set(_TC_SHADER_OUTPUTS "")
         foreach(_shader_src ${_TC_SHADER_SOURCES})
