@@ -155,6 +155,41 @@ cmake -G "Visual Studio 17 2022" ..
 
 ### Linux
 
+**Required packages (Ubuntu/Debian):**
+
+```bash
+sudo apt install -y \
+    libx11-dev \
+    libxcursor-dev \
+    libxi-dev \
+    libxrandr-dev \
+    libgl1-mesa-dev \
+    libasound2-dev \
+    libgtk-3-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libavutil-dev \
+    pkg-config
+```
+
+| Package | Purpose |
+|---------|---------|
+| `libx11-dev` | X11 window system |
+| `libxcursor-dev` | Cursor management |
+| `libxi-dev` | X Input Extension |
+| `libxrandr-dev` | Display settings |
+| `libgl1-mesa-dev` | OpenGL |
+| `libasound2-dev` | ALSA (audio) |
+| `libgtk-3-dev` | GTK3 (file dialogs) |
+| `libavcodec-dev` | FFmpeg video/audio codecs |
+| `libavformat-dev` | FFmpeg container formats |
+| `libswscale-dev` | FFmpeg pixel format conversion |
+| `libavutil-dev` | FFmpeg utilities |
+| `pkg-config` | Library discovery |
+
+**Build:**
+
 ```bash
 mkdir build && cd build
 cmake ..
