@@ -2017,6 +2017,10 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 
 // TrussC sound
 #include "tc/sound/tcSound.h"
+#include "tc/sound/tcChipSound.h"
+
+// TrussC application base class
+#include "tcBaseApp.h"
 
 // Shorthand alias
 namespace tc = trussc;
