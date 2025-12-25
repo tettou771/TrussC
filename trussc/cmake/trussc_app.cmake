@@ -175,6 +175,8 @@ macro(trussc_app)
             -sUSE_WEBGL2=1
             -sALLOW_MEMORY_GROWTH=1
             -sFULL_ES3=1
+            -sFETCH=1
+            -sASYNCIFY=1
             --shell-file=${_TC_SHELL_FILE}
         )
         # Auto-preload bin/data folder if it exists

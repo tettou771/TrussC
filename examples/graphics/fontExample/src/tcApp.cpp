@@ -4,18 +4,10 @@
 void tcApp::setup() {
     setFps(VSYNC);
 
-    // Use system font (platform-specific)
-#ifdef _WIN32
-    std::string fontPath = "C:/Windows/Fonts/segoeui.ttf";
-#elif __APPLE__
-    std::string fontPath = "/System/Library/Fonts/Geneva.ttf";
-#else
-    std::string fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
-#endif
-
-    font.load(fontPath, 24);
-    fontSmall.load(fontPath, 14);
-    fontLarge.load(fontPath, 48);
+    // Use TC_FONT_SANS - automatically uses correct font per platform
+    font.load(TC_FONT_SANS, 24);
+    fontSmall.load(TC_FONT_SANS, 14);
+    fontLarge.load(TC_FONT_SANS, 48);
 
     tcLogNotice("tcApp") << "Font loaded: size=" << font.getSize()
                          << ", glyphs=" << font.getLoadedGlyphCount()

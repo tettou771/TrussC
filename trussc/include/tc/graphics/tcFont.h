@@ -22,6 +22,12 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <cstring>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/fetch.h>
+#include <emscripten.h>
+#endif
 
 // sokol headers
 #include "sokol/sokol_app.h"
@@ -35,6 +41,31 @@
 #include "../types/tcDirection.h"
 #include "../types/tcRectangle.h"
 #include "../../tcMath.h"  // Vec2
+
+// ---------------------------------------------------------------------------
+// System font paths - use these for cross-platform font loading
+// ---------------------------------------------------------------------------
+#ifdef __EMSCRIPTEN__
+    // Web: Use Google Fonts via jsDelivr CDN (async load)
+    #define TC_FONT_SANS  "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans@latest/latin-400-normal.ttf"
+    #define TC_FONT_SERIF "https://cdn.jsdelivr.net/fontsource/fonts/noto-serif@latest/latin-400-normal.ttf"
+    #define TC_FONT_MONO  "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-mono@latest/latin-400-normal.ttf"
+#elif defined(_WIN32)
+    // Windows
+    #define TC_FONT_SANS  "C:/Windows/Fonts/segoeui.ttf"
+    #define TC_FONT_SERIF "C:/Windows/Fonts/times.ttf"
+    #define TC_FONT_MONO  "C:/Windows/Fonts/consola.ttf"
+#elif defined(__APPLE__)
+    // macOS
+    #define TC_FONT_SANS  "/System/Library/Fonts/Helvetica.ttc"
+    #define TC_FONT_SERIF "/System/Library/Fonts/Times.ttc"
+    #define TC_FONT_MONO  "/System/Library/Fonts/Menlo.ttc"
+#else
+    // Linux
+    #define TC_FONT_SANS  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    #define TC_FONT_SERIF "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+    #define TC_FONT_MONO  "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+#endif
 
 namespace trussc {
 
@@ -125,9 +156,31 @@ public:
             return false;
         }
 
+        return initFromFontData(fontSize);
+    }
+
+    bool setupFromMemory(const uint8_t* data, size_t size, int fontSize) {
+        cleanup();
+
+        fontData_.resize(size);
+        std::memcpy(fontData_.data(), data, size);
+
+        return initFromFontData(fontSize);
+    }
+
+private:
+    bool initFromFontData(int fontSize, int fontIndex = 0) {
+        // Get font offset (required for .ttc files with multiple fonts)
+        int offset = stbtt_GetFontOffsetForIndex(fontData_.data(), fontIndex);
+        if (offset < 0) {
+            tcLogError() << "FontAtlasManager: invalid font index " << fontIndex;
+            fontData_.clear();
+            return false;
+        }
+
         // Initialize with stb_truetype
-        if (!stbtt_InitFont(&fontInfo_, fontData_.data(), 0)) {
-            tcLogError() << "FontAtlasManager: failed to init font " << fontPath;
+        if (!stbtt_InitFont(&fontInfo_, fontData_.data(), offset)) {
+            tcLogError() << "FontAtlasManager: failed to init font";
             fontData_.clear();
             return false;
         }
@@ -154,6 +207,8 @@ public:
         loaded_ = true;
         return true;
     }
+
+public:
 
     void cleanup() {
         // Only release GPU resources if sokol is still valid
@@ -504,7 +559,16 @@ public:
         return instance;
     }
 
-    // Get or create font atlas
+    // Get cached font (returns nullptr if not cached)
+    std::shared_ptr<FontAtlasManager> get(const FontCacheKey& key) {
+        auto it = cache_.find(key);
+        if (it != cache_.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
+    // Get or create font atlas from file
     std::shared_ptr<FontAtlasManager> getOrCreate(const FontCacheKey& key) {
         auto it = cache_.find(key);
         if (it != cache_.end()) {
@@ -513,6 +577,23 @@ public:
 
         auto manager = std::make_shared<FontAtlasManager>();
         if (!manager->setup(key.fontPath, key.fontSize)) {
+            return nullptr;
+        }
+
+        cache_[key] = manager;
+        return manager;
+    }
+
+    // Get or create font atlas from memory (for URL fetched fonts)
+    std::shared_ptr<FontAtlasManager> getOrCreateFromMemory(
+            const FontCacheKey& key, const uint8_t* data, size_t size) {
+        auto it = cache_.find(key);
+        if (it != cache_.end()) {
+            return it->second;
+        }
+
+        auto manager = std::make_shared<FontAtlasManager>();
+        if (!manager->setupFromMemory(data, size, key.fontSize)) {
             return nullptr;
         }
 
@@ -566,18 +647,90 @@ public:
         cacheKey_.fontPath = path;
         cacheKey_.fontSize = size;
 
-        atlasManager_ = SharedFontCache::getInstance().getOrCreate(cacheKey_);
-        if (!atlasManager_) {
-            return false;
-        }
-
         // Create sampler and pipeline if not yet
         if (!resourcesInitialized_) {
             initResources();
         }
 
-        return true;
+        // Check if URL
+        if (isUrl(path)) {
+#ifdef __EMSCRIPTEN__
+            // Async load - returns immediately, font available after fetch completes
+            loadFromUrlAsync(path, size);
+            return true;  // Will be loaded asynchronously
+#else
+            tcLogError() << "Font: URL loading only supported in WebAssembly";
+            return false;
+#endif
+        } else {
+            atlasManager_ = SharedFontCache::getInstance().getOrCreate(cacheKey_);
+        }
+
+        return atlasManager_ != nullptr;
     }
+
+private:
+    static bool isUrl(const std::string& path) {
+        return path.find("http://") == 0 || path.find("https://") == 0;
+    }
+
+#ifdef __EMSCRIPTEN__
+    // Context for async font loading
+    struct FontLoadContext {
+        Font* font;
+        FontCacheKey key;
+    };
+
+    static void onFetchSuccess(emscripten_fetch_t* fetch) {
+        FontLoadContext* ctx = reinterpret_cast<FontLoadContext*>(fetch->userData);
+
+        ctx->font->atlasManager_ = SharedFontCache::getInstance().getOrCreateFromMemory(
+            ctx->key,
+            reinterpret_cast<const uint8_t*>(fetch->data),
+            fetch->numBytes
+        );
+
+        if (ctx->font->atlasManager_) {
+            tcLogNotice("Font") << "Loaded from URL: " << ctx->key.fontPath;
+        }
+
+        delete ctx;
+        emscripten_fetch_close(fetch);
+    }
+
+    static void onFetchError(emscripten_fetch_t* fetch) {
+        FontLoadContext* ctx = reinterpret_cast<FontLoadContext*>(fetch->userData);
+        tcLogError() << "Font: failed to fetch " << ctx->key.fontPath
+                     << " (status: " << fetch->status << ")";
+        delete ctx;
+        emscripten_fetch_close(fetch);
+    }
+
+    void loadFromUrlAsync(const std::string& url, int size) {
+        // Check cache first (don't try to load from file)
+        FontCacheKey key{url, size};
+        auto cached = SharedFontCache::getInstance().get(key);
+        if (cached) {
+            atlasManager_ = cached;
+            return;
+        }
+
+        // Start async fetch
+        FontLoadContext* ctx = new FontLoadContext{this, key};
+
+        emscripten_fetch_attr_t attr;
+        emscripten_fetch_attr_init(&attr);
+        std::strcpy(attr.requestMethod, "GET");
+        attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
+        attr.onsuccess = onFetchSuccess;
+        attr.onerror = onFetchError;
+        attr.userData = ctx;
+
+        emscripten_fetch(&attr, url.c_str());
+    }
+#endif
+
+public:
 
     bool isLoaded() const { return atlasManager_ != nullptr; }
 
