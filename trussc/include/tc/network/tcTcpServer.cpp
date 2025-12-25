@@ -132,11 +132,13 @@ void TcpServer::stop() {
     // Close server socket (unblocks accept)
 #ifdef _WIN32
     if (serverSocket_ != INVALID_SOCKET) {
+        shutdown(serverSocket_, SD_BOTH);
         CLOSE_SOCKET(serverSocket_);
         serverSocket_ = INVALID_SOCKET;
     }
 #else
     if (serverSocket_ >= 0) {
+        shutdown(serverSocket_, SHUT_RDWR);  // Required on Linux to unblock accept()
         CLOSE_SOCKET(serverSocket_);
         serverSocket_ = -1;
     }
@@ -314,14 +316,22 @@ void TcpServer::disconnectAllClients() {
         disconnectClient(id);
     }
 
-    // Join remaining threads
-    std::lock_guard<std::mutex> lock(clientsMutex_);
-    for (auto& pair : clientThreads_) {
-        if (pair.second.joinable()) {
-            pair.second.join();
+    // Collect threads to join (without holding lock during join to avoid deadlock)
+    std::vector<std::thread> threadsToJoin;
+    {
+        std::lock_guard<std::mutex> lock(clientsMutex_);
+        for (auto& pair : clientThreads_) {
+            if (pair.second.joinable()) {
+                threadsToJoin.push_back(std::move(pair.second));
+            }
         }
+        clientThreads_.clear();
     }
-    clientThreads_.clear();
+
+    // Join threads without holding mutex
+    for (auto& t : threadsToJoin) {
+        t.join();
+    }
 }
 
 void TcpServer::removeClient(int clientId) {
