@@ -206,7 +206,7 @@ List of samples/features requiring focused testing due to OS-specific code.
 | network/udpExample | Winsock, broadcast, multicast | ✅ Verified |
 | input_output/screenshotExample | D3D11 texture capture (`tcPlatform_win.cpp`) | ✅ Verified (MSAA fix applied) |
 | input_output/fileDialogExample | Win32 IFileDialog (`tcFileDialog_win.cpp`) | ✅ Verified |
-| video/videoGrabberExample | Media Foundation API (`tcVideoGrabber_win.cpp`) | ⬜ Untested (no camera available) |
+| video/videoGrabberExample | Media Foundation API (`tcVideoGrabber_win.cpp`) | ✅ Verified |
 
 **🟡 Needs Verification (platform/win/ implementation)**
 
