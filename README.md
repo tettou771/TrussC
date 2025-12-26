@@ -1,5 +1,7 @@
 # TrussC
 
+[![Build](https://github.com/TrussC-org/TrussC/actions/workflows/build.yml/badge.svg)](https://github.com/TrussC-org/TrussC/actions/workflows/build.yml)
+
 A lightweight creative coding framework based on sokol.
 Inspired by openFrameworks, implemented simply with modern C++.
 
