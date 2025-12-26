@@ -9,10 +9,15 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Output files
-DOCS_FILE="$SCRIPT_DIR/trussc_docs.md"
-EXAMPLES_FILE="$SCRIPT_DIR/trussc_examples.md"
-API_FILE="$SCRIPT_DIR/trussc_api.md"
+# Timestamp for filenames (e.g., 2025-1226-2310)
+TIMESTAMP=$(date +"%Y-%m%d-%H%M")
+# Date for file content (English format)
+DATE_STR=$(LANG=C date +"%Y-%m-%d %H:%M:%S")
+
+# Output files (with timestamp prefix)
+DOCS_FILE="$SCRIPT_DIR/${TIMESTAMP}_trussc_docs.md"
+EXAMPLES_FILE="$SCRIPT_DIR/${TIMESTAMP}_trussc_examples.md"
+API_FILE="$SCRIPT_DIR/${TIMESTAMP}_trussc_api.md"
 
 # Function to add a file with path and code block
 add_file() {
@@ -48,7 +53,7 @@ echo "Generating TrussC documentation for AI..."
 # =============================================================================
 echo "# TrussC Documentation" > "$DOCS_FILE"
 echo "" >> "$DOCS_FILE"
-echo "Generated: $(date)" >> "$DOCS_FILE"
+echo "Generated: $DATE_STR" >> "$DOCS_FILE"
 
 echo "  [1/3] Collecting documentation..."
 
@@ -66,7 +71,7 @@ done
 # =============================================================================
 echo "# TrussC Examples" > "$EXAMPLES_FILE"
 echo "" >> "$EXAMPLES_FILE"
-echo "Generated: $(date)" >> "$EXAMPLES_FILE"
+echo "Generated: $DATE_STR" >> "$EXAMPLES_FILE"
 
 echo "  [2/3] Collecting examples..."
 
@@ -80,7 +85,7 @@ done
 # =============================================================================
 echo "# TrussC API" > "$API_FILE"
 echo "" >> "$API_FILE"
-echo "Generated: $(date)" >> "$API_FILE"
+echo "Generated: $DATE_STR" >> "$API_FILE"
 
 echo "  [3/3] Collecting API headers..."
 
