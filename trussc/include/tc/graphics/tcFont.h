@@ -92,34 +92,60 @@ struct FontCacheKeyHash {
 // ---------------------------------------------------------------------------
 // Glyph information
 // ---------------------------------------------------------------------------
-struct GlyphInfo {
-    size_t atlasIndex;          // Which atlas contains this glyph
-    float u0, v0, u1, v1;       // Texture coordinates (normalized)
-    float xoff, yoff;           // Drawing offset
-    float width, height;        // Glyph size (pixels)
-    float advance;              // Advance width to next character
-    bool valid = false;
+class GlyphInfo {
+public:
+    size_t getAtlasIndex() const { return atlasIndex_; }
+    float getU0() const { return u0_; }
+    float getV0() const { return v0_; }
+    float getU1() const { return u1_; }
+    float getV1() const { return v1_; }
+    float getXoff() const { return xoff_; }
+    float getYoff() const { return yoff_; }
+    float getWidth() const { return width_; }
+    float getHeight() const { return height_; }
+    float getAdvance() const { return advance_; }
+    bool isValid() const { return valid_; }
+
+private:
+    friend class FontAtlasManager;
+
+    size_t atlasIndex_;          // Which atlas contains this glyph
+    float u0_, v0_, u1_, v1_;    // Texture coordinates (normalized)
+    float xoff_, yoff_;          // Drawing offset
+    float width_, height_;       // Glyph size (pixels)
+    float advance_;              // Advance width to next character
+    bool valid_ = false;
 };
 
 // ---------------------------------------------------------------------------
 // Atlas state
 // ---------------------------------------------------------------------------
-struct AtlasState {
-    int currentX = 0;           // X position for next glyph
-    int currentY = 0;           // Y position for next glyph
-    int rowHeight = 0;          // Current row height
-    int width = 0;
-    int height = 0;
+class AtlasState {
+public:
+    int getWidth() const { return width_; }
+    int getHeight() const { return height_; }
+    sg_image getTexture() const { return texture_; }
+    sg_view getView() const { return view_; }
+    bool isTextureValid() const { return textureValid_; }
+
+private:
+    friend class FontAtlasManager;
+
+    int currentX_ = 0;           // X position for next glyph
+    int currentY_ = 0;           // Y position for next glyph
+    int rowHeight_ = 0;          // Current row height
+    int width_ = 0;
+    int height_ = 0;
 
     // GPU resources
-    sg_image texture = {};
-    sg_view view = {};
-    bool textureValid = false;
-    bool textureDirty = false;
-    uint64_t lastUpdateFrame = 0;  // Last update frame number
+    sg_image texture_ = {};
+    sg_view view_ = {};
+    bool textureValid_ = false;
+    bool textureDirty_ = false;
+    uint64_t lastUpdateFrame_ = 0;  // Last update frame number
 
     // CPU-side pixel data (for expansion/update)
-    std::vector<uint8_t> pixels;  // RGBA
+    std::vector<uint8_t> pixels_;  // RGBA
 };
 
 // ---------------------------------------------------------------------------
@@ -215,9 +241,9 @@ public:
         // (may have already shut down at program exit)
         if (sg_isvalid()) {
             for (auto& atlas : atlases_) {
-                if (atlas.textureValid) {
-                    sg_destroy_view(atlas.view);
-                    sg_destroy_image(atlas.texture);
+                if (atlas.textureValid_) {
+                    sg_destroy_view(atlas.view_);
+                    sg_destroy_image(atlas.texture_);
                 }
             }
         }
@@ -255,7 +281,7 @@ public:
     // -------------------------------------------------------------------------
     void ensureTexturesUpdated() {
         for (auto& atlas : atlases_) {
-            if (atlas.textureDirty) {
+            if (atlas.textureDirty_) {
                 updateAtlasTexture(atlas);
             }
         }
@@ -280,7 +306,7 @@ public:
     size_t getMemoryUsage() const {
         size_t total = 0;
         for (const auto& atlas : atlases_) {
-            total += atlas.pixels.size();
+            total += atlas.pixels_.size();
         }
         return total;
     }
@@ -315,13 +341,13 @@ private:
     // -------------------------------------------------------------------------
     size_t createNewAtlas() {
         AtlasState atlas;
-        atlas.width = INITIAL_ATLAS_SIZE;
-        atlas.height = INITIAL_ATLAS_SIZE;
-        atlas.currentX = GLYPH_PADDING;
-        atlas.currentY = GLYPH_PADDING;
-        atlas.rowHeight = 0;
-        atlas.pixels.resize(atlas.width * atlas.height * 4, 0);
-        atlas.textureDirty = true;
+        atlas.width_ = INITIAL_ATLAS_SIZE;
+        atlas.height_ = INITIAL_ATLAS_SIZE;
+        atlas.currentX_ = GLYPH_PADDING;
+        atlas.currentY_ = GLYPH_PADDING;
+        atlas.rowHeight_ = 0;
+        atlas.pixels_.resize(atlas.width_ * atlas.height_ * 4, 0);
+        atlas.textureDirty_ = true;
 
         atlases_.push_back(std::move(atlas));
         return atlases_.size() - 1;
@@ -330,51 +356,51 @@ private:
     bool expandAtlas(size_t atlasIndex) {
         AtlasState& atlas = atlases_[atlasIndex];
 
-        int newWidth = atlas.width * 2;
-        int newHeight = atlas.height * 2;
+        int newWidth = atlas.width_ * 2;
+        int newHeight = atlas.height_ * 2;
 
         if (newWidth > MAX_ATLAS_SIZE || newHeight > MAX_ATLAS_SIZE) {
             return false;
         }
 
         tcLogVerbose() << "FontAtlasManager: expanding atlas " << atlasIndex
-                       << " from " << atlas.width << "x" << atlas.height
+                       << " from " << atlas.width_ << "x" << atlas.height_
                        << " to " << newWidth << "x" << newHeight;
 
         // Create new buffer
         std::vector<uint8_t> newPixels(newWidth * newHeight * 4, 0);
 
         // Copy old data
-        for (int y = 0; y < atlas.height; y++) {
+        for (int y = 0; y < atlas.height_; y++) {
             memcpy(newPixels.data() + y * newWidth * 4,
-                   atlas.pixels.data() + y * atlas.width * 4,
-                   atlas.width * 4);
+                   atlas.pixels_.data() + y * atlas.width_ * 4,
+                   atlas.width_ * 4);
         }
 
         // Update UV coordinates (only for glyphs in this atlas)
-        float scaleX = (float)atlas.width / newWidth;
-        float scaleY = (float)atlas.height / newHeight;
+        float scaleX = (float)atlas.width_ / newWidth;
+        float scaleY = (float)atlas.height_ / newHeight;
         for (auto& pair : glyphs_) {
             GlyphInfo& g = pair.second;
-            if (g.atlasIndex == atlasIndex) {
-                g.u0 *= scaleX;
-                g.u1 *= scaleX;
-                g.v0 *= scaleY;
-                g.v1 *= scaleY;
+            if (g.atlasIndex_ == atlasIndex) {
+                g.u0_ *= scaleX;
+                g.u1_ *= scaleX;
+                g.v0_ *= scaleY;
+                g.v1_ *= scaleY;
             }
         }
 
-        atlas.pixels = std::move(newPixels);
-        atlas.width = newWidth;
-        atlas.height = newHeight;
+        atlas.pixels_ = std::move(newPixels);
+        atlas.width_ = newWidth;
+        atlas.height_ = newHeight;
 
         // Recreate GPU texture
-        if (atlas.textureValid) {
-            sg_destroy_view(atlas.view);
-            sg_destroy_image(atlas.texture);
-            atlas.textureValid = false;
+        if (atlas.textureValid_) {
+            sg_destroy_view(atlas.view_);
+            sg_destroy_image(atlas.texture_);
+            atlas.textureValid_ = false;
         }
-        atlas.textureDirty = true;
+        atlas.textureDirty_ = true;
 
         return true;
     }
@@ -395,14 +421,14 @@ private:
 
         // Zero-width glyphs (like space)
         if (glyphWidth <= 0 || glyphHeight <= 0) {
-            outInfo.atlasIndex = 0;
-            outInfo.u0 = outInfo.v0 = outInfo.u1 = outInfo.v1 = 0;
-            outInfo.xoff = 0;
-            outInfo.yoff = 0;
-            outInfo.width = 0;
-            outInfo.height = 0;
-            outInfo.advance = advanceWidth * scale_;
-            outInfo.valid = true;
+            outInfo.atlasIndex_ = 0;
+            outInfo.u0_ = outInfo.v0_ = outInfo.u1_ = outInfo.v1_ = 0;
+            outInfo.xoff_ = 0;
+            outInfo.yoff_ = 0;
+            outInfo.width_ = 0;
+            outInfo.height_ = 0;
+            outInfo.advance_ = advanceWidth * scale_;
+            outInfo.valid_ = true;
             return true;
         }
 
@@ -432,7 +458,7 @@ private:
             while (!tryFitGlyph(targetAtlas, paddedWidth, paddedHeight)) {
                 if (!expandAtlas(targetAtlas)) {
                     tcLogWarning() << "FontAtlasManager: cannot fit glyph for U+" << std::hex << codepoint << std::dec;
-                    outInfo.valid = false;
+                    outInfo.valid_ = false;
                     return false;
                 }
             }
@@ -441,14 +467,14 @@ private:
         AtlasState& atlas = atlases_[targetAtlas];
 
         // Move to next row if current row overflows
-        if (atlas.currentX + paddedWidth > atlas.width) {
-            atlas.currentX = GLYPH_PADDING;
-            atlas.currentY += atlas.rowHeight + GLYPH_PADDING;
-            atlas.rowHeight = 0;
+        if (atlas.currentX_ + paddedWidth > atlas.width_) {
+            atlas.currentX_ = GLYPH_PADDING;
+            atlas.currentY_ += atlas.rowHeight_ + GLYPH_PADDING;
+            atlas.rowHeight_ = 0;
         }
 
-        int destX = atlas.currentX;
-        int destY = atlas.currentY;
+        int destX = atlas.currentX_;
+        int destY = atlas.currentY_;
 
         // Render glyph (8bit grayscale)
         std::vector<uint8_t> glyphBitmap(glyphWidth * glyphHeight);
@@ -463,35 +489,35 @@ private:
         for (int y = 0; y < glyphHeight; y++) {
             for (int x = 0; x < glyphWidth; x++) {
                 int srcIdx = y * glyphWidth + x;
-                int dstIdx = ((destY + y) * atlas.width + (destX + x)) * 4;
+                int dstIdx = ((destY + y) * atlas.width_ + (destX + x)) * 4;
                 uint8_t alpha = glyphBitmap[srcIdx];
-                atlas.pixels[dstIdx + 0] = 255;    // R
-                atlas.pixels[dstIdx + 1] = 255;    // G
-                atlas.pixels[dstIdx + 2] = 255;    // B
-                atlas.pixels[dstIdx + 3] = alpha;  // A
+                atlas.pixels_[dstIdx + 0] = 255;    // R
+                atlas.pixels_[dstIdx + 1] = 255;    // G
+                atlas.pixels_[dstIdx + 2] = 255;    // B
+                atlas.pixels_[dstIdx + 3] = alpha;  // A
             }
         }
 
         // Set glyph info
-        outInfo.atlasIndex = targetAtlas;
-        outInfo.u0 = (float)destX / atlas.width;
-        outInfo.v0 = (float)destY / atlas.height;
-        outInfo.u1 = (float)(destX + glyphWidth) / atlas.width;
-        outInfo.v1 = (float)(destY + glyphHeight) / atlas.height;
-        outInfo.xoff = (float)x0;
-        outInfo.yoff = (float)y0;
-        outInfo.width = (float)glyphWidth;
-        outInfo.height = (float)glyphHeight;
-        outInfo.advance = advanceWidth * scale_;
-        outInfo.valid = true;
+        outInfo.atlasIndex_ = targetAtlas;
+        outInfo.u0_ = (float)destX / atlas.width_;
+        outInfo.v0_ = (float)destY / atlas.height_;
+        outInfo.u1_ = (float)(destX + glyphWidth) / atlas.width_;
+        outInfo.v1_ = (float)(destY + glyphHeight) / atlas.height_;
+        outInfo.xoff_ = (float)x0;
+        outInfo.yoff_ = (float)y0;
+        outInfo.width_ = (float)glyphWidth;
+        outInfo.height_ = (float)glyphHeight;
+        outInfo.advance_ = advanceWidth * scale_;
+        outInfo.valid_ = true;
 
         // Advance cursor
-        atlas.currentX += paddedWidth;
-        if (paddedHeight > atlas.rowHeight) {
-            atlas.rowHeight = paddedHeight;
+        atlas.currentX_ += paddedWidth;
+        if (paddedHeight > atlas.rowHeight_) {
+            atlas.rowHeight_ = paddedHeight;
         }
 
-        atlas.textureDirty = true;
+        atlas.textureDirty_ = true;
         return true;
     }
 
@@ -499,15 +525,15 @@ private:
         const AtlasState& atlas = atlases_[atlasIndex];
 
         // Fits in current row?
-        if (atlas.currentX + width <= atlas.width) {
-            if (atlas.currentY + height <= atlas.height) {
+        if (atlas.currentX_ + width <= atlas.width_) {
+            if (atlas.currentY_ + height <= atlas.height_) {
                 return true;
             }
         }
 
         // Fits in next row?
-        int nextY = atlas.currentY + atlas.rowHeight + GLYPH_PADDING;
-        if (nextY + height <= atlas.height) {
+        int nextY = atlas.currentY_ + atlas.rowHeight_ + GLYPH_PADDING;
+        if (nextY + height <= atlas.height_) {
             return true;
         }
 
@@ -517,35 +543,35 @@ private:
     void updateAtlasTexture(AtlasState& atlas) {
         // Skip if already updated this frame
         uint64_t currentFrame = sapp_frame_count();
-        if (atlas.textureValid && atlas.lastUpdateFrame == currentFrame) {
+        if (atlas.textureValid_ && atlas.lastUpdateFrame_ == currentFrame) {
             return;
         }
 
         // Destroy existing resources
-        if (atlas.textureValid) {
-            sg_destroy_view(atlas.view);
-            sg_destroy_image(atlas.texture);
-            atlas.textureValid = false;
+        if (atlas.textureValid_) {
+            sg_destroy_view(atlas.view_);
+            sg_destroy_image(atlas.texture_);
+            atlas.textureValid_ = false;
         }
 
         // Create as immutable texture (with initial data)
         // NOTE: Not most efficient, but works for now
         sg_image_desc img_desc = {};
-        img_desc.width = atlas.width;
-        img_desc.height = atlas.height;
+        img_desc.width = atlas.width_;
+        img_desc.height = atlas.height_;
         img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
         // immutable (default) - can set initial data
-        img_desc.data.mip_levels[0].ptr = atlas.pixels.data();
-        img_desc.data.mip_levels[0].size = atlas.pixels.size();
-        atlas.texture = sg_make_image(&img_desc);
+        img_desc.data.mip_levels[0].ptr = atlas.pixels_.data();
+        img_desc.data.mip_levels[0].size = atlas.pixels_.size();
+        atlas.texture_ = sg_make_image(&img_desc);
 
         sg_view_desc view_desc = {};
-        view_desc.texture.image = atlas.texture;
-        atlas.view = sg_make_view(&view_desc);
+        view_desc.texture.image = atlas.texture_;
+        atlas.view_ = sg_make_view(&view_desc);
 
-        atlas.textureValid = true;
-        atlas.lastUpdateFrame = currentFrame;
-        atlas.textureDirty = false;
+        atlas.textureValid_ = true;
+        atlas.lastUpdateFrame_ = currentFrame;
+        atlas.textureDirty_ = false;
     }
 };
 
@@ -806,11 +832,11 @@ protected:
         size_t atlasCount = atlasManager_->getAtlasCount();
         for (size_t atlasIdx = 0; atlasIdx < atlasCount; atlasIdx++) {
             const AtlasState& atlas = atlasManager_->getAtlas(atlasIdx);
-            if (!atlas.textureValid) continue;
+            if (!atlas.isTextureValid()) continue;
 
             sgl_load_pipeline(pipeline_);
             sgl_enable_texture();
-            sgl_texture(atlas.view, sampler_);
+            sgl_texture(atlas.getView(), sampler_);
 
             // Get and set current draw color
             Color col = getDefaultContext().getColor();
@@ -835,22 +861,22 @@ protected:
                 }
 
                 const GlyphInfo* g = atlasManager_->getOrLoadGlyph(codepoint);
-                if (!g || !g->valid || g->atlasIndex != atlasIdx) {
-                    if (g) cursorX += g->advance;
+                if (!g || !g->isValid() || g->getAtlasIndex() != atlasIdx) {
+                    if (g) cursorX += g->getAdvance();
                     continue;
                 }
 
-                if (g->width > 0 && g->height > 0) {
-                    float gx = cursorX + g->xoff;
-                    float gy = cursorY + g->yoff;
+                if (g->getWidth() > 0 && g->getHeight() > 0) {
+                    float gx = cursorX + g->getXoff();
+                    float gy = cursorY + g->getYoff();
 
-                    sgl_v2f_t2f(gx, gy, g->u0, g->v0);
-                    sgl_v2f_t2f(gx + g->width, gy, g->u1, g->v0);
-                    sgl_v2f_t2f(gx + g->width, gy + g->height, g->u1, g->v1);
-                    sgl_v2f_t2f(gx, gy + g->height, g->u0, g->v1);
+                    sgl_v2f_t2f(gx, gy, g->getU0(), g->getV0());
+                    sgl_v2f_t2f(gx + g->getWidth(), gy, g->getU1(), g->getV0());
+                    sgl_v2f_t2f(gx + g->getWidth(), gy + g->getHeight(), g->getU1(), g->getV1());
+                    sgl_v2f_t2f(gx, gy + g->getHeight(), g->getU0(), g->getV1());
                 }
 
-                cursorX += g->advance;
+                cursorX += g->getAdvance();
             }
 
             sgl_end();
@@ -883,8 +909,8 @@ public:
             }
 
             const GlyphInfo* g = atlasManager_->getOrLoadGlyph(codepoint);
-            if (g && g->valid) {
-                width += g->advance;
+            if (g && g->isValid()) {
+                width += g->getAdvance();
             }
         }
 
