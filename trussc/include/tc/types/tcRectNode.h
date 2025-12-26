@@ -239,16 +239,12 @@ private:
 };
 
 // =============================================================================
-// Button - Simple button (example of RectNode)
+// RectNodeButton - Simple button (example of RectNode)
 // =============================================================================
 
-class Button : public RectNode {
+class RectNodeButton : public RectNode {
 public:
-    using Ptr = std::shared_ptr<Button>;
-
-    // State
-    bool isHovered = false;
-    bool isPressed = false;
+    using Ptr = std::shared_ptr<RectNodeButton>;
 
     // Color settings
     Color normalColor = Color(0.3f, 0.3f, 0.3f);
@@ -258,15 +254,18 @@ public:
     // Label
     std::string label;
 
-    Button() {
+    RectNodeButton() {
         enableEvents();  // Enable events
     }
 
+    // State getters
+    bool isPressed() const { return isPressed_; }
+
     void draw() override {
         // Set color based on state
-        if (isPressed) {
+        if (isPressed_) {
             setColor(pressColor);
-        } else if (isHovered) {
+        } else if (isMouseOver()) {
             setColor(hoverColor);
         } else {
             setColor(normalColor);
@@ -286,14 +285,17 @@ public:
 
 protected:
     bool onMousePress(Vec2 local, int button) override {
-        isPressed = true;
+        isPressed_ = true;
         return RectNode::onMousePress(local, button);  // Also fire parent's event
     }
 
     bool onMouseRelease(Vec2 local, int button) override {
-        isPressed = false;
+        isPressed_ = false;
         return RectNode::onMouseRelease(local, button);
     }
+
+private:
+    bool isPressed_ = false;
 };
 
 } // namespace trussc
