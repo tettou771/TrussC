@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include "tcEventListener.h"
 
 // ---------------------------------------------------------------------------
@@ -56,8 +57,8 @@ public:
     // Callback type (argument passed by reference - can be modified)
     using Callback = std::function<void(T&)>;
 
-    Event() = default;
-    ~Event() = default;
+    Event() : alive_(std::make_shared<bool>(true)) {}
+    ~Event() { *alive_ = false; }
 
     // Copy/Move forbidden (events have fixed location)
     Event(const Event&) = delete;
@@ -76,8 +77,14 @@ public:
             sortEntries();
         }
         // Set EventListener outside lock (removeListener() may be called when disconnecting existing)
-        listener = EventListener([this, id]() {
-            this->removeListener(id);
+        // Capture weak_ptr to check if Event is still alive before removing
+        std::weak_ptr<bool> weak = alive_;
+        listener = EventListener([this, id, weak]() {
+            if (auto alive = weak.lock()) {
+                if (*alive) {
+                    this->removeListener(id);
+                }
+            }
         });
     }
 
@@ -140,6 +147,7 @@ private:
             });
     }
 
+    std::shared_ptr<bool> alive_;
     mutable TC_MUTEX mutex_;
     std::vector<Entry> entries_;
     uint64_t nextId_ = 0;
@@ -154,8 +162,8 @@ public:
     // Callback type (no arguments)
     using Callback = std::function<void()>;
 
-    Event() = default;
-    ~Event() = default;
+    Event() : alive_(std::make_shared<bool>(true)) {}
+    ~Event() { *alive_ = false; }
 
     Event(const Event&) = delete;
     Event& operator=(const Event&) = delete;
@@ -173,8 +181,14 @@ public:
             sortEntries();
         }
         // Set EventListener outside lock (removeListener() may be called when disconnecting existing)
-        listener = EventListener([this, id]() {
-            this->removeListener(id);
+        // Capture weak_ptr to check if Event is still alive before removing
+        std::weak_ptr<bool> weak = alive_;
+        listener = EventListener([this, id, weak]() {
+            if (auto alive = weak.lock()) {
+                if (*alive) {
+                    this->removeListener(id);
+                }
+            }
         });
     }
 
@@ -234,6 +248,7 @@ private:
             });
     }
 
+    std::shared_ptr<bool> alive_;
     mutable TC_MUTEX mutex_;
     std::vector<Entry> entries_;
     uint64_t nextId_ = 0;
