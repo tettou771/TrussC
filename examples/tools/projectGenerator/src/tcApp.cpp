@@ -753,7 +753,12 @@ void tcApp::generateVSCodeFiles(const string& path) {
 
     Json windows;
     windows["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}.exe";
-    windows["type"] = "cppvsdbg";  // Use cppvsdbg on Windows
+    // Cursor: use lldb (CodeLLDB), VSCode: use cppvsdbg (Microsoft C/C++)
+    if (ideType == IdeType::Cursor) {
+        windows["type"] = "lldb";
+    } else {
+        windows["type"] = "cppvsdbg";
+    }
     config["windows"] = windows;
 
     launch["configurations"].push_back(config);
