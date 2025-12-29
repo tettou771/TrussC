@@ -44,6 +44,9 @@ public:
     // Allocate FBO (MSAA supported)
     // sampleCount: 1, 2, 4, 8, etc. (1 = no MSAA)
     void allocate(int w, int h, int sampleCount = 1) {
+        // Skip in headless mode (no graphics context)
+        if (headless::isActive()) return;
+
         clear();
 
         width_ = w;
@@ -162,11 +165,15 @@ public:
 
     // Begin rendering to FBO
     void begin() {
+        // Skip in headless mode (no graphics context)
+        if (headless::isActive()) return;
         beginInternal(0.0f, 0.0f, 0.0f, 0.0f);  // Clear with transparent
     }
 
     // Begin with specified background color
     void begin(float r, float g, float b, float a = 1.0f) {
+        // Skip in headless mode (no graphics context)
+        if (headless::isActive()) return;
         beginInternal(r, g, b, a);
     }
 

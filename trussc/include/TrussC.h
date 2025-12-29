@@ -32,6 +32,9 @@
 #include <atomic>
 #include <fstream>
 
+// Headless mode state (must be included early for graphics skip checks)
+#include "tc/app/tcHeadlessState.h"
+
 // Platform-specific headers for memory usage
 #if defined(__APPLE__)
 #include <mach/mach.h>
@@ -421,6 +424,9 @@ inline int getFramebufferHeight() {
 
 // Call at frame start (before clear)
 inline void beginFrame() {
+    // Skip in headless mode (no graphics context)
+    if (headless::isActive()) return;
+
     // Set default viewport
     sgl_defaults();
     sgl_matrix_mode_projection();
@@ -445,6 +451,9 @@ inline void beginFrame() {
 // Clear screen (RGB float: 0.0 ~ 1.0)
 // Works correctly in FBO or during swapchain pass (oF compatible)
 inline void clear(float r, float g, float b, float a = 1.0f) {
+    // Skip in headless mode (no graphics context)
+    if (headless::isActive()) return;
+
     if (internal::inFboPass && internal::fboClearColorFunc) {
         // During FBO pass, call FBO's clearColor() to restart pass
         internal::fboClearColorFunc(r, g, b, a);
@@ -503,6 +512,9 @@ inline void clear(const Color& c) {
 
 // End pass and commit (call at end of draw)
 inline void present() {
+    // Skip in headless mode (no graphics context)
+    if (headless::isActive()) return;
+
     sgl_draw();
     sg_end_pass();
     internal::inSwapchainPass = false;
@@ -2024,6 +2036,9 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 
 // TrussC application base class
 #include "tcBaseApp.h"
+
+// TrussC headless mode (no window)
+#include "tc/app/tcHeadlessApp.h"
 
 // =============================================================================
 // Standard library includes (convenience)

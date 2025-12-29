@@ -21,6 +21,21 @@ public:
     virtual ~App() = default;
 
     // -------------------------------------------------------------------------
+    // Exit request (for programmatic termination)
+    // -------------------------------------------------------------------------
+
+    /// Request application exit (works in both windowed and headless mode)
+    void requestExit() { exitRequested_ = true; }
+
+    /// Check if exit has been requested
+    bool isExitRequested() const { return exitRequested_; }
+
+private:
+    bool exitRequested_ = false;
+
+public:
+
+    // -------------------------------------------------------------------------
     // Lifecycle (inherited from Node, additional overrides possible)
     // -------------------------------------------------------------------------
 
