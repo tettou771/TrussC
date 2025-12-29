@@ -1,0 +1,428 @@
+#include "ProjectGenerator.h"
+#include "TrussC.h"
+#include <fstream>
+#include <sstream>
+#include <filesystem>
+#include <stdexcept>
+#include <cstdio>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/stat.h>  // chmod
+#endif
+
+namespace fs = std::filesystem;
+using namespace std;
+using namespace tc;
+
+// Execute command and capture output
+static pair<int, string> executeCommand(const string& cmd) {
+    string output;
+    string fullCmd = cmd + " 2>&1";
+#ifdef _WIN32
+    FILE* pipe = _popen(fullCmd.c_str(), "r");
+#else
+    FILE* pipe = popen(fullCmd.c_str(), "r");
+#endif
+    if (!pipe) return {-1, "Failed to execute command"};
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
+    }
+#ifdef _WIN32
+    int result = _pclose(pipe);
+#else
+    int result = pclose(pipe);
+#endif
+    return {result, output};
+}
+
+ProjectGenerator::ProjectGenerator(const ProjectSettings& settings)
+    : settings_(settings)
+{
+}
+
+void ProjectGenerator::log(const string& msg) {
+    if (logCallback_) {
+        logCallback_(msg);
+    }
+}
+
+string ProjectGenerator::getDestPath() const {
+    string dir = settings_.projectDir;
+    while (!dir.empty() && dir.back() == '/') {
+        dir.pop_back();
+    }
+    return dir + "/" + settings_.projectName;
+}
+
+string ProjectGenerator::getTrusscDirValue(const string& projectPath) {
+    fs::path project = fs::absolute(projectPath);
+    fs::path trussc = fs::absolute(settings_.tcRoot) / "trussc";
+
+    // Calculate relative path
+    fs::path rel = fs::relative(trussc, project);
+
+    // Use relative path if it exists, otherwise use absolute
+    if (fs::exists(project / rel)) {
+        string result = "${CMAKE_CURRENT_SOURCE_DIR}/" + rel.string();
+        // Normalize path separators
+        for (char& c : result) {
+            if (c == '\\') c = '/';
+        }
+        return result;
+    }
+    return trussc.string();
+}
+
+void ProjectGenerator::writeCMakeLists(const string& destPath) {
+    string templateCmakePath = settings_.templatePath + "/CMakeLists.txt";
+    ifstream inFile(templateCmakePath);
+    stringstream buffer;
+    buffer << inFile.rdbuf();
+    inFile.close();
+
+    string content = buffer.str();
+
+    // Replace TRUSSC_DIR
+    size_t pos = content.find("set(TRUSSC_DIR \"");
+    if (pos != string::npos) {
+        size_t endPos = content.find("\")", pos);
+        if (endPos != string::npos) {
+            content.replace(pos, endPos - pos + 2,
+                "set(TRUSSC_DIR \"" + getTrusscDirValue(destPath) + "\")");
+        }
+    }
+
+    string cmakePath = destPath + "/CMakeLists.txt";
+    ofstream outFile(cmakePath);
+    outFile << content;
+    outFile.close();
+}
+
+void ProjectGenerator::writeAddonsMake(const string& destPath) {
+    string addonsMakePath = destPath + "/addons.make";
+    ofstream addonsFile(addonsMakePath);
+    addonsFile << "# TrussC addons - one addon per line\n";
+    for (size_t i = 0; i < settings_.addons.size(); i++) {
+        if (settings_.addonSelected[i]) {
+            addonsFile << settings_.addons[i] << "\n";
+        }
+    }
+    addonsFile.close();
+}
+
+string ProjectGenerator::generate() {
+    // Validation
+    if (settings_.projectName.empty()) {
+        return "Project name is required";
+    }
+    if (settings_.projectDir.empty()) {
+        return "Location is required";
+    }
+    if (settings_.tcRoot.empty()) {
+        return "TrussC folder not set";
+    }
+    if (!fs::exists(settings_.templatePath)) {
+        return "Template not found";
+    }
+
+    string destPath = getDestPath();
+    bool folderExists = fs::is_directory(destPath);
+
+    try {
+        log("Creating project: " + settings_.projectName);
+
+        // Create parent directory
+        fs::create_directories(settings_.projectDir);
+
+        // Copy template only if folder doesn't exist (new project)
+        if (!folderExists) {
+            log("Copying template files...");
+            fs::create_directories(destPath);
+            for (const auto& entry : fs::directory_iterator(settings_.templatePath)) {
+                string name = entry.path().filename().string();
+                if (name == "build" || name == "bin") {
+                    continue;
+                }
+                fs::copy(entry.path(), destPath + "/" + name,
+                         fs::copy_options::recursive);
+            }
+        }
+
+        log("Writing CMakeLists.txt...");
+        writeCMakeLists(destPath);
+
+        log("Writing addons.make...");
+        writeAddonsMake(destPath);
+
+        // Generate IDE-specific files
+        if (settings_.ideType == IdeType::VSCode || settings_.ideType == IdeType::Cursor) {
+            log("Generating VSCode files...");
+            generateVSCodeFiles(destPath);
+        } else if (settings_.ideType == IdeType::Xcode) {
+            log("Generating Xcode project...");
+            generateXcodeProject(destPath);
+        } else if (settings_.ideType == IdeType::VisualStudio) {
+            log("Generating Visual Studio project...");
+            generateVisualStudioProject(destPath);
+        }
+
+        if (settings_.generateWebBuild) {
+            log("Generating Web build files...");
+            generateWebBuildFiles(destPath);
+        }
+
+        log("Done!");
+        return "";  // Success
+
+    } catch (const exception& e) {
+        return string("Error: ") + e.what();
+    }
+}
+
+string ProjectGenerator::update(const string& projectPath) {
+    try {
+        log("Updating project...");
+
+        // Update CMakeLists.txt
+        log("Updating CMakeLists.txt...");
+        writeCMakeLists(projectPath);
+
+        // Update addons.make
+        log("Updating addons.make...");
+        writeAddonsMake(projectPath);
+
+        // Regenerate IDE-specific files
+        if (settings_.ideType == IdeType::VSCode || settings_.ideType == IdeType::Cursor) {
+            log("Updating VSCode files...");
+            generateVSCodeFiles(projectPath);
+        } else if (settings_.ideType == IdeType::Xcode) {
+            log("Regenerating Xcode project...");
+            generateXcodeProject(projectPath);
+        } else if (settings_.ideType == IdeType::VisualStudio) {
+            log("Regenerating Visual Studio project...");
+            generateVisualStudioProject(projectPath);
+        }
+
+        if (settings_.generateWebBuild) {
+            log("Updating Web build files...");
+            generateWebBuildFiles(projectPath);
+        }
+
+        log("Update complete!");
+        return "";
+
+    } catch (const exception& e) {
+        return string("Error: ") + e.what();
+    }
+}
+
+void ProjectGenerator::generateVSCodeFiles(const string& path) {
+    string vscodePath = path + "/.vscode";
+    fs::create_directories(vscodePath);
+
+    // launch.json
+    Json launch;
+    launch["version"] = "0.2.0";
+    launch["configurations"] = Json::array();
+
+    Json config;
+    config["name"] = "Debug";
+    config["type"] = "lldb";
+    config["request"] = "launch";
+    config["cwd"] = "${workspaceFolder}";
+    config["preLaunchTask"] = "CMake: build";
+
+    Json osx;
+    osx["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}.app/Contents/MacOS/${workspaceFolderBasename}";
+    config["osx"] = osx;
+
+    Json linux_cfg;
+    linux_cfg["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}";
+    config["linux"] = linux_cfg;
+
+    Json windows;
+    windows["program"] = "${workspaceFolder}/bin/${workspaceFolderBasename}.exe";
+    windows["type"] = "cppvsdbg";
+    config["windows"] = windows;
+
+    launch["configurations"].push_back(config);
+    saveJson(launch, vscodePath + "/launch.json");
+
+    // settings.json
+    Json settings;
+    settings["cmake.buildDirectory"] = "${workspaceFolder}/build";
+    settings["cmake.sourceDirectory"] = "${workspaceFolder}";
+    saveJson(settings, vscodePath + "/settings.json");
+
+    // tasks.json
+    Json tasks;
+    tasks["version"] = "2.0.0";
+
+    Json task;
+    task["label"] = "CMake: build";
+    task["type"] = "cmake";
+    task["command"] = "build";
+    task["problemMatcher"] = Json::array();
+
+    Json group;
+    group["kind"] = "build";
+    group["isDefault"] = true;
+    task["group"] = group;
+
+    tasks["tasks"] = Json::array();
+    tasks["tasks"].push_back(task);
+
+    if (settings_.generateWebBuild) {
+        Json webTask;
+        webTask["label"] = "Build Web";
+        webTask["type"] = "shell";
+#ifdef __APPLE__
+        webTask["command"] = "./build-web.command";
+#elif defined(_WIN32)
+        webTask["command"] = ".\\build-web.bat";
+#else
+        webTask["command"] = "./build-web.sh";
+#endif
+        webTask["problemMatcher"] = Json::array();
+        webTask["group"] = "build";
+        tasks["tasks"].push_back(webTask);
+    }
+
+    saveJson(tasks, vscodePath + "/tasks.json");
+
+    // extensions.json
+    Json extensions;
+    extensions["recommendations"] = Json::array();
+    extensions["recommendations"].push_back("ms-vscode.cmake-tools");
+
+    if (settings_.ideType == IdeType::Cursor) {
+        extensions["recommendations"].push_back("llvm-vs-code-extensions.vscode-clangd");
+    } else {
+        extensions["recommendations"].push_back("ms-vscode.cpptools");
+    }
+    extensions["recommendations"].push_back("vadimcn.vscode-lldb");
+
+    saveJson(extensions, vscodePath + "/extensions.json");
+}
+
+void ProjectGenerator::generateXcodeProject(const string& path) {
+    string xcodePath = path + "/xcode";
+    if (fs::exists(xcodePath)) {
+        fs::remove_all(xcodePath);
+    }
+    fs::create_directories(xcodePath);
+
+    string cmd = "cd \"" + xcodePath + "\" && /opt/homebrew/bin/cmake -G Xcode ..";
+    log("Running: cmake -G Xcode");
+
+    auto [result, output] = executeCommand(cmd);
+    if (!output.empty()) {
+        log(output);
+    }
+    if (result != 0) {
+        throw runtime_error("Failed to generate Xcode project");
+    }
+
+    // Generate Debug/Release schemes
+    IdeHelper::generateXcodeSchemes(path);
+}
+
+void ProjectGenerator::generateVisualStudioProject(const string& path) {
+    // Check CMake version for VS2026
+    if (!settings_.installedVsVersions.empty() &&
+        settings_.selectedVsIndex < (int)settings_.installedVsVersions.size()) {
+        int vsVersion = settings_.installedVsVersions[settings_.selectedVsIndex].version;
+        string errorMsg;
+        if (!VsDetector::checkCmakeVersionForVs(vsVersion, errorMsg)) {
+            throw runtime_error(errorMsg);
+        }
+    }
+
+    string vsPath = path + "/vs";
+    if (fs::exists(vsPath)) {
+        fs::remove_all(vsPath);
+    }
+    fs::create_directories(vsPath);
+
+    // Get generator name from selected VS version
+    string generator = "Visual Studio 17 2022";  // Default
+    if (!settings_.installedVsVersions.empty() &&
+        settings_.selectedVsIndex < (int)settings_.installedVsVersions.size()) {
+        generator = settings_.installedVsVersions[settings_.selectedVsIndex].generator;
+    }
+
+#ifdef _WIN32
+    string cmd = "cd /d \"" + vsPath + "\" && cmake -G \"" + generator + "\" ..";
+#else
+    string cmd = "cd \"" + vsPath + "\" && cmake -G \"" + generator + "\" ..";
+#endif
+    log("Running: cmake -G \"" + generator + "\"");
+
+    auto [result, output] = executeCommand(cmd);
+    if (!output.empty()) {
+        log(output);
+    }
+    if (result != 0) {
+        throw runtime_error("Failed to generate Visual Studio project");
+    }
+}
+
+void ProjectGenerator::generateWebBuildFiles(const string& path) {
+#ifdef _WIN32
+    // Windows: build-web.bat
+    string scriptPath = path + "/build-web.bat";
+    ofstream file(scriptPath);
+    file << "@echo off\n";
+    file << "setlocal\n\n";
+    file << "REM TrussC Web Build Script (Windows)\n\n";
+    file << "if not exist emscripten mkdir emscripten\n";
+    file << "cd emscripten\n\n";
+    file << "call emcmake cmake ..\n";
+    file << "cmake --build .\n\n";
+    file << "echo.\n";
+    file << "echo Build complete! Output files are in bin\\\n";
+    file << "echo To test locally:\n";
+    file << "echo   cd ..\\bin ^&^& python -m http.server 8080\n";
+    file << "echo   Open http://localhost:8080/%~n0.html\n";
+    file.close();
+#elif defined(__APPLE__)
+    // macOS: build-web.command
+    string scriptPath = path + "/build-web.command";
+    ofstream file(scriptPath);
+    file << "#!/bin/bash\n";
+    file << "# TrussC Web Build Script (macOS)\n\n";
+    file << "cd \"$(dirname \"$0\")\"\n\n";
+    file << "mkdir -p emscripten\n";
+    file << "cd emscripten\n\n";
+    file << "emcmake cmake ..\n";
+    file << "cmake --build .\n\n";
+    file << "echo \"\"\n";
+    file << "echo \"Build complete! Output files are in bin/\"\n";
+    file << "echo \"To test locally:\"\n";
+    file << "echo \"  cd ../bin && python3 -m http.server 8080\"\n";
+    file << "echo \"  Open http://localhost:8080/$(basename $(pwd)).html\"\n";
+    file.close();
+    chmod(scriptPath.c_str(), 0755);
+#else
+    // Linux: build-web.sh
+    string scriptPath = path + "/build-web.sh";
+    ofstream file(scriptPath);
+    file << "#!/bin/bash\n";
+    file << "# TrussC Web Build Script (Linux)\n\n";
+    file << "cd \"$(dirname \"$0\")\"\n\n";
+    file << "mkdir -p emscripten\n";
+    file << "cd emscripten\n\n";
+    file << "emcmake cmake ..\n";
+    file << "cmake --build .\n\n";
+    file << "echo \"\"\n";
+    file << "echo \"Build complete! Output files are in bin/\"\n";
+    file << "echo \"To test locally:\"\n";
+    file << "echo \"  cd ../bin && python3 -m http.server 8080\"\n";
+    file << "echo \"  Open http://localhost:8080/$(basename $(pwd)).html\"\n";
+    file.close();
+    chmod(scriptPath.c_str(), 0755);
+#endif
+}
