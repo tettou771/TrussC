@@ -9,6 +9,7 @@ struct VsVersionInfo {
     int version;            // 17 = VS2022, 18 = VS2026
     std::string displayName; // "Visual Studio 2022", "Visual Studio 2026"
     std::string generator;   // "Visual Studio 17 2022", "Visual Studio 18 2026"
+    std::string cmakePath;   // Path to cmake bundled with this VS version
 };
 
 // Visual Studio detection utility (Windows only)

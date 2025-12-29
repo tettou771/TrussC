@@ -331,13 +331,16 @@ void ProjectGenerator::generateXcodeProject(const string& path) {
 }
 
 void ProjectGenerator::generateVisualStudioProject(const string& path) {
-    // Check CMake version for VS2026
+    // Check CMake version for VS2026 (skip if using VS-bundled cmake)
     if (!settings_.installedVsVersions.empty() &&
         settings_.selectedVsIndex < (int)settings_.installedVsVersions.size()) {
-        int vsVersion = settings_.installedVsVersions[settings_.selectedVsIndex].version;
-        string errorMsg;
-        if (!VsDetector::checkCmakeVersionForVs(vsVersion, errorMsg)) {
-            throw runtime_error(errorMsg);
+        const auto& vsInfo = settings_.installedVsVersions[settings_.selectedVsIndex];
+        // Only check PATH cmake version if not using VS-bundled cmake
+        if (vsInfo.cmakePath.empty()) {
+            string errorMsg;
+            if (!VsDetector::checkCmakeVersionForVs(vsInfo.version, errorMsg)) {
+                throw runtime_error(errorMsg);
+            }
         }
     }
 
@@ -347,19 +350,25 @@ void ProjectGenerator::generateVisualStudioProject(const string& path) {
     }
     fs::create_directories(vsPath);
 
-    // Get generator name from selected VS version
+    // Get generator name and cmake path from selected VS version
     string generator = "Visual Studio 17 2022";  // Default
+    string cmakeBin = "cmake";  // Default to PATH
     if (!settings_.installedVsVersions.empty() &&
         settings_.selectedVsIndex < (int)settings_.installedVsVersions.size()) {
         generator = settings_.installedVsVersions[settings_.selectedVsIndex].generator;
+        // Use VS-bundled cmake if available
+        const string& vsCmake = settings_.installedVsVersions[settings_.selectedVsIndex].cmakePath;
+        if (!vsCmake.empty()) {
+            cmakeBin = "\"" + vsCmake + "\"";
+        }
     }
 
 #ifdef _WIN32
-    string cmd = "cd /d \"" + vsPath + "\" && cmake -G \"" + generator + "\" ..";
+    string cmd = "cd /d \"" + vsPath + "\" && " + cmakeBin + " -G \"" + generator + "\" ..";
 #else
     string cmd = "cd \"" + vsPath + "\" && cmake -G \"" + generator + "\" ..";
 #endif
-    log("Running: cmake -G \"" + generator + "\"");
+    log("Running: " + cmakeBin + " -G \"" + generator + "\"");
 
     auto [result, output] = executeCommand(cmd);
     if (!output.empty()) {
