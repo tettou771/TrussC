@@ -190,6 +190,14 @@ string ProjectGenerator::update(const string& projectPath) {
         log("Updating CMakeLists.txt...");
         writeCMakeLists(projectPath);
 
+        // Update CMakePresets.json (always overwrite with latest template)
+        string templatePresets = settings_.templatePath + "/CMakePresets.json";
+        string destPresets = projectPath + "/CMakePresets.json";
+        if (fs::exists(templatePresets)) {
+            log("Updating CMakePresets.json...");
+            fs::copy_file(templatePresets, destPresets, fs::copy_options::overwrite_existing);
+        }
+
         // Update addons.make
         log("Updating addons.make...");
         writeAddonsMake(projectPath);
