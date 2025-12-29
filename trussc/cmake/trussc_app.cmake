@@ -83,6 +83,14 @@ macro(trussc_app)
     # Create executable
     add_executable(${PROJECT_NAME} ${_TC_SOURCES})
 
+    # Windows: hide console window (use WINDOWS subsystem with main() entry point)
+    if(WIN32)
+        target_link_options(${PROJECT_NAME} PRIVATE
+            "/SUBSYSTEM:WINDOWS"
+            "/ENTRY:mainCRTStartup"
+        )
+    endif()
+
     # Link TrussC
     target_link_libraries(${PROJECT_NAME} PRIVATE tc::TrussC)
 
