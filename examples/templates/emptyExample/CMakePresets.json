@@ -14,7 +14,10 @@
       "name": "windows",
       "displayName": "Windows",
       "binaryDir": "${sourceDir}/build-windows",
-      "generator": "Visual Studio 17 2022"
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     },
     {
       "name": "linux",
