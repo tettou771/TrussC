@@ -1,50 +1,59 @@
+// =============================================================================
+// noWindowModeExample - Headless Mode Demo
+// =============================================================================
+//
+// This example demonstrates running a TrussC app without a window or graphics
+// context. Useful for server applications, background services, or utilities
+// that only need non-graphics features.
+//
+// Usage:
+//   - Press Ctrl+C to exit
+//   - Or call requestExit() programmatically
+//
+// Available features in headless mode:
+//   - Serial communication (tc::Serial)
+//   - Network: TCP/UDP sockets (tc::TcpClient, TcpServer, UdpSocket)
+//   - OSC: Open Sound Control (tc::OscSender, OscReceiver)
+//   - File I/O: read/write files (tc::loadFile, saveFile, etc.)
+//   - JSON/XML parsing (tc::Json, tc::Xml)
+//   - Math utilities (tc::Vec2, Vec3, Mat4, noise, etc.)
+//   - Threading (tc::Thread, ThreadChannel)
+//   - Timers and timing (tc::getElapsedTime, headless::getElapsedTime)
+//   - Logging (tc::tcLogNotice, tcLogWarning, tcLogError)
+//   - Console input (tc::console)
+//
+// NOT available in headless mode (no-op or skipped):
+//   - All graphics/drawing functions
+//   - Window management
+//   - Mouse/keyboard events
+//   - FBO (off-screen rendering)
+//   - Texture, Shader, Font (GPU resources)
+//   - Video player/grabber
+//   - ImGui
+//
+// =============================================================================
+
 #include "tcApp.h"
 
 void tcApp::setup() {
     tcLogNotice("noWindowMode") << "=== noWindowMode Example ===";
-    tcLogNotice("noWindowMode") << "Running without window for " << maxFrames_ << " frames (~5 seconds)";
-    tcLogNotice("noWindowMode") << "Press Ctrl+C to exit early";
+    tcLogNotice("noWindowMode") << "Running in headless mode (no window)";
+    tcLogNotice("noWindowMode") << "Press Ctrl+C to exit";
 }
 
 void tcApp::update() {
-    counter_++;
+    frameCount_++;
 
-    // Print progress every second (60 frames)
-    if (counter_ % 60 == 0) {
+    // Print status every second (60 frames at 60fps)
+    if (frameCount_ % 60 == 0) {
         double elapsed = headless::getElapsedTime();
-        tcLogNotice("noWindowMode") << "Frame " << counter_ << " | Elapsed: " << elapsed << "s";
+        tcLogNotice("noWindowMode") << "Running... Frame " << frameCount_
+                                    << " | Elapsed: " << elapsed << "s";
     }
-
-    // Test sokol-based methods (should not crash in headless mode)
-    if (counter_ == 1) {
-        tcLogNotice("noWindowMode") << "Testing sokol-based methods...";
-
-        // These call sokol functions internally
-        clear(colors::black);
-        setColor(colors::red);
-        drawCircle(100, 100, 50);
-
-        tcLogNotice("noWindowMode") << "sokol methods called (may crash or be no-op)";
-    }
-
-    // Exit after maxFrames
-    if (counter_ >= maxFrames_) {
-        tcLogNotice("noWindowMode") << "Reached " << maxFrames_ << " frames, exiting...";
-        requestExit();
-    }
-}
-
-void tcApp::draw() {
-    // This should not be called in headless mode
-    tcLogWarning("noWindowMode") << "draw() called - this should not happen in headless mode!";
-}
-
-void tcApp::exit() {
-    tcLogNotice("noWindowMode") << "exit() called";
 }
 
 void tcApp::cleanup() {
     tcLogNotice("noWindowMode") << "cleanup() called";
-    tcLogNotice("noWindowMode") << "Total frames: " << counter_;
+    tcLogNotice("noWindowMode") << "Total frames: " << frameCount_;
     tcLogNotice("noWindowMode") << "=== Done ===";
 }
