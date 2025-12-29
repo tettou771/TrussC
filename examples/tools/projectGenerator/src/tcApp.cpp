@@ -334,8 +334,9 @@ void tcApp::draw() {
         saveConfig();
     }
 #elif defined(_WIN32)
-    // Windows: CMake only, VSCode, Cursor, Visual Studio
-    const char* ideItems[] = { "CMake only", "VSCode", "Cursor", "Visual Studio" };
+    // Windows: CMake only, VSCode, Cursor, Visual Studio (detected version)
+    string vsName = installedVsVersions.empty() ? "Visual Studio" : installedVsVersions[0].displayName;
+    const char* ideItems[] = { "CMake only", "VSCode", "Cursor", vsName.c_str() };
     int displayIndex;
     if (ideType == IdeType::VisualStudio) {
         displayIndex = 3;
