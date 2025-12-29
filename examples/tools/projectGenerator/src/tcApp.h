@@ -1,18 +1,11 @@
 #pragma once
 
 #include <TrussC.h>
+#include "IdeHelper.h"
+#include "VsDetector.h"
 #include <atomic>
 using namespace std;
 using namespace tc;
-
-// IDE selection
-enum class IdeType {
-    CMakeOnly,
-    VSCode,
-    Cursor,
-    Xcode,
-    VisualStudio
-};
 
 class tcApp : public App {
 public:
@@ -32,7 +25,7 @@ public:
     void keyPressed(int key) override;
     void keyReleased(int key) override;
 
-    // Drag and drop
+    // Drag & drop
     void filesDropped(const vector<string>& files) override;
 
 private:
@@ -44,6 +37,10 @@ private:
     vector<int> addonSelected;          // Addon selection state (0/1)
     IdeType ideType = IdeType::VSCode;  // Default is VSCode
     bool generateWebBuild = false;      // Generate Web (Emscripten) build
+
+    // Visual Studio versions (Windows only)
+    vector<VsVersionInfo> installedVsVersions;
+    int selectedVsIndex = 0;
 
     // UI state
     bool showSetupDialog = false;       // TC_ROOT setup dialog
@@ -77,17 +74,8 @@ private:
     void loadConfig();
     void saveConfig();
     void scanAddons();
-    bool generateProject();
-    bool updateProject();
     void importProject(const string& path);
-    void generateVSCodeFiles(const string& path);
-    void generateXcodeProject(const string& path);
-    void generateXcodeSchemes(const string& path);
-    void generateVisualStudioProject(const string& path);
-    void generateWebBuildFiles(const string& path);
-    void openInIde(const string& path);
     string getTemplatePath();
-    string getTrusscDirValue(const string& projectPath);
     void setStatus(const string& msg, bool isError = false);
     void resetToNewProject();
 };
