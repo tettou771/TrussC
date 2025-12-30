@@ -536,10 +536,10 @@ Reference for oF users finding equivalent features in TrussC.
 
 | openFrameworks | TrussC | Example | Notes |
 |:---|:---|:---|:---|
-| `ofLog()` | `tc::tcLogNotice("module")` | fileDialogExample | Module name optional |
-| `ofLogVerbose()` | `tc::tcLogVerbose("module")` | ofNodeExample | |
-| `ofLogWarning()` | `tc::tcLogWarning("module")` | tcpExample | |
-| `ofLogError()` | `tc::tcLogError("module")` | tcpExample | |
+| `ofLog()` | `logNotice("module")` | fileDialogExample | Module name optional |
+| `ofLogVerbose()` | `logVerbose("module")` | ofNodeExample | |
+| `ofLogWarning()` | `logWarning("module")` | tcpExample | |
+| `ofLogError()` | `logError("module")` | tcpExample | |
 
 ### **Thread**
 
