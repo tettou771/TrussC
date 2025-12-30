@@ -4,10 +4,10 @@
 // setup - Initialization
 // ---------------------------------------------------------------------------
 void tcApp::setup() {
-    tcLogNotice("tcApp") << "Mesh Texture Mapping Example";
-    tcLogNotice("tcApp") << "  - SPACE: Toggle texture";
-    tcLogNotice("tcApp") << "  - W: Toggle wireframe";
-    tcLogNotice("tcApp") << "  - ESC: Exit";
+    logNotice("tcApp") << "Mesh Texture Mapping Example";
+    logNotice("tcApp") << "  - SPACE: Toggle texture";
+    logNotice("tcApp") << "  - W: Toggle wireframe";
+    logNotice("tcApp") << "  - ESC: Exit";
     
     // Create checkerboard texture
     const int texSize = 256;
