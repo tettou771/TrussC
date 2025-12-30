@@ -158,23 +158,22 @@ void tcApp::draw() {
     // Select texture
     Image& currentTex = (currentTexture_ == 0) ? checkerTexture_ : gradientTexture_;
     
-    // Draw plane (left, on ground)
+    // Draw plane (left)
     pushMatrix();
-    translate(-3.0f, 0.0f, -8.0f);  // Left side, on ground level, in front of camera
-    rotateX(deg2rad(-90));  // Rotate to be horizontal (ground)
+    translate(-2.5f, 0.0f, -7.0f);
     rotateY(spinX);
     rotateX(spinY);
-    scale(0.01f, 0.01f, 0.01f);  // Scale down like 3DPrimitivesExample
+    scale(0.01f, 0.01f, 0.01f);
     if (showWireframe_) {
         plane_.drawWireframe();
     } else {
         plane_.draw(currentTex);
     }
     popMatrix();
-    
+
     // Draw box (center)
     pushMatrix();
-    translate(0.0f, 1.5f, -8.0f);  // Center, above ground, in front of camera
+    translate(0.0f, 0.0f, -7.0f);
     rotateY(spinX);
     rotateX(spinY);
     scale(0.01f, 0.01f, 0.01f);
@@ -184,10 +183,10 @@ void tcApp::draw() {
         box_.draw(currentTex);
     }
     popMatrix();
-    
+
     // Draw sphere (right)
     pushMatrix();
-    translate(3.0f, 1.5f, -8.0f);  // Right side, above ground, in front of camera
+    translate(2.5f, 0.0f, -7.0f);
     rotateY(spinX);
     rotateX(spinY);
     scale(0.01f, 0.01f, 0.01f);
