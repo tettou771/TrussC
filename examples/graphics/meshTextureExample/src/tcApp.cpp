@@ -1,3 +1,81 @@
+// =============================================================================
+// Mesh Texture Mapping Example
+// =============================================================================
+//
+// Demonstrates how to apply textures to 3D primitives using Mesh::draw(Texture&).
+//
+// TEXTURE COORDINATE LAYOUT FOR EACH PRIMITIVE:
+//
+// -----------------------------------------------------------------------------
+// 1. PLANE (createPlane)
+// -----------------------------------------------------------------------------
+//    Simple UV mapping. Texture stretches across the entire plane.
+//
+//    (0,0)-----------(1,0)
+//      |               |
+//      |   Texture     |
+//      |   Image       |
+//      |               |
+//    (0,1)-----------(1,1)
+//
+// -----------------------------------------------------------------------------
+// 2. BOX (createBox)
+// -----------------------------------------------------------------------------
+//    Each face has independent UV coordinates (0,0)-(1,1).
+//    The SAME texture is applied to all 6 faces.
+//    This is NOT a UV unwrap/cross layout.
+//
+//         +-------+
+//        /|  Top /|      Each face:
+//       / |     / |      (0,0)---(1,0)
+//      +-------+  |        |       |
+//      |  +---|--+         |  Tex  |
+//      | /Back|  /         |       |
+//      |/     | /        (0,1)---(1,1)
+//      +-------+
+//       Front
+//
+//    Face orientation (texture appears correctly when viewed from outside):
+//    - Front  (Z+): left-to-right = U, bottom-to-top = V
+//    - Back   (Z-): mirrored horizontally
+//    - Top    (Y+): looking down, left-to-right = U, front-to-back = V
+//    - Bottom (Y-): looking up, left-to-right = U, back-to-front = V
+//    - Right  (X+): front-to-back = U, bottom-to-top = V
+//    - Left   (X-): back-to-front = U, bottom-to-top = V
+//
+// -----------------------------------------------------------------------------
+// 3. SPHERE (createSphere)
+// -----------------------------------------------------------------------------
+//    Equirectangular (latitude-longitude) mapping.
+//    Same projection used for world maps and 360° photos.
+//
+//    U (horizontal) = longitude: 0.0 = 0°, 1.0 = 360° (wraps around)
+//    V (vertical)   = latitude:  0.0 = North Pole, 1.0 = South Pole
+//
+//    Texture image layout:
+//    (0,0)=========================(1,0)
+//      |                             |     <- North Pole (top edge)
+//      |      +----+                 |
+//      |     /      \                |     <- Equator (middle)
+//      |    +        +               |
+//      |     \      /                |
+//      |      +----+                 |     <- South Pole (bottom edge)
+//    (0,1)=========================(1,1)
+//         ^                       ^
+//       0° lon                  360° lon (same as 0°)
+//
+//    NOTE: Poles will have texture distortion (singularity).
+//          For seamless wrapping, texture left edge must match right edge.
+//
+// -----------------------------------------------------------------------------
+// 4. OTHER PRIMITIVES (no texture coordinates)
+// -----------------------------------------------------------------------------
+//    - createCylinder: No UV coords (could add in future)
+//    - createCone: No UV coords
+//    - createIcoSphere: No UV coords (would need spherical projection)
+//
+// =============================================================================
+
 #include "tcApp.h"
 
 // ---------------------------------------------------------------------------
