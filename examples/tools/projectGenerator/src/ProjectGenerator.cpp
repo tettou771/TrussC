@@ -113,6 +113,53 @@ void ProjectGenerator::writeAddonsMake(const string& destPath) {
     addonsFile.close();
 }
 
+void ProjectGenerator::writeCMakeUserPresets(const string& destPath) {
+#ifdef _WIN32
+    // Get ninja path from detected VS versions
+    if (settings_.installedVsVersions.empty() ||
+        settings_.selectedVsIndex >= (int)settings_.installedVsVersions.size()) {
+        return;
+    }
+
+    string ninjaPath = settings_.installedVsVersions[settings_.selectedVsIndex].ninjaPath;
+    if (ninjaPath.empty()) {
+        return;
+    }
+
+    // Convert backslashes to forward slashes for JSON
+    for (char& c : ninjaPath) {
+        if (c == '\\') c = '/';
+    }
+
+    log("Writing CMakeUserPresets.json...");
+
+    // Generate CMakeUserPresets.json with ninja path
+    // This overrides the "windows" preset from CMakePresets.json
+    Json presets;
+    presets["version"] = 6;
+
+    Json windowsPreset;
+    windowsPreset["name"] = "windows";
+    windowsPreset["displayName"] = "Windows";
+    windowsPreset["binaryDir"] = "${sourceDir}/build-windows";
+    windowsPreset["generator"] = "Ninja";
+    windowsPreset["cacheVariables"]["CMAKE_EXPORT_COMPILE_COMMANDS"] = "ON";
+    windowsPreset["cacheVariables"]["CMAKE_MAKE_PROGRAM"] = ninjaPath;
+
+    presets["configurePresets"] = Json::array();
+    presets["configurePresets"].push_back(windowsPreset);
+
+    Json windowsBuildPreset;
+    windowsBuildPreset["name"] = "windows";
+    windowsBuildPreset["configurePreset"] = "windows";
+
+    presets["buildPresets"] = Json::array();
+    presets["buildPresets"].push_back(windowsBuildPreset);
+
+    saveJson(presets, destPath + "/CMakeUserPresets.json");
+#endif
+}
+
 string ProjectGenerator::generate() {
     // Validation
     if (settings_.projectName.empty()) {
@@ -163,6 +210,8 @@ string ProjectGenerator::generate() {
         if (settings_.ideType == IdeType::VSCode || settings_.ideType == IdeType::Cursor) {
             log("Generating VSCode files...");
             generateVSCodeFiles(destPath);
+            // Write CMakeUserPresets.json for Windows (contains ninja path)
+            writeCMakeUserPresets(destPath);
             // Run CMake configure to generate compile_commands.json
             runCMakeConfigure(destPath);
         } else if (settings_.ideType == IdeType::Xcode) {
@@ -210,6 +259,8 @@ string ProjectGenerator::update(const string& projectPath) {
         if (settings_.ideType == IdeType::VSCode || settings_.ideType == IdeType::Cursor) {
             log("Updating VSCode files...");
             generateVSCodeFiles(projectPath);
+            // Write CMakeUserPresets.json for Windows (contains ninja path)
+            writeCMakeUserPresets(projectPath);
             // Run CMake configure to generate compile_commands.json
             runCMakeConfigure(projectPath);
         } else if (settings_.ideType == IdeType::Xcode) {

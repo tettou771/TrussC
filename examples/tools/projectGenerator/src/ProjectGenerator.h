@@ -63,4 +63,7 @@ private:
 
     // Write addons.make
     void writeAddonsMake(const std::string& destPath);
+
+    // Write CMakeUserPresets.json (Windows only, for ninja path)
+    void writeCMakeUserPresets(const std::string& destPath);
 };
