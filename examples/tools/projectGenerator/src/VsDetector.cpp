@@ -96,9 +96,10 @@ vector<VsVersionInfo> VsDetector::detectInstalledVersions() {
                     // Construct paths from VS installation
                     info.cmakePath = installPath + R"(\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe)";
                     info.vcvarsallPath = installPath + R"(\VC\Auxiliary\Build\vcvarsall.bat)";
+                    info.ninjaPath = installPath + R"(\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe)";
 
-                    // Verify cmake and vcvarsall exist
-                    if (fs::exists(info.cmakePath) && fs::exists(info.vcvarsallPath)) {
+                    // Verify required files exist
+                    if (fs::exists(info.cmakePath) && fs::exists(info.vcvarsallPath) && fs::exists(info.ninjaPath)) {
                         versions.push_back(info);
                     }
                 }

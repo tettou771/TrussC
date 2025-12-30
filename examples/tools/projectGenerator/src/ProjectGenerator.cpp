@@ -513,11 +513,14 @@ void ProjectGenerator::runCMakeConfigure(const string& path) {
         return;
     }
 
+    // Get ninja path
+    string ninjaPath = settings_.installedVsVersions[settings_.selectedVsIndex].ninjaPath;
+
     log("Running CMake configure (preset: " + preset + ")...");
 
-    // Use vcvarsall.bat to set up VS environment, then run cmake
-    // This makes cl.exe and VS-bundled ninja available
-    string cmd = "cmd /c \"\"" + vcvarsallPath + "\" x64 && cd /d \"" + path + "\" && cmake --preset " + preset + "\"";
+    // Use vcvarsall.bat to set up VS environment, then run cmake with explicit ninja path
+    // vcvarsall.bat sets up cl.exe, but ninja needs to be specified explicitly
+    string cmd = "cmd /c \"\"" + vcvarsallPath + "\" x64 && cd /d \"" + path + "\" && cmake --preset " + preset + " -DCMAKE_MAKE_PROGRAM=\"" + ninjaPath + "\"\"";
 
     auto [result, output] = executeCommand(cmd);
 

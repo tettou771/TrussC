@@ -11,6 +11,7 @@ struct VsVersionInfo {
     std::string generator;   // "Visual Studio 17 2022", "Visual Studio 18 2026"
     std::string cmakePath;   // Path to cmake bundled with this VS version
     std::string vcvarsallPath; // Path to vcvarsall.bat for setting up environment
+    std::string ninjaPath;   // Path to ninja bundled with this VS version
 };
 
 // Visual Studio detection utility (Windows only)
