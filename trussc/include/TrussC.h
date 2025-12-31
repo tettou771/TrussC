@@ -2034,6 +2034,10 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 #include "tc/utils/tcThread.h"
 #include "tc/utils/tcThreadChannel.h"
 
+// TrussC animation
+#include "tc/animation/tcEasing.h"
+#include "tc/animation/tcTween.h"
+
 // TrussC application base class
 #include "tcBaseApp.h"
 
