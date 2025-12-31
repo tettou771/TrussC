@@ -53,7 +53,6 @@ Development roadmap based on feature comparison with openFrameworks.
 |----------|--------|-------------|----------|
 | 3d/ | modelLoaderExample | OBJ/glTF model loading | Medium |
 | graphics/ | particleExample | Particle system | Medium |
-| animation/ | tweenExample | Easing functions | Medium |
 | animation/ | spriteSheetExample | Sprite animation | Low |
 | game/ | pongExample | Simple game demo | Low |
 | generative/ | flowFieldExample | Flow field art | Low |
@@ -269,6 +268,7 @@ List of samples/features requiring focused testing due to OS-specific code.
 | gui/ | imguiExample |
 | threads/ | threadExample, threadChannelExample |
 | windowing/ | loopModeExample |
+| animation/ | tweenExample |
 
 ### Future
 
@@ -276,7 +276,6 @@ List of samples/features requiring focused testing due to OS-specific code.
 |----------|--------|-------------|----------|
 | 3d/ | modelLoaderExample | OBJ/glTF model loading | Medium |
 | graphics/ | particleExample | Particle system | Medium |
-| animation/ | tweenExample | Value interpolation with easing (linear, ease-in/out, bounce, etc.) | Medium |
 | animation/ | spriteSheetExample | Sprite sheet animation | Low |
 | game/ | pongExample | Simple game demo | Low |
 | generative/ | flowFieldExample | Generative art with flow fields | Low |
