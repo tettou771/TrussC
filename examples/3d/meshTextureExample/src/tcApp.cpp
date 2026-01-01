@@ -68,12 +68,26 @@
 //          For seamless wrapping, texture left edge must match right edge.
 //
 // -----------------------------------------------------------------------------
-// 4. OTHER PRIMITIVES (no texture coordinates)
+// 4. CYLINDER (createCylinder)
 // -----------------------------------------------------------------------------
-//    - createCylinder: No UV coords (could add in future)
-//    - createCone: No UV coords
-//    - createIcoSphere: No UV coords (would need spherical projection)
+//    Side: U wraps around circumference (0.0 = 0°, 1.0 = 360°)
+//          V = 0.0 at top, V = 1.0 at bottom
+//    Caps: Circular mapping centered at (0.5, 0.5)
 //
+// -----------------------------------------------------------------------------
+// 5. CONE (createCone)
+// -----------------------------------------------------------------------------
+//    Side: U wraps around circumference, V = 0.0 at apex, V = 1.0 at base
+//    Bottom cap: Circular mapping centered at (0.5, 0.5)
+//
+// -----------------------------------------------------------------------------
+// 6. TORUS (createTorus)
+// -----------------------------------------------------------------------------
+//    U = angle around the torus (0.0 = 0°, 1.0 = 360°)
+//    V = angle around the tube (0.0 = 0°, 1.0 = 360°)
+//
+// -----------------------------------------------------------------------------
+// NOTE: createIcoSphere has no UV coordinates
 // =============================================================================
 
 #include "tcApp.h"
@@ -116,14 +130,13 @@ void tcApp::setup() {
     }
     // Note: update() will be called in draw() to ensure it's within a render pass
     
-    // Create plane with texture coordinates
+    // Create all 6 primitives with texture coordinates
     plane_ = createPlane(200, 200, 4, 4);
-    
-    // Create box with texture coordinates
     box_ = createBox(150);
-    
-    // Create sphere with texture coordinates
     sphere_ = createSphere(80, 16);
+    cylinder_ = createCylinder(60, 180, 16);
+    cone_ = createCone(80, 180, 16);
+    torus_ = createTorus(60, 25, 24, 16);
 }
 
 // ---------------------------------------------------------------------------
@@ -157,45 +170,31 @@ void tcApp::draw() {
     
     // Select texture
     Image& currentTex = (currentTexture_ == 0) ? checkerTexture_ : gradientTexture_;
-    
-    // Draw plane (left)
-    pushMatrix();
-    translate(-2.5f, 0.0f, -7.0f);
-    rotateY(spinX);
-    rotateX(spinY);
-    scale(0.01f, 0.01f, 0.01f);
-    if (showWireframe_) {
-        plane_.drawWireframe();
-    } else {
-        plane_.draw(currentTex);
-    }
-    popMatrix();
 
-    // Draw box (center)
-    pushMatrix();
-    translate(0.0f, 0.0f, -7.0f);
-    rotateY(spinX);
-    rotateX(spinY);
-    scale(0.01f, 0.01f, 0.01f);
-    if (showWireframe_) {
-        box_.drawWireframe();
-    } else {
-        box_.draw(currentTex);
-    }
-    popMatrix();
+    // Helper to draw a mesh at position
+    auto drawMesh = [&](Mesh& mesh, float x, float y) {
+        pushMatrix();
+        translate(x, y, -8.0f);
+        rotateY(spinX);
+        rotateX(spinY);
+        scale(0.01f, 0.01f, 0.01f);
+        if (showWireframe_) {
+            mesh.drawWireframe();
+        } else {
+            mesh.draw(currentTex);
+        }
+        popMatrix();
+    };
 
-    // Draw sphere (right)
-    pushMatrix();
-    translate(2.5f, 0.0f, -7.0f);
-    rotateY(spinX);
-    rotateX(spinY);
-    scale(0.01f, 0.01f, 0.01f);
-    if (showWireframe_) {
-        sphere_.drawWireframe();
-    } else {
-        sphere_.draw(currentTex);
-    }
-    popMatrix();
+    // Top row: Plane, Box, Sphere
+    drawMesh(plane_,    -3.0f,  1.5f);
+    drawMesh(box_,       0.0f,  1.5f);
+    drawMesh(sphere_,    3.0f,  1.5f);
+
+    // Bottom row: Cylinder, Cone, Torus
+    drawMesh(cylinder_, -3.0f, -1.5f);
+    drawMesh(cone_,      0.0f, -1.5f);
+    drawMesh(torus_,     3.0f, -1.5f);
     
     // Disable 3D mode
     disable3D();

@@ -20,11 +20,14 @@ public:
     void keyPressed(int key) override;
 
 private:
-    // Meshes
+    // Meshes (all 6 primitives with UV)
     Mesh plane_;
     Mesh box_;
     Mesh sphere_;
-    
+    Mesh cylinder_;
+    Mesh cone_;
+    Mesh torus_;
+
     // Textures
     Image checkerTexture_;
     Image gradientTexture_;
