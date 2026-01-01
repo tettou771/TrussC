@@ -175,6 +175,163 @@ public:
     void clearTexCoords() { texCoords_.clear(); }
 
     // ---------------------------------------------------------------------------
+    // Transform
+    // ---------------------------------------------------------------------------
+
+    /// Translate all vertices
+    void translate(float x, float y, float z) {
+        for (auto& v : vertices_) {
+            v.x += x;
+            v.y += y;
+            v.z += z;
+        }
+    }
+
+    void translate(const Vec3& offset) {
+        translate(offset.x, offset.y, offset.z);
+    }
+
+    /// Rotate around X axis (radians)
+    void rotateX(float radians) {
+        float c = std::cos(radians);
+        float s = std::sin(radians);
+        for (auto& v : vertices_) {
+            float y = v.y * c - v.z * s;
+            float z = v.y * s + v.z * c;
+            v.y = y;
+            v.z = z;
+        }
+        for (auto& n : normals_) {
+            float y = n.y * c - n.z * s;
+            float z = n.y * s + n.z * c;
+            n.y = y;
+            n.z = z;
+        }
+    }
+
+    /// Rotate around Y axis (radians)
+    void rotateY(float radians) {
+        float c = std::cos(radians);
+        float s = std::sin(radians);
+        for (auto& v : vertices_) {
+            float x = v.x * c + v.z * s;
+            float z = -v.x * s + v.z * c;
+            v.x = x;
+            v.z = z;
+        }
+        for (auto& n : normals_) {
+            float x = n.x * c + n.z * s;
+            float z = -n.x * s + n.z * c;
+            n.x = x;
+            n.z = z;
+        }
+    }
+
+    /// Rotate around Z axis (radians)
+    void rotateZ(float radians) {
+        float c = std::cos(radians);
+        float s = std::sin(radians);
+        for (auto& v : vertices_) {
+            float x = v.x * c - v.y * s;
+            float y = v.x * s + v.y * c;
+            v.x = x;
+            v.y = y;
+        }
+        for (auto& n : normals_) {
+            float x = n.x * c - n.y * s;
+            float y = n.x * s + n.y * c;
+            n.x = x;
+            n.y = y;
+        }
+    }
+
+    /// Scale all vertices
+    void scale(float x, float y, float z) {
+        for (auto& v : vertices_) {
+            v.x *= x;
+            v.y *= y;
+            v.z *= z;
+        }
+        // Normals need to be renormalized if non-uniform scale
+        if (x != y || y != z) {
+            for (auto& n : normals_) {
+                n.x /= x;
+                n.y /= y;
+                n.z /= z;
+                float len = std::sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
+                if (len > 0.0001f) {
+                    n.x /= len;
+                    n.y /= len;
+                    n.z /= len;
+                }
+            }
+        }
+    }
+
+    void scale(float s) {
+        scale(s, s, s);
+    }
+
+    /// Apply transformation matrix to all vertices and normals
+    void transform(const Mat4& m) {
+        for (auto& v : vertices_) {
+            v = m * v;
+        }
+        // Transform normals (rotation only, no translation)
+        for (auto& n : normals_) {
+            Vec3 transformed;
+            transformed.x = m.m[0] * n.x + m.m[1] * n.y + m.m[2] * n.z;
+            transformed.y = m.m[4] * n.x + m.m[5] * n.y + m.m[6] * n.z;
+            transformed.z = m.m[8] * n.x + m.m[9] * n.y + m.m[10] * n.z;
+            // Normalize
+            float len = std::sqrt(transformed.x * transformed.x +
+                                  transformed.y * transformed.y +
+                                  transformed.z * transformed.z);
+            if (len > 0.0001f) {
+                n.x = transformed.x / len;
+                n.y = transformed.y / len;
+                n.z = transformed.z / len;
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Append
+    // ---------------------------------------------------------------------------
+
+    /// Append another mesh to this mesh
+    void append(const Mesh& other) {
+        if (other.vertices_.empty()) return;
+
+        unsigned int baseIndex = static_cast<unsigned int>(vertices_.size());
+
+        // Append vertices
+        for (const auto& v : other.vertices_) {
+            vertices_.push_back(v);
+        }
+
+        // Append normals
+        for (const auto& n : other.normals_) {
+            normals_.push_back(n);
+        }
+
+        // Append colors
+        for (const auto& c : other.colors_) {
+            colors_.push_back(c);
+        }
+
+        // Append texcoords
+        for (const auto& t : other.texCoords_) {
+            texCoords_.push_back(t);
+        }
+
+        // Append indices with offset
+        for (auto idx : other.indices_) {
+            indices_.push_back(idx + baseIndex);
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // Drawing
     // ---------------------------------------------------------------------------
     void draw() const {

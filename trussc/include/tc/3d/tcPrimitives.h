@@ -165,6 +165,7 @@ inline Mesh createCylinder(float radius, float height, int resolution = 16) {
     // Side vertices (radial normals)
     int baseIndex = 0;
     for (int i = 0; i <= resolution; i++) {
+        float u = (float)i / resolution;
         float angle = TAU * i / resolution;
         float nx = cos(angle);  // Normal (already normalized)
         float nz = sin(angle);
@@ -173,8 +174,11 @@ inline Mesh createCylinder(float radius, float height, int resolution = 16) {
 
         mesh.addVertex(x, -halfH, z);  // Bottom
         mesh.addNormal(nx, 0, nz);
+        mesh.addTexCoord(u, 1.0f);
+
         mesh.addVertex(x,  halfH, z);  // Top
         mesh.addNormal(nx, 0, nz);
+        mesh.addTexCoord(u, 0.0f);
     }
 
     // Side indices
@@ -191,6 +195,7 @@ inline Mesh createCylinder(float radius, float height, int resolution = 16) {
     int topCenter = mesh.getNumVertices();
     mesh.addVertex(0, halfH, 0);
     mesh.addNormal(0, 1, 0);
+    mesh.addTexCoord(0.5f, 0.5f);  // Center of cap
 
     // Top cap vertices
     int topBase = mesh.getNumVertices();
@@ -200,6 +205,8 @@ inline Mesh createCylinder(float radius, float height, int resolution = 16) {
         float z = sin(angle) * radius;
         mesh.addVertex(x, halfH, z);
         mesh.addNormal(0, 1, 0);
+        // Circular UV mapping for cap
+        mesh.addTexCoord(0.5f + cos(angle) * 0.5f, 0.5f + sin(angle) * 0.5f);
     }
 
     // Top cap indices
@@ -211,6 +218,7 @@ inline Mesh createCylinder(float radius, float height, int resolution = 16) {
     int bottomCenter = mesh.getNumVertices();
     mesh.addVertex(0, -halfH, 0);
     mesh.addNormal(0, -1, 0);
+    mesh.addTexCoord(0.5f, 0.5f);  // Center of cap
 
     // Bottom cap vertices
     int bottomBase = mesh.getNumVertices();
@@ -220,6 +228,8 @@ inline Mesh createCylinder(float radius, float height, int resolution = 16) {
         float z = sin(angle) * radius;
         mesh.addVertex(x, -halfH, z);
         mesh.addNormal(0, -1, 0);
+        // Circular UV mapping for cap
+        mesh.addTexCoord(0.5f + cos(angle) * 0.5f, 0.5f - sin(angle) * 0.5f);
     }
 
     // Bottom cap indices (reverse winding)
@@ -247,6 +257,9 @@ inline Mesh createCone(float radius, float height, int resolution = 16) {
 
     // Create side vertices independently per triangle (for flat shading)
     for (int i = 0; i < resolution; i++) {
+        float u0 = (float)i / resolution;
+        float u1 = (float)(i + 1) / resolution;
+        float uMid = (u0 + u1) * 0.5f;
         float angle0 = TAU * i / resolution;
         float angle1 = TAU * (i + 1) / resolution;
         float angleMid = (angle0 + angle1) * 0.5f;
@@ -258,12 +271,16 @@ inline Mesh createCone(float radius, float height, int resolution = 16) {
         // Apex vertex
         mesh.addVertex(0, halfH, 0);
         mesh.addNormal(nx, ny, nz);
+        mesh.addTexCoord(uMid, 0.0f);
 
         // Two base vertices
         mesh.addVertex(cos(angle0) * radius, -halfH, sin(angle0) * radius);
         mesh.addNormal(nx, ny, nz);
+        mesh.addTexCoord(u0, 1.0f);
+
         mesh.addVertex(cos(angle1) * radius, -halfH, sin(angle1) * radius);
         mesh.addNormal(nx, ny, nz);
+        mesh.addTexCoord(u1, 1.0f);
 
         int base = i * 3;
         mesh.addTriangle(base, base + 1, base + 2);
@@ -273,6 +290,7 @@ inline Mesh createCone(float radius, float height, int resolution = 16) {
     int bottomCenter = mesh.getNumVertices();
     mesh.addVertex(0, -halfH, 0);
     mesh.addNormal(0, -1, 0);
+    mesh.addTexCoord(0.5f, 0.5f);
 
     // Bottom cap vertices
     int bottomBase = mesh.getNumVertices();
@@ -282,6 +300,8 @@ inline Mesh createCone(float radius, float height, int resolution = 16) {
         float z = sin(angle) * radius;
         mesh.addVertex(x, -halfH, z);
         mesh.addNormal(0, -1, 0);
+        // Circular UV mapping for cap
+        mesh.addTexCoord(0.5f + cos(angle) * 0.5f, 0.5f - sin(angle) * 0.5f);
     }
 
     // Bottom cap indices (reverse winding)
@@ -390,6 +410,58 @@ inline Mesh createIcoSphere(float radius, int subdivisions = 2) {
     // Add indices
     for (auto idx : indices) {
         mesh.addIndex(idx);
+    }
+
+    return mesh;
+}
+
+// ---------------------------------------------------------------------------
+// Torus (donut)
+// ---------------------------------------------------------------------------
+inline Mesh createTorus(float radius, float tubeRadius, int sides = 24, int rings = 16) {
+    Mesh mesh;
+    mesh.setMode(PrimitiveMode::Triangles);
+
+    // Generate vertices
+    for (int ring = 0; ring <= rings; ring++) {
+        float u = (float)ring / rings;
+        float theta = u * TAU;  // Angle around the torus
+        float cosTheta = cos(theta);
+        float sinTheta = sin(theta);
+
+        for (int side = 0; side <= sides; side++) {
+            float v = (float)side / sides;
+            float phi = v * TAU;  // Angle around the tube
+            float cosPhi = cos(phi);
+            float sinPhi = sin(phi);
+
+            // Point on tube surface
+            float x = (radius + tubeRadius * cosPhi) * cosTheta;
+            float y = tubeRadius * sinPhi;
+            float z = (radius + tubeRadius * cosPhi) * sinTheta;
+
+            // Normal (points from tube center to surface)
+            float nx = cosPhi * cosTheta;
+            float ny = sinPhi;
+            float nz = cosPhi * sinTheta;
+
+            mesh.addVertex(x, y, z);
+            mesh.addNormal(nx, ny, nz);
+            mesh.addTexCoord(u, v);
+        }
+    }
+
+    // Generate indices
+    for (int ring = 0; ring < rings; ring++) {
+        for (int side = 0; side < sides; side++) {
+            int i0 = ring * (sides + 1) + side;
+            int i1 = i0 + 1;
+            int i2 = i0 + (sides + 1);
+            int i3 = i2 + 1;
+
+            mesh.addTriangle(i0, i2, i1);
+            mesh.addTriangle(i1, i2, i3);
+        }
     }
 
     return mesh;
