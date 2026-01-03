@@ -867,6 +867,31 @@ inline float sign(float value) { return (value > 0) - (value < 0); }
 // Fractional part
 inline float fract(float value) { return value - std::floor(value); }
 
+// Square
+inline float sq(float value) { return value * value; }
+
+// Distance (2D)
+inline float dist(float x1, float y1, float x2, float y2) {
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+// Distance squared (2D)
+inline float distSquared(float x1, float y1, float x2, float y2) {
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+// Distance (Vec2)
+inline float dist(const Vec2& a, const Vec2& b) { return a.distance(b); }
+inline float distSquared(const Vec2& a, const Vec2& b) { return a.distanceSquared(b); }
+
+// Distance (Vec3)
+inline float dist(const Vec3& a, const Vec3& b) { return a.distance(b); }
+inline float distSquared(const Vec3& a, const Vec3& b) { return a.distanceSquared(b); }
+
 // Min/Max
 template<typename T>
 T min(T a, T b) { return (a < b) ? a : b; }

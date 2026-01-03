@@ -89,6 +89,18 @@ struct Color {
         }
     }
 
+    // From HSB (H: 0-TAU, S: 0-1, B: 0-1)
+    static Color fromHSB(float h, float s, float b, float a = 1.0f);
+
+    // From OKLCH (L: 0-1, C: 0-0.4, H: 0-TAU)
+    static Color fromOKLCH(float L, float C, float H, float a = 1.0f);
+
+    // From OKLab (L: 0-1, a: ~-0.4-0.4, b: ~-0.4-0.4)
+    static Color fromOKLab(float L, float a_lab, float b_lab, float alpha = 1.0f);
+
+    // From Linear RGB
+    static Color fromLinear(float r, float g, float b, float a = 1.0f);
+
     // To hex
     uint32_t toHex(bool includeAlpha = false) const {
         uint8_t ri = (uint8_t)(std::clamp(r, 0.0f, 1.0f) * 255);
@@ -527,27 +539,48 @@ inline ColorHSB ColorOKLCH::toHSB() const {
 }
 
 // =============================================================================
-// Convenient factory functions
+// Color static factory method implementations
 // =============================================================================
 
-// Create Color from HSB
-inline Color colorFromHSB(float h, float s, float b, float a = 1.0f) {
+inline Color Color::fromHSB(float h, float s, float b, float a) {
     return ColorHSB(h, s, b, a).toRGB();
 }
 
-// Create Color from OKLCH
-inline Color colorFromOKLCH(float L, float C, float H, float a = 1.0f) {
+inline Color Color::fromOKLCH(float L, float C, float H, float a) {
     return ColorOKLCH(L, C, H, a).toRGB();
 }
 
-// Create Color from OKLab
-inline Color colorFromOKLab(float L, float a_lab, float b_lab, float alpha = 1.0f) {
+inline Color Color::fromOKLab(float L, float a_lab, float b_lab, float alpha) {
     return ColorOKLab(L, a_lab, b_lab, alpha).toRGB();
 }
 
-// Create Color from Linear RGB
-inline Color colorFromLinear(float r, float g, float b, float a = 1.0f) {
+inline Color Color::fromLinear(float r, float g, float b, float a) {
     return ColorLinear(r, g, b, a).toSRGB();
+}
+
+// =============================================================================
+// Deprecated free functions (use Color::fromXxx instead)
+// These will be removed in v1.0.0
+// =============================================================================
+
+[[deprecated("Use Color::fromHSB() instead. Will be removed in v1.0.0")]]
+inline Color colorFromHSB(float h, float s, float b, float a = 1.0f) {
+    return Color::fromHSB(h, s, b, a);
+}
+
+[[deprecated("Use Color::fromOKLCH() instead. Will be removed in v1.0.0")]]
+inline Color colorFromOKLCH(float L, float C, float H, float a = 1.0f) {
+    return Color::fromOKLCH(L, C, H, a);
+}
+
+[[deprecated("Use Color::fromOKLab() instead. Will be removed in v1.0.0")]]
+inline Color colorFromOKLab(float L, float a_lab, float b_lab, float alpha = 1.0f) {
+    return Color::fromOKLab(L, a_lab, b_lab, alpha);
+}
+
+[[deprecated("Use Color::fromLinear() instead. Will be removed in v1.0.0")]]
+inline Color colorFromLinear(float r, float g, float b, float a = 1.0f) {
+    return Color::fromLinear(r, g, b, a);
 }
 
 // =============================================================================

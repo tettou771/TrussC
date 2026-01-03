@@ -118,3 +118,4 @@ projectGenerator/projectGenerator
 
 # Tools like sokol-shdc are auto-downloaded on first build
 trussc/tools/
+docs/scripts/node_modules/
