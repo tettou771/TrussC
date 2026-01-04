@@ -277,7 +277,7 @@ struct BeepManager {
                     env = env * env;  // Sharper curve
 
                     // Add slight noise/breath for whoosh character
-                    float noise = (static_cast<float>(rand()) / RAND_MAX - 0.5f) * 0.15f;
+                    float noise = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 0.15f;
 
                     float sample = (std::sin(2.0f * 3.14159f * freq * t) + noise * env)
                                    * env * volume * 0.4f;
