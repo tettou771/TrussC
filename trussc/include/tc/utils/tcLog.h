@@ -10,6 +10,11 @@
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <cstdlib> // for std::getenv
+
+// JSON support
+#include "../../nlohmann/json.hpp"
+using json = nlohmann::json;
 
 // Uses Event system
 #include "../events/tcEvent.h"
@@ -80,13 +85,46 @@ public:
     Event<LogEventArgs> onLog;
 
     Logger() {
+        // Check environment variable for MCP mode
+        const char* env = std::getenv("TRUSSC_MCP");
+        if (env && std::string(env) == "1") {
+            mcpMode_ = true;
+        }
+
         // Register console listener by default
         onLog.listen(consoleListener_, [this](LogEventArgs& e) {
             if (e.level >= consoleLevel_ && consoleLevel_ != LogLevel::Silent) {
-                std::ostream& out = (e.level >= LogLevel::Warning) ? std::cerr : std::cout;
-                out << "[" << e.timestamp << "] "
-                    << "[" << logLevelToString(e.level) << "] "
-                    << e.message << std::endl;
+                if (mcpMode_) {
+                    // MCP mode:
+                    // 1. Output human-readable log to stderr (so it doesn't break stdout JSON)
+                    std::cerr << "[" << e.timestamp << "] "
+                              << "[" << logLevelToString(e.level) << "] "
+                              << e.message << std::endl;
+
+                    // 2. Output structured JSON-RPC notification to stdout (for MCP clients)
+                    // Method: "notifications/message"
+                    try {
+                        json j;
+                        j["jsonrpc"] = "2.0";
+                        j["method"] = "notifications/message";
+                        j["params"] = {
+                            {"level", logLevelToString(e.level)},
+                            {"data", e.message},
+                            {"timestamp", e.timestamp},
+                            {"logger", "trussc"} // Default logger name
+                        };
+                        std::cout << j.dump() << std::endl;
+                    } catch (...) {
+                        // Fallback if JSON fails
+                        std::cerr << "[TrussC] Failed to format log JSON" << std::endl;
+                    }
+                } else {
+                    // Normal mode: Output to stdout (or stderr for errors)
+                    std::ostream& out = (e.level >= LogLevel::Warning) ? std::cerr : std::cout;
+                    out << "[" << e.timestamp << "] "
+                        << "[" << logLevelToString(e.level) << "] "
+                        << e.message << std::endl;
+                }
             }
         });
     }
@@ -110,6 +148,16 @@ public:
 
     LogLevel getConsoleLogLevel() const {
         return consoleLevel_;
+    }
+
+    // === MCP settings ===
+
+    void setMcpMode(bool enabled) {
+        mcpMode_ = enabled;
+    }
+
+    bool isMcpMode() const {
+        return mcpMode_;
     }
 
     // === File settings ===
@@ -167,6 +215,7 @@ private:
     // Console
     EventListener consoleListener_;
     LogLevel consoleLevel_ = LogLevel::Notice;
+    bool mcpMode_ = false;
 
     // File
     EventListener fileListener_;
@@ -188,6 +237,10 @@ inline Logger& tcGetLogger() {
 // ---------------------------------------------------------------------------
 inline void tcSetConsoleLogLevel(LogLevel level) {
     tcGetLogger().setConsoleLogLevel(level);
+}
+
+inline void tcSetMcpMode(bool enabled) {
+    tcGetLogger().setMcpMode(enabled);
 }
 
 inline void tcSetFileLogLevel(LogLevel level) {

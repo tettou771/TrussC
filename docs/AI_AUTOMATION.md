@@ -1,384 +1,142 @@
-# AI Automation & Stdin Interface
+# AI Automation & MCP Integration
 
 ## What is this?
 
-TrussC applications can receive commands via stdin and output events to stdout.
-This enables powerful automation scenarios:
+TrussC applications natively support the **Model Context Protocol (MCP)**.
+This allows AI agents (like Claude, Gemini, or IDE assistants) to directly connect to, inspect, and control your running application via standard JSON-RPC messages over stdin/stdout.
 
-- **AI agents can control your app** - Claude, GPT, etc. can simulate mouse/keyboard input
-- **Automated UI testing** - Write shell scripts to test interactive behavior
-- **Operation replay** - Capture user actions and replay them later
-- **External tool integration** - Connect with other processes via pipes
+By enabling MCP mode, your app becomes a "tool" for AI, enabling:
 
-## Quick Example
+- **Autonomous Debugging:** AI can read logs, check app state, and fix bugs.
+- **Automated Testing:** AI can simulate user input (mouse/keyboard) and verify results via screenshots.
+- **Game Agents:** AI can play games against humans by reading the game state directly.
+
+## Enabling MCP Mode
+
+To start your app in MCP mode, simply set the `TRUSSC_MCP` environment variable to `1`.
 
 ```bash
-# Get app status
-echo 'tcdebug info' | ./myapp
-
-# Simulate a mouse click at (100, 200)
-echo 'tcdebug {"type":"mouse_click","x":100,"y":200}' | ./myapp
-
-# Capture all user input to a file
-echo 'tcdebug stream normal' | ./myapp > captured.txt
+export TRUSSC_MCP=1
+./myApp
 ```
 
-## Security: Opt-in Required
+When enabled:
+1. **Logs (`tc::logNotice`)** are redirected to `stderr` to keep `stdout` clean.
+2. **MCP JSON-RPC messages** are read from `stdin` and written to `stdout`.
+3. **Standard Tools** (mouse, keyboard, screenshot) are automatically registered.
 
-**Input simulation is disabled by default** for security reasons.
+## Standard MCP Tools
 
-To enable it, set `enableDebugInput = true` in your WindowSettings:
+These tools are always available in MCP mode:
+
+### Input Simulation
+| Tool | Arguments | Description |
+|------|-----------|-------------|
+| `mouse_move` | `x`, `y`, `button` | Move mouse cursor (and optionally drag) |
+| `mouse_click` | `x`, `y`, `button` | Click mouse button (0:left, 1:right) |
+| `mouse_scroll` | `dx`, `dy` | Scroll mouse wheel |
+| `key_press` | `key` | Press a key (sokol_app keycode) |
+| `key_release` | `key` | Release a key |
+
+### Inspection
+| Tool | Arguments | Description |
+|------|-----------|-------------|
+| `get_screenshot` | (none) | Get current screen as Base64 PNG image |
+| `enable_input_monitor` | `enabled` | Enable/Disable user input monitoring logs |
+
+## Creating Custom Tools
+
+You can easily expose your own application logic to AI using the `mcp::tool` builder in `setup()`.
 
 ```cpp
-int main() {
-    WindowSettings settings;
-    settings.enableDebugInput = true;  // Enable input simulation
-    return runApp<MyApp>(settings);
+#include "TrussC.h"
+
+void tcApp::setup() {
+    // Expose a function as an MCP tool
+    mcp::tool("place_stone", "Place a stone on the board")
+        .arg<int>("x", "X coordinate (0-7)")
+        .arg<int>("y", "Y coordinate (0-7)")
+        .bind([this](int x, int y) {
+            bool success = board.place(x, y);
+            return json{
+                {"status", success ? "ok" : "error"},
+                {"turn", (int)board.currentTurn}
+            };
+        });
+
+    // Expose state as an MCP resource
+    mcp::resource("app://board", "Current Board State")
+        .mime("application/json")
+        .bind([this]() {
+            return board.toJSON();
+        });
 }
 ```
 
-Without this flag:
-- `tcdebug info`, `tcdebug help`, `tcdebug screenshot` still work (read-only)
-- Input simulation commands (`mouse_*`, `key_*`, `drop`, `stream`, `playback`) return an error
-
-## Command Reference
-
-All commands use the `tcdebug` prefix. Two formats are supported:
-
-### JSON Format (Recommended for AI)
-```
-tcdebug {"type":"command_name", "param1": value, ...}
-```
-
-### Space-separated Format (Convenient for humans)
-```
-tcdebug command_name param1 param2 ...
-```
-
-### Always Available Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `info` | Get comprehensive app status | `tcdebug info` |
-| `help` | List available commands | `tcdebug help` |
-| `screenshot` | Save screenshot to file | `tcdebug {"type":"screenshot","path":"/tmp/shot.png"}` |
-
-#### Info Command Response Fields
-
-The `info` command returns detailed status information:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `timestamp` | string | ISO 8601 UTC timestamp |
-| `fps` | number | Current frame rate |
-| `width`, `height` | number | Window size (logical pixels) |
-| `dpiScale` | number | DPI scale factor (e.g., 2.0 for Retina) |
-| `fullscreen` | boolean | Fullscreen mode status |
-| `mouseX`, `mouseY` | number | Current mouse position |
-| `updateCount`, `drawCount` | number | Frame counters |
-| `elapsedTime` | number | Seconds since app start |
-| `backend` | string | Graphics backend (e.g., "Metal (macOS)") |
-| `memoryBytes` | number | Process memory usage (RSS) |
-| `nodeCount` | number | Active Node objects (for leak detection) |
-| `textureCount` | number | Active Texture objects |
-| `fboCount` | number | Active FBO objects |
-| `debugInputEnabled` | boolean | Whether input simulation is enabled |
-
-### Input Simulation Commands (requires enableDebugInput)
-
-#### Mouse Commands
-
-| Command | Parameters | Description |
-|---------|------------|-------------|
-| `mouse_move` | `x`, `y` | Move mouse to position |
-| `mouse_press` | `x`, `y`, `button` | Press mouse button |
-| `mouse_release` | `x`, `y`, `button` | Release mouse button |
-| `mouse_click` | `x`, `y`, `button` | Press + release (convenience) |
-| `mouse_scroll` | `dx`, `dy` | Scroll wheel |
-
-Button values: `"left"` (default), `"right"`, `"middle"`, or `0`, `1`, `2`
-
-Examples:
-```bash
-# JSON format
-tcdebug {"type":"mouse_click","x":100,"y":200,"button":"left"}
-tcdebug {"type":"mouse_scroll","dx":0,"dy":-1}
-
-# Space-separated format
-tcdebug mouse_click 100 200 left
-tcdebug mouse_scroll 0 -1
-```
-
-#### Keyboard Commands
-
-| Command | Parameters | Description |
-|---------|------------|-------------|
-| `key_press` | `key` | Press a key (keycode) |
-| `key_release` | `key` | Release a key |
-| `key_send` | `key` | Press + release (convenience) |
-
-Key values are sokol keycodes (integers). Common keys:
-- Space: 32, Enter: 257, Escape: 256
-- A-Z: 65-90, 0-9: 48-57
-- Arrow keys: 262-265 (right, left, down, up)
-
-Examples:
-```bash
-# Press space (keycode 32)
-tcdebug {"type":"key_send","key":32}
-tcdebug key_send 32
-```
-
-#### File Drop Command
-
-| Command | Parameters | Description |
-|---------|------------|-------------|
-| `drop` | `files` (array) | Simulate file drop |
-
-```bash
-tcdebug {"type":"drop","files":["/path/to/file1.png","/path/to/file2.jpg"]}
-tcdebug drop /path/to/file1.png /path/to/file2.jpg
-```
-
-### Stream Capture Commands
-
-Capture real user input and output to stdout:
-
-| Command | Parameters | Description |
-|---------|------------|-------------|
-| `stream` | `mode` | Start/stop capturing user input |
-
-Modes:
-- `off` / `disable` - Stop capturing
-- `normal` - Capture clicks, key presses (skip mouse movement during drag)
-- `detail` - Capture everything including all mouse movements
-
-```bash
-# Start capturing
-tcdebug stream normal
-
-# Output example (user clicks and types):
-tcdebug {"type":"mouse_press","x":150,"y":300,"button":"left","time":1.234}
-tcdebug {"type":"mouse_release","x":150,"y":300,"button":"left","time":1.456}
-tcdebug {"type":"key_press","key":65,"time":2.100}
-tcdebug {"type":"key_release","key":65,"time":2.200}
-```
-
-The `time` field indicates elapsed time since app start, useful for replay timing.
-
-### Playback Mode
-
-| Command | Parameters | Description |
-|---------|------------|-------------|
-| `playback` | `mode` | Set playback timing mode |
-
-Modes:
-- `immediate` (default) - Execute commands instantly
-- `realtime` - Respect `time` field for realistic timing (not yet implemented)
-
-## Output Format
-
-All responses use JSON format with `tcdebug` prefix:
-
-```
-tcdebug {"type":"info","fps":60,"width":1280,"height":720,...}
-tcdebug {"status":"ok","type":"mouse_click"}
-tcdebug {"status":"error","message":"debug input disabled"}
-```
-
-This format allows:
-- Easy parsing by AI/scripts
-- Copy-paste replay (output can be fed back as input)
-- Filtering with `grep tcdebug`
-
-## Use Cases
-
-### AI Agent Integration
-
-An AI agent can:
-1. Query app state with `tcdebug info`
-2. Send commands based on reasoning
-3. Capture output to verify results
-4. Take screenshots for visual feedback
-
-### Automated Testing
-
-```bash
-#!/bin/bash
-# test_button_click.sh
-
-# Start app in background
-./myapp &
-APP_PID=$!
-sleep 1
-
-# Click the "Submit" button at known position
-echo 'tcdebug {"type":"mouse_click","x":400,"y":300}' > /proc/$APP_PID/fd/0
-
-# Check result...
-kill $APP_PID
-```
-
-### Operation Recording & Replay
-
-```bash
-# Record session
-echo 'tcdebug stream normal' | ./myapp | tee session.txt
-
-# Replay later (filter only tcdebug lines, pipe back)
-grep '^tcdebug' session.txt | ./myapp
-```
-
-## Comments
-
-Lines containing `#` are treated as comments (stripped before parsing):
-
-```bash
-tcdebug mouse_click 100 200  # Click the button
-tcdebug info  # Check status
-```
-
-## Tips for AI Integration
-
-1. **Always check `debugInputEnabled`** in the `info` response before sending input commands
-2. **Use JSON format** for reliable parsing
-3. **Use `mouse_click`** instead of separate press/release for simple clicks
-4. **Check `status` field** in responses to detect errors
-5. **Use `screenshot`** to get visual feedback when needed
-
-## Sending stdin to GUI Apps (For AI Agents)
-
-GUI applications need special handling for stdin. Here are proven patterns:
-
-### Method 1: Pipe with Grouped Commands (Simplest)
-
-Send all commands at once with sleep delays:
-
-```bash
-(
-echo 'tcdebug info'
-sleep 0.5
-echo 'tcdebug {"type":"mouse_click","x":100,"y":200}'
-sleep 0.5
-echo 'tcdebug {"type":"screenshot","path":"/tmp/result.png"}'
-sleep 1
-) | ./myapp.app/Contents/MacOS/myapp
-```
-
-**Pros:** Simple, works everywhere
-**Cons:** Can't send commands interactively after app starts
-
-### Method 2: Named Pipe (FIFO) - Recommended for Interactive Control
-
-Create a named pipe to send commands at any time:
-
-```bash
-# 1. Create named pipe
-mkfifo /tmp/myapp_input
-
-# 2. Start app reading from pipe (background)
-./myapp < /tmp/myapp_input &
-APP_PID=$!
-
-# 3. Keep pipe open with a background cat
-# (prevents EOF when first echo finishes)
-sleep infinity > /tmp/myapp_input &
-KEEP_OPEN_PID=$!
-
-# 4. Now send commands anytime!
-echo 'tcdebug info' > /tmp/myapp_input
-sleep 1
-echo 'tcdebug {"type":"mouse_click","x":100,"y":200}' > /tmp/myapp_input
-sleep 1
-echo 'tcdebug {"type":"screenshot","path":"/tmp/result.png"}' > /tmp/myapp_input
-
-# 5. Cleanup
-kill $KEEP_OPEN_PID $APP_PID 2>/dev/null
-rm /tmp/myapp_input
-```
-
-**Pros:** Full interactive control, send commands anytime
-**Cons:** Slightly more setup, need to manage pipe lifecycle
-
-### Method 3: Process Substitution (Linux/macOS)
-
-```bash
-# Start app and capture its PID
-./myapp < <(
-    echo 'tcdebug info'
-    sleep 2
-    echo 'tcdebug {"type":"mouse_click","x":100,"y":200}'
-    sleep 5
-) &
-```
-
-### Platform Notes
-
-| Platform | Named Pipe | /proc/PID/fd/0 | Notes |
-|----------|------------|----------------|-------|
-| macOS    | ✅ `mkfifo` | ❌ No /proc | Use named pipe |
-| Linux    | ✅ `mkfifo` | ✅ Works | Either method works |
-| Windows  | ❌ Different | ❌ No /proc | Use PowerShell named pipe or Method 1 |
-
-### Windows Alternative
-
-On Windows, use PowerShell with Start-Process:
-
-```powershell
-# Method 1: Pipe
-$commands = @"
-tcdebug info
-tcdebug {"type":"mouse_click","x":100,"y":200}
-"@
-$commands | ./myapp.exe
-```
-
-### Common Pitfalls
-
-1. **Pipe closes immediately** - Use `sleep infinity` or `cat` to keep pipe open
-2. **Commands not received** - Add `sleep` between commands for processing time
-3. **App exits early** - Make sure stdin doesn't close (EOF) until you're done
-4. **Output not visible** - Redirect stdout: `./myapp 2>&1 | tee output.log`
-
-### Recommended Pattern for AI Agents
-
-```bash
-#!/bin/bash
-# ai_control_app.sh - Template for AI agent control
-
-APP_PATH="./myapp.app/Contents/MacOS/myapp"
-FIFO="/tmp/tcdebug_$$"
-OUTPUT="/tmp/tcdebug_output_$$"
-
-# Setup
-mkfifo "$FIFO"
-$APP_PATH < "$FIFO" > "$OUTPUT" 2>&1 &
-APP_PID=$!
-sleep infinity > "$FIFO" &
-KEEP_PID=$!
-sleep 1  # Wait for app startup
-
-# Helper function to send command
-send_cmd() {
-    echo "$1" > "$FIFO"
-    sleep 0.3
-    tail -1 "$OUTPUT"  # Return last response
+## Protocol Details
+
+TrussC implements a subset of the **MCP (Model Context Protocol)** specification over Stdio.
+
+### Request (AI -> App)
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "place_stone",
+    "arguments": { "x": 3, "y": 4 }
+  }
 }
-
-# Example usage
-send_cmd 'tcdebug info'
-send_cmd 'tcdebug {"type":"mouse_click","x":100,"y":200}'
-send_cmd 'tcdebug {"type":"screenshot","path":"/tmp/shot.png"}'
-
-# Cleanup
-cleanup() {
-    kill $KEEP_PID $APP_PID 2>/dev/null
-    rm -f "$FIFO" "$OUTPUT"
-}
-trap cleanup EXIT
 ```
 
-## Related
+### Response (App -> AI)
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [{ "type": "text", "text": "{\"status\":\"ok\"}" }]
+  }
+}
+```
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Console system overview
-- [tcDebugInput.h](../trussc/include/tc/utils/tcDebugInput.h) - Implementation
+### Notifications (App -> AI)
+Logs are sent as notifications:
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/message",
+  "params": {
+    "level": "NOTICE",
+    "logger": "Game",
+    "data": "Player placed stone at (3, 4)",
+    "timestamp": "12:34:56.789"
+  }
+}
+```
+
+## Connecting with AI Agents
+
+### Via Shell Pipe (Simple Interaction)
+You can manually interact with the app using named pipes (FIFO), useful for testing scripts or simple agents.
+
+```bash
+mkfifo input_pipe
+TRUSSC_MCP=1 ./myApp < input_pipe | cat & 
+echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' > input_pipe
+```
+
+### Via MCP Clients (Claude Desktop, etc.)
+Configure your MCP client to run the executable with the environment variable set.
+
+```json
+{
+  "mcpServers": {
+    "trussc-app": {
+      "command": "/path/to/myApp",
+      "env": { "TRUSSC_MCP": "1" }
+    }
+  }
+}
+```

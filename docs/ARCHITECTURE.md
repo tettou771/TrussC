@@ -326,26 +326,17 @@ Based on C++ standard features:
 - Use `std::mutex` and `std::lock_guard` for synchronization
 - `tc::Thread` class wraps `std::thread` for lifecycle management
 
-### F. Console & AI Automation
+### F. Console & AI Automation (MCP)
 
-TrussC apps accept commands via stdin and output events to stdout, enabling:
+TrussC natively supports **Model Context Protocol (MCP)**, enabling seamless integration with AI agents.
 
-- **AI agent control** - Claude, GPT can simulate input
-- **Automated testing** - Script UI interactions
-- **Operation replay** - Capture and replay user actions
+- **MCP Server:** Built-in JSON-RPC server over stdio.
+- **Tools & Resources:** Apps can expose functions and state to AI using `mcp::tool` and `mcp::resource`.
+- **Standard Tools:** Mouse/Keyboard simulation and Screenshot capabilities are available out-of-the-box.
 
-```bash
-# Get app status
-echo 'tcdebug info' | ./myapp
+To enable, run with environment variable: `TRUSSC_MCP=1`.
 
-# Simulate click (requires enableDebugInput)
-echo 'tcdebug {"type":"mouse_click","x":100,"y":200}' | ./myapp
-
-# Capture user input
-echo 'tcdebug stream normal' | ./myapp
-```
-
-See [AI_AUTOMATION.md](AI_AUTOMATION.md) for full command reference.
+See [AI_AUTOMATION.md](AI_AUTOMATION.md) for full reference.
 
 ---
 

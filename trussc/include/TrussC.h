@@ -88,8 +88,8 @@
 // TrussC console input (accept commands from stdin)
 #include "tc/utils/tcConsole.h"
 
-// TrussC debug input (stdin-based input simulation)
-#include "tc/utils/tcDebugInput.h"
+// TrussC MCP (Model Context Protocol) Server
+#include "tc/utils/tcMCP.h"
 
 // =============================================================================
 // trussc namespace
@@ -1474,7 +1474,6 @@ struct WindowSettings {
     int sampleCount = 4;  // MSAA (default 4x, 8x not supported on some devices)
     bool fullscreen = false;
     int clipboardSize = 65536;  // Clipboard buffer size (default 64KB)
-    bool enableDebugInput = false;  // Enable tcdebug input simulation (security: opt-in)
     // bool headless = false;  // For future use
 
     WindowSettings& setSize(int w, int h) {
@@ -1515,11 +1514,6 @@ struct WindowSettings {
         clipboardSize = size;
         return *this;
     }
-
-    WindowSettings& setEnableDebugInput(bool enabled) {
-        enableDebugInput = enabled;
-        return *this;
-    }
 };
 
 // ---------------------------------------------------------------------------
@@ -1545,6 +1539,13 @@ namespace internal {
     inline void (*appMouseScrolledFunc)(float, float) = nullptr;
     inline void (*appWindowResizedFunc)(int, int) = nullptr;
     inline void (*appFilesDroppedFunc)(const std::vector<std::string>&) = nullptr;
+} // namespace internal
+
+namespace mcp {
+    void registerStandardTools();
+}
+
+namespace internal {
 
     inline void _setup_cb() {
         setup();
@@ -1561,12 +1562,25 @@ namespace internal {
         // To disable, call console::stop() in setup()
         // Note: Console is not available on web platform (no stdin/threads)
         #ifndef __EMSCRIPTEN__
+        
+        // Check for MCP mode via environment variable
+        const char* envMcp = std::getenv("TRUSSC_MCP");
+        if (envMcp && std::string(envMcp) == "1") {
+            // Enable MCP mode (redirects logs to stderr, JSON notifications to stdout)
+            tcSetMcpMode(true);
+            logNotice("System") << "MCP Mode Enabled";
+        }
+
         console::start();
+        
+        // Register standard MCP tools (mouse, key, screenshot, etc.)
+        mcp::registerStandardTools();
 
         // Register built-in command handler (hold listener in static)
         static EventListener consoleListener;
         events().console.listen(consoleListener, [](ConsoleEventArgs& e) {
-            debuginput::handleCommand(e);
+            // Pass raw input to MCP processor (always active)
+            mcp::processInput(e.raw);
         });
         #endif
 
@@ -1696,11 +1710,6 @@ namespace internal {
                 args.super = hasModSuper;
                 events().keyPressed.notify(args);
 
-                // Stream output (only for real user input, not repeats)
-                if (!ev->key_repeat) {
-                    debuginput::streamOutputKey("key_press", ev->key_code);
-                }
-
                 // Legacy callback (for compatibility)
                 if (!ev->key_repeat && appKeyPressedFunc) {
                     appKeyPressedFunc(ev->key_code);
@@ -1716,9 +1725,6 @@ namespace internal {
                 args.alt = hasModAlt;
                 args.super = hasModSuper;
                 events().keyReleased.notify(args);
-
-                // Stream output
-                debuginput::streamOutputKey("key_release", ev->key_code);
 
                 if (appKeyReleasedFunc) appKeyReleasedFunc(ev->key_code);
                 break;
@@ -1740,13 +1746,6 @@ namespace internal {
                 args.super = hasModSuper;
                 events().mousePressed.notify(args);
 
-                // Stream output + drag tracking for normal mode
-                debuginput::streamOutput("mouse_press", mouseX, mouseY, ev->mouse_button);
-                debuginput::isDragging = true;
-                debuginput::dragStartX = mouseX;
-                debuginput::dragStartY = mouseY;
-                debuginput::dragButton = ev->mouse_button;
-
                 if (appMousePressedFunc) appMousePressedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
             }
@@ -1767,10 +1766,6 @@ namespace internal {
                 args.super = hasModSuper;
                 events().mouseReleased.notify(args);
 
-                // Stream output
-                debuginput::streamOutput("mouse_release", mouseX, mouseY, ev->mouse_button);
-                debuginput::isDragging = false;
-
                 if (appMouseReleasedFunc) appMouseReleasedFunc((int)mouseX, (int)mouseY, ev->mouse_button);
                 break;
             }
@@ -1789,11 +1784,6 @@ namespace internal {
                     args.button = currentMouseButton;
                     events().mouseDragged.notify(args);
 
-                    // Stream output: detail mode outputs all moves, normal mode skips during drag
-                    if (debuginput::streamMode == debuginput::StreamMode::Detail) {
-                        debuginput::streamOutput("mouse_move", mouseX, mouseY, currentMouseButton);
-                    }
-
                     if (appMouseDraggedFunc) appMouseDraggedFunc((int)mouseX, (int)mouseY, currentMouseButton);
                 } else {
                     MouseMoveEventArgs args;
@@ -1802,11 +1792,6 @@ namespace internal {
                     args.deltaX = mouseX - prevX;
                     args.deltaY = mouseY - prevY;
                     events().mouseMoved.notify(args);
-
-                    // Stream output: detail mode only (normal mode ignores mouse move without button)
-                    if (debuginput::streamMode == debuginput::StreamMode::Detail) {
-                        debuginput::streamOutput("mouse_move", mouseX, mouseY);
-                    }
 
                     if (appMouseMovedFunc) appMouseMovedFunc((int)mouseX, (int)mouseY);
                 }
@@ -1817,9 +1802,6 @@ namespace internal {
                 args.scrollX = ev->scroll_x;
                 args.scrollY = ev->scroll_y;
                 events().mouseScrolled.notify(args);
-
-                // Stream output
-                debuginput::streamOutputScroll(ev->scroll_x, ev->scroll_y);
 
                 if (appMouseScrolledFunc) appMouseScrolledFunc(ev->scroll_x, ev->scroll_y);
                 break;
@@ -1846,9 +1828,6 @@ namespace internal {
                 }
                 events().filesDropped.notify(args);
 
-                // Stream output
-                debuginput::streamOutputDrop(args.files);
-
                 if (appFilesDroppedFunc) appFilesDroppedFunc(args.files);
                 break;
             }
@@ -1866,9 +1845,6 @@ template<typename AppClass>
 int runApp(const WindowSettings& settings = WindowSettings()) {
     // Set pixel perfect mode
     internal::pixelPerfectMode = settings.pixelPerfect;
-
-    // Set debug input mode
-    debuginput::enabled = settings.enableDebugInput;
 
     // Create app instance
     static AppClass* app = nullptr;
@@ -2101,3 +2077,6 @@ namespace tc = trussc;
 // Users should add these in their code:
 //   using namespace std;
 //   using namespace tc;
+
+// TrussC standard MCP tools (included last to resolve dependencies)
+#include "tc/utils/tcStandardTools.h"
