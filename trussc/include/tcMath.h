@@ -32,6 +32,10 @@ struct Vec2 {
     Vec2(const Vec2&) = default;
     Vec2& operator=(const Vec2&) = default;
 
+    // Setters
+    Vec2& set(float x_, float y_) { x = x_; y = y_; return *this; }
+    Vec2& set(const Vec2& v) { x = v.x; y = v.y; return *this; }
+
     // Array access
     float& operator[](int i) { return (&x)[i]; }
     const float& operator[](int i) const { return (&x)[i]; }
@@ -146,6 +150,10 @@ struct Vec3 {
     Vec3(const Vec3&) = default;
     Vec3& operator=(const Vec3&) = default;
 
+    // Setters
+    Vec3& set(float x_, float y_, float z_) { x = x_; y = y_; z = z_; return *this; }
+    Vec3& set(const Vec3& v) { x = v.x; y = v.y; z = v.z; return *this; }
+
     // Array access
     float& operator[](int i) { return (&x)[i]; }
     const float& operator[](int i) const { return (&x)[i]; }
@@ -247,6 +255,10 @@ struct Vec4 {
     Vec4(const Vec2& v, float z_ = 0.0f, float w_ = 1.0f) : x(v.x), y(v.y), z(z_), w(w_) {}
     Vec4(const Vec4&) = default;
     Vec4& operator=(const Vec4&) = default;
+
+    // Setters
+    Vec4& set(float x_, float y_, float z_, float w_) { x = x_; y = y_; z = z_; w = w_; return *this; }
+    Vec4& set(const Vec4& v) { x = v.x; y = v.y; z = v.z; w = v.w; return *this; }
 
     // Array access
     float& operator[](int i) { return (&x)[i]; }

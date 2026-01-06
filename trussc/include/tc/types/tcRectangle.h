@@ -4,6 +4,8 @@
 // tcRectangle.h - Rectangle structure
 // =============================================================================
 
+#include "../../tcMath.h"
+
 namespace trussc {
 
 struct Rect {
@@ -15,6 +17,23 @@ struct Rect {
     Rect() = default;
     Rect(float x_, float y_, float w_, float h_)
         : x(x_), y(y_), width(w_), height(h_) {}
+
+    // Setters
+    Rect& set(float x_, float y_, float w_, float h_) {
+        x = x_;
+        y = y_;
+        width = w_;
+        height = h_;
+        return *this;
+    }
+
+    Rect& set(const Vec2& pos, float w_, float h_) {
+        x = pos.x;
+        y = pos.y;
+        width = w_;
+        height = h_;
+        return *this;
+    }
 
     // Right/Bottom edges
     float getRight() const { return x + width; }

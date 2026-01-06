@@ -163,6 +163,16 @@ inline void registerStandardTools() {
             };
         }));
 
+    tool("save_screenshot", "Save screenshot to file")
+        .arg<std::string>("path", "File path")
+        .bind<std::string>([](std::string path) {
+            if (trussc::saveScreenshot(path)) {
+                return json{{"status", "ok"}, {"path", path}};
+            } else {
+                return json{{"status", "error"}, {"message", "Failed to save screenshot"}};
+            }
+        });
+
     // --- Monitoring Tools ---
 
     tool("enable_input_monitor", "Enable/Disable user input monitoring logs")

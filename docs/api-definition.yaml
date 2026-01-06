@@ -1007,6 +1007,17 @@ categories:
         sketch: true
         snippet: "Vec2(${1:x}, ${2:y})"
 
+      - name: set
+        signatures:
+          - params: "float x, float y"
+            params_simple: "x, y"
+          - params: "Vec2 v"
+            params_simple: "v"
+        description: "Set vector components"
+        description_ja: "ベクトルの成分を設定"
+        sketch: true
+        snippet: "set(${1:x}, ${2:y})"
+
       - name: Vec2_fromAngle
         signatures:
           - params: "float radians"
@@ -1038,6 +1049,17 @@ categories:
         sketch: true
         snippet: "Vec3(${1:x}, ${2:y}, ${3:z})"
 
+      - name: set
+        signatures:
+          - params: "float x, float y, float z"
+            params_simple: "x, y, z"
+          - params: "Vec3 v"
+            params_simple: "v"
+        description: "Set vector components"
+        description_ja: "ベクトルの成分を設定"
+        sketch: true
+        snippet: "set(${1:x}, ${2:y}, ${3:z})"
+
   # ==========================================================================
   # Types - Color
   # ==========================================================================
@@ -1057,6 +1079,21 @@ categories:
         description_ja: "色を作成 (0.0-1.0)"
         sketch: true
         snippet: "Color(${1:r}, ${2:g}, ${3:b})"
+
+      - name: set
+        signatures:
+          - params: "float r, float g, float b"
+            params_simple: "r, g, b"
+          - params: "float r, float g, float b, float a"
+            params_simple: "r, g, b, a"
+          - params: "float gray"
+            params_simple: "gray"
+          - params: "Color c"
+            params_simple: "c"
+        description: "Set color components"
+        description_ja: "色の成分を設定"
+        sketch: true
+        snippet: "set(${1:r}, ${2:g}, ${3:b})"
 
       - name: Color_fromHSB
         signatures:
@@ -1090,6 +1127,53 @@ categories:
         description_ja: "OKLabからColorを作成"
         sketch: true
         snippet: "Color_fromOKLab(${1:L}, ${2:a}, ${3:b})"
+
+  # ==========================================================================
+  # Types - Rect
+  # ==========================================================================
+  - id: types_rect
+    name: "Types - Rect"
+    name_ja: "型 - Rect"
+    functions:
+      - name: Rect
+        signatures:
+          - params: ""
+            params_simple: ""
+          - params: "float x, float y, float w, float h"
+            params_simple: "x, y, w, h"
+        description: "Create a rectangle"
+        description_ja: "矩形を作成"
+        sketch: true
+        snippet: "Rect(${1:x}, ${2:y}, ${3:w}, ${4:h})"
+
+      - name: set
+        signatures:
+          - params: "float x, float y, float w, float h"
+            params_simple: "x, y, w, h"
+          - params: "Vec2 pos, float w, float h"
+            params_simple: "pos, w, h"
+        description: "Set rectangle properties"
+        description_ja: "矩形のプロパティを設定"
+        sketch: true
+        snippet: "set(${1:x}, ${2:y}, ${3:w}, ${4:h})"
+
+      - name: contains
+        signatures:
+          - params: "float x, float y"
+            params_simple: "x, y"
+        description: "Check if point is inside"
+        description_ja: "点が内部にあるか判定"
+        sketch: true
+        snippet: "contains(${1:x}, ${2:y})"
+
+      - name: intersects
+        signatures:
+          - params: "Rect other"
+            params_simple: "other"
+        description: "Check intersection"
+        description_ja: "交差判定"
+        sketch: true
+        snippet: "intersects(${1:other})"
 
   # ==========================================================================
   # Graphics - Advanced

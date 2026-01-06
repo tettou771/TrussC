@@ -65,6 +65,20 @@ struct Color {
     explicit Color(float gray, float a_ = 1.0f)
         : r(gray), g(gray), b(gray), a(a_) {}
 
+    // Setters
+    Color& set(float r_, float g_, float b_, float a_ = 1.0f) {
+        r = r_; g = g_; b = b_; a = a_;
+        return *this;
+    }
+    Color& set(float gray, float a_ = 1.0f) {
+        r = gray; g = gray; b = gray; a = a_;
+        return *this;
+    }
+    Color& set(const Color& c) {
+        r = c.r; g = c.g; b = c.b; a = c.a;
+        return *this;
+    }
+
     // Create Color from 0-255 integer values
     static Color fromBytes(int r, int g, int b, int a = 255) {
         return Color(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
