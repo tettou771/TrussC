@@ -761,6 +761,32 @@ inline void rotateZDeg(float degrees) {
     getDefaultContext().rotateZDeg(degrees);
 }
 
+// Euler rotation (x, y, z in radians)
+inline void rotate(float x, float y, float z) {
+    rotateX(x);
+    rotateY(y);
+    rotateZ(z);
+}
+
+inline void rotate(const Vec3& euler) {
+    rotate(euler.x, euler.y, euler.z);
+}
+
+inline void rotate(const Quaternion& quat) {
+    getDefaultContext().rotate(quat);
+}
+
+// Euler rotation in degrees
+inline void rotateDeg(float x, float y, float z) {
+    rotateXDeg(x);
+    rotateYDeg(y);
+    rotateZDeg(z);
+}
+
+inline void rotateDeg(const Vec3& euler) {
+    rotateDeg(euler.x, euler.y, euler.z);
+}
+
 // Scale (uniform)
 inline void scale(float s) {
     getDefaultContext().scale(s);
@@ -1151,6 +1177,11 @@ inline int getWindowHeight() {
     return static_cast<int>(sapp_height() / sapp_dpi_scale());  // Logical size
 }
 
+// Get window size as Vec2
+inline Vec2 getWindowSize() {
+    return Vec2(static_cast<float>(getWindowWidth()), static_cast<float>(getWindowHeight()));
+}
+
 // Aspect ratio
 inline float getAspectRatio() {
     return static_cast<float>(sapp_width()) / static_cast<float>(sapp_height());
@@ -1250,6 +1281,8 @@ inline int getMouseButton() {
 // Alias for getGlobalMouseX/Y (for tcDebugInput)
 inline float getMouseX() { return internal::mouseX; }
 inline float getMouseY() { return internal::mouseY; }
+inline Vec2 getMousePos() { return Vec2(internal::mouseX, internal::mouseY); }
+inline Vec2 getGlobalMousePos() { return Vec2(getGlobalMouseX(), getGlobalMouseY()); }
 
 // ---------------------------------------------------------------------------
 // System Information
@@ -1984,6 +2017,83 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 // TrussC 3D primitives
 #include <map>
 #include "tc/3d/tcPrimitives.h"
+
+namespace trussc {
+
+// 3D Primitives (respects fill/noFill state)
+inline void drawBox(float w, float h, float d) {
+    auto mesh = createBox(w, h, d);
+    if (getDefaultContext().isFillEnabled()) {
+        mesh.draw();
+    } else {
+        mesh.drawWireframe();
+    }
+}
+
+inline void drawBox(float size) {
+    drawBox(size, size, size);
+}
+
+inline void drawBox(Vec3 pos, float w, float h, float d) {
+    pushMatrix();
+    translate(pos);
+    drawBox(w, h, d);
+    popMatrix();
+}
+
+inline void drawBox(float x, float y, float z, float w, float h, float d) {
+    drawBox(Vec3(x, y, z), w, h, d);
+}
+
+inline void drawBox(Vec3 pos, float size) {
+    drawBox(pos, size, size, size);
+}
+
+inline void drawBox(float x, float y, float z, float size) {
+    drawBox(Vec3(x, y, z), size, size, size);
+}
+
+inline void drawSphere(float radius, int resolution = 16) {
+    auto mesh = createSphere(radius, resolution);
+    if (getDefaultContext().isFillEnabled()) {
+        mesh.draw();
+    } else {
+        mesh.drawWireframe();
+    }
+}
+
+inline void drawSphere(Vec3 pos, float radius, int resolution = 16) {
+    pushMatrix();
+    translate(pos);
+    drawSphere(radius, resolution);
+    popMatrix();
+}
+
+inline void drawSphere(float x, float y, float z, float radius, int resolution = 16) {
+    drawSphere(Vec3(x, y, z), radius, resolution);
+}
+
+inline void drawCone(float radius, float height, int resolution = 16) {
+    auto mesh = createCone(radius, height, resolution);
+    if (getDefaultContext().isFillEnabled()) {
+        mesh.draw();
+    } else {
+        mesh.drawWireframe();
+    }
+}
+
+inline void drawCone(Vec3 pos, float radius, float height, int resolution = 16) {
+    pushMatrix();
+    translate(pos);
+    drawCone(radius, height, resolution);
+    popMatrix();
+}
+
+inline void drawCone(float x, float y, float z, float radius, float height, int resolution = 16) {
+    drawCone(Vec3(x, y, z), radius, height, resolution);
+}
+
+} // namespace trussc
 
 // TrussC lighting API
 #include "tc/3d/tc3DGraphics.h"

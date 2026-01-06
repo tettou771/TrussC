@@ -41,10 +41,29 @@ void setColorOKLab(float L, float a, float b) // Set color from OKLab
 
 ```javascript
 void drawRect(float x, float y, float w, float h) // Draw rectangle
+void drawRect(Vec3 pos, float w, float h) // Draw rectangle
+void drawRect(Vec3 pos, Vec2 size)       // Draw rectangle
 void drawCircle(float x, float y, float radius) // Draw circle
+void drawCircle(Vec3 center, float radius) // Draw circle
 void drawEllipse(float x, float y, float w, float h) // Draw ellipse
+void drawEllipse(Vec3 center, float rx, float ry) // Draw ellipse
+void drawEllipse(Vec3 center, Vec2 radii) // Draw ellipse
 void drawLine(float x1, float y1, float x2, float y2) // Draw line
+void drawLine(Vec3 p1, Vec3 p2)          // Draw line
 void drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3) // Draw triangle
+void drawTriangle(Vec3 p1, Vec3 p2, Vec3 p3) // Draw triangle
+void drawBox(float size)                 // Draw 3D box (respects fill/noFill)
+void drawBox(float w, float h, float d)  // Draw 3D box (respects fill/noFill)
+void drawBox(float x, float y, float z, float size) // Draw 3D box (respects fill/noFill)
+void drawBox(float x, float y, float z, float w, float h, float d) // Draw 3D box (respects fill/noFill)
+void drawBox(Vec3 pos, float size)       // Draw 3D box (respects fill/noFill)
+void drawBox(Vec3 pos, float w, float h, float d) // Draw 3D box (respects fill/noFill)
+void drawSphere(float radius)            // Draw 3D sphere (respects fill/noFill)
+void drawSphere(float x, float y, float z, float radius) // Draw 3D sphere (respects fill/noFill)
+void drawSphere(Vec3 pos, float radius)  // Draw 3D sphere (respects fill/noFill)
+void drawCone(float radius, float height) // Draw 3D cone (respects fill/noFill)
+void drawCone(float x, float y, float z, float radius, float height) // Draw 3D cone (respects fill/noFill)
+void drawCone(Vec3 pos, float radius, float height) // Draw 3D cone (respects fill/noFill)
 void beginShape()                        // Begin drawing a shape
 void vertex(float x, float y)            // Add a vertex
 void vertex(float x, float y, float z)   // Add a vertex
@@ -69,8 +88,13 @@ void setStrokeWeight(float weight)       // Set stroke width
 ```javascript
 void translate(float x, float y)         // Move origin
 void translate(float x, float y, float z) // Move origin
-void rotate(float radians)               // Rotate by radians
+void rotate(float radians)               // Rotate by radians (single axis, euler angles, or quaternion)
+void rotate(float x, float y, float z)   // Rotate by radians (single axis, euler angles, or quaternion)
+void rotate(Vec3 euler)                  // Rotate by radians (single axis, euler angles, or quaternion)
+void rotate(Quaternion quat)             // Rotate by radians (single axis, euler angles, or quaternion)
 void rotateDeg(float degrees)            // Rotate by degrees
+void rotateDeg(float x, float y, float z) // Rotate by degrees
+void rotateDeg(Vec3 euler)               // Rotate by degrees
 void scale(float s)                      // Scale
 void scale(float sx, float sy)           // Scale
 void pushMatrix()                        // Save transform state
@@ -82,8 +106,11 @@ void popMatrix()                         // Restore transform state
 ```javascript
 int getWindowWidth()                     // Get canvas width
 int getWindowHeight()                    // Get canvas height
+Vec2 getWindowSize()                     // Get canvas size as Vec2
 float getMouseX()                        // Get mouse X position
 float getMouseY()                        // Get mouse Y position
+Vec2 getMousePos()                       // Get mouse position as Vec2
+Vec2 getGlobalMousePos()                 // Get global mouse position as Vec2
 bool isMousePressed()                    // Is mouse button pressed
 ```
 

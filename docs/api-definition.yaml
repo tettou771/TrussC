@@ -267,6 +267,57 @@ categories:
         sketch: true
         snippet: "drawTriangle(${1:x1}, ${2:y1}, ${3:x2}, ${4:y2}, ${5:x3}, ${6:y3})"
 
+      - name: drawBox
+        return: "void"
+        signatures:
+          - params: "float size"
+            params_simple: "size"
+          - params: "float w, float h, float d"
+            params_simple: "w, h, d"
+          - params: "float x, float y, float z, float size"
+            params_simple: "x, y, z, size"
+          - params: "float x, float y, float z, float w, float h, float d"
+            params_simple: "x, y, z, w, h, d"
+          - params: "Vec3 pos, float size"
+            params_simple: "pos, size"
+          - params: "Vec3 pos, float w, float h, float d"
+            params_simple: "pos, w, h, d"
+        description: "Draw 3D box (respects fill/noFill)"
+        description_ja: "3Dボックスを描画（fill/noFillに対応）"
+        of_equivalent: "ofDrawBox"
+        sketch: true
+        snippet: "drawBox(${1:size})"
+
+      - name: drawSphere
+        return: "void"
+        signatures:
+          - params: "float radius"
+            params_simple: "radius"
+          - params: "float x, float y, float z, float radius"
+            params_simple: "x, y, z, radius"
+          - params: "Vec3 pos, float radius"
+            params_simple: "pos, radius"
+        description: "Draw 3D sphere (respects fill/noFill)"
+        description_ja: "3D球体を描画（fill/noFillに対応）"
+        of_equivalent: "ofDrawSphere"
+        sketch: true
+        snippet: "drawSphere(${1:radius})"
+
+      - name: drawCone
+        return: "void"
+        signatures:
+          - params: "float radius, float height"
+            params_simple: "radius, height"
+          - params: "float x, float y, float z, float radius, float height"
+            params_simple: "x, y, z, radius, height"
+          - params: "Vec3 pos, float radius, float height"
+            params_simple: "pos, radius, height"
+        description: "Draw 3D cone (respects fill/noFill)"
+        description_ja: "3D円錐を描画（fill/noFillに対応）"
+        of_equivalent: "ofDrawCone"
+        sketch: true
+        snippet: "drawCone(${1:radius}, ${2:height})"
+
       - name: beginShape
         return: "void"
         signatures:
@@ -402,8 +453,14 @@ categories:
         signatures:
           - params: "float radians"
             params_simple: "radians"
-        description: "Rotate by radians"
-        description_ja: "ラジアンで回転"
+          - params: "float x, float y, float z"
+            params_simple: "x, y, z"
+          - params: "Vec3 euler"
+            params_simple: "euler"
+          - params: "Quaternion quat"
+            params_simple: "quat"
+        description: "Rotate by radians (single axis, euler angles, or quaternion)"
+        description_ja: "ラジアンで回転（単軸、オイラー角、またはクォータニオン）"
         of_equivalent: "ofRotateRad"
         of_notes: "Always radians (not degrees like oF default)"
         sketch: true
@@ -414,6 +471,10 @@ categories:
         signatures:
           - params: "float degrees"
             params_simple: "degrees"
+          - params: "float x, float y, float z"
+            params_simple: "x, y, z"
+          - params: "Vec3 euler"
+            params_simple: "euler"
         description: "Rotate by degrees"
         description_ja: "度で回転"
         of_equivalent: "ofRotateDeg"
@@ -484,6 +545,17 @@ categories:
         sketch: true
         snippet: "getWindowHeight()"
 
+      - name: getWindowSize
+        return: "Vec2"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get canvas size as Vec2"
+        description_ja: "キャンバスのサイズをVec2で取得"
+        of_equivalent: "ofGetWindowSize"
+        sketch: true
+        snippet: "getWindowSize()"
+
       - name: getMouseX
         return: "float"
         signatures:
@@ -505,6 +577,26 @@ categories:
         of_equivalent: "ofGetMouseY"
         sketch: true
         snippet: "getMouseY()"
+
+      - name: getMousePos
+        return: "Vec2"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get mouse position as Vec2"
+        description_ja: "マウス座標をVec2で取得"
+        sketch: true
+        snippet: "getMousePos()"
+
+      - name: getGlobalMousePos
+        return: "Vec2"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get global mouse position as Vec2"
+        description_ja: "グローバルマウス座標をVec2で取得"
+        sketch: true
+        snippet: "getGlobalMousePos()"
 
       - name: isMousePressed
         return: "bool"

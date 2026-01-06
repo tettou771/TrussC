@@ -194,6 +194,12 @@ public:
     void rotateYDeg(float degrees) { rotateY(deg2rad(degrees)); }
     void rotateZDeg(float degrees) { rotateZ(deg2rad(degrees)); }
 
+    void rotate(const Quaternion& quat) {
+        Mat4 rotMat = quat.toMatrix();
+        currentMatrix_ = currentMatrix_ * rotMat;
+        sgl_mult_matrix(rotMat.m);
+    }
+
     void scale(float s) {
         currentMatrix_ = currentMatrix_ * Mat4::scale(s, s, 1.0f);
         sgl_scale(s, s, 1.0f);
