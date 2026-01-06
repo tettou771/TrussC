@@ -176,6 +176,7 @@ macro(trussc_app)
         target_link_options(${PROJECT_NAME} PRIVATE
             -sUSE_WEBGL2=1
             -sALLOW_MEMORY_GROWTH=1
+            -sALLOW_TABLE_GROWTH=1
             -sFULL_ES3=1
             -sFETCH=1
             -sASYNCIFY=1
