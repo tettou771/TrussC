@@ -1132,6 +1132,7 @@ categories:
     name_ja: "ウィンドウとシステム"
     functions:
       - name: setWindowTitle
+        return: "void"
         signatures:
           - params: "const string& title"
             params_simple: "title"
@@ -1140,6 +1141,7 @@ categories:
         sketch: false
 
       - name: setWindowSize
+        return: "void"
         signatures:
           - params: "int width, int height"
             params_simple: "width, height"
@@ -1148,6 +1150,7 @@ categories:
         sketch: false
 
       - name: toggleFullscreen
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1156,6 +1159,7 @@ categories:
         sketch: true
 
       - name: setClipboardString
+        return: "void"
         signatures:
           - params: "const string& text"
             params_simple: "text"
@@ -1164,6 +1168,7 @@ categories:
         sketch: true
 
       - name: getClipboardString
+        return: "string"
         signatures:
           - params: ""
             params_simple: ""
@@ -1286,6 +1291,7 @@ categories:
     name_ja: "アニメーション"
     functions:
       - name: Tween
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1295,6 +1301,7 @@ categories:
         snippet: "Tween()"
 
       - name: setDuration
+        return: "void"
         signatures:
           - params: "float seconds"
             params_simple: "seconds"
@@ -1304,6 +1311,7 @@ categories:
         snippet: "setDuration(${1:1.0})"
 
       - name: start
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1313,6 +1321,7 @@ categories:
         snippet: "start()"
 
       - name: update
+        return: "void"
         signatures:
           - params: "float dt"
             params_simple: "dt"
@@ -1322,6 +1331,7 @@ categories:
         snippet: "update(getDeltaTime())"
 
       - name: getValue
+        return: "float"
         signatures:
           - params: ""
             params_simple: ""
@@ -1540,6 +1550,7 @@ categories:
     name_ja: "シーングラフ"
     functions:
       - name: Node
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1549,6 +1560,7 @@ categories:
         snippet: "Node()"
 
       - name: addChild
+        return: "void"
         signatures:
           - params: "shared_ptr<Node> child"
             params_simple: "child"
@@ -1557,6 +1569,7 @@ categories:
         sketch: true
 
       - name: setPosition
+        return: "void"
         signatures:
           - params: "float x, float y"
             params_simple: "x, y"
@@ -1567,6 +1580,7 @@ categories:
         sketch: true
 
       - name: RectNode
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1576,6 +1590,7 @@ categories:
         snippet: "RectNode()"
 
       - name: setSize
+        return: "void"
         signatures:
           - params: "float w, float h"
             params_simple: "w, h"
@@ -1591,6 +1606,7 @@ categories:
     name_ja: "3Dカメラ"
     functions:
       - name: EasyCam
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1600,6 +1616,7 @@ categories:
         snippet: "EasyCam()"
 
       - name: begin
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1608,6 +1625,7 @@ categories:
         sketch: true
 
       - name: end
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1623,6 +1641,7 @@ categories:
     name_ja: "数学 - 3D"
     functions:
       - name: Mat4
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1632,6 +1651,7 @@ categories:
         snippet: "Mat4()"
 
       - name: Quaternion
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1648,6 +1668,7 @@ categories:
     name_ja: "グラフィックス - 高度"
     functions:
       - name: drawMesh
+        return: "void"
         signatures:
           - params: "Mesh mesh"
             params_simple: "mesh"
@@ -1657,6 +1678,7 @@ categories:
         snippet: "drawMesh(${1:mesh})"
 
       - name: drawPolyline
+        return: "void"
         signatures:
           - params: "Polyline polyline"
             params_simple: "polyline"
@@ -1666,6 +1688,7 @@ categories:
         snippet: "drawPolyline(${1:polyline})"
 
       - name: createBox
+        return: "Mesh"
         signatures:
           - params: "float size"
             params_simple: "size"
@@ -1676,6 +1699,7 @@ categories:
         sketch: true
 
       - name: createSphere
+        return: "Mesh"
         signatures:
           - params: "float radius, int res = 20"
             params_simple: "radius, res"

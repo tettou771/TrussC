@@ -196,9 +196,9 @@ float distSquared(float x1, float y1, float x2, float y2) // Squared distance
 ## Window & System
 
 ```javascript
-toggleFullscreen()                       // Toggle fullscreen mode
-setClipboardString(const string& text)   // Copy text to clipboard
-getClipboardString()                     // Get text from clipboard
+void toggleFullscreen()                  // Toggle fullscreen mode
+void setClipboardString(const string& text) // Copy text to clipboard
+string getClipboardString()              // Get text from clipboard
 ```
 
 ## Utility
@@ -224,10 +224,10 @@ void setLoop(bool loop)                  // Enable/disable looping
 
 ```javascript
 Tween()                                  // Create a tween
-setDuration(float seconds)               // Set animation duration
-start()                                  // Start animation
-update(float dt)                         // Update animation
-getValue()                               // Get current tween value
+void setDuration(float seconds)          // Set animation duration
+void start()                             // Start animation
+void update(float dt)                    // Update animation
+float getValue()                         // Get current tween value
 ```
 
 ## Types - Vec2
@@ -285,19 +285,19 @@ bool intersects(Rect other)              // Check intersection
 
 ```javascript
 Node()                                   // Create a base scene node
-addChild(shared_ptr<Node> child)         // Add a child node
-setPosition(float x, float y)            // Set position
-setPosition(Vec3 pos)                    // Set position
+void addChild(shared_ptr<Node> child)    // Add a child node
+void setPosition(float x, float y)       // Set position
+void setPosition(Vec3 pos)               // Set position
 RectNode()                               // Create a 2D rectangle node
-setSize(float w, float h)                // Set size
+void setSize(float w, float h)           // Set size
 ```
 
 ## 3D Camera
 
 ```javascript
 EasyCam()                                // Create an easy-to-use 3D camera
-begin()                                  // Apply camera transform
-end()                                    // Restore previous transform
+void begin()                             // Apply camera transform
+void end()                               // Restore previous transform
 ```
 
 ## Math - 3D
@@ -310,11 +310,11 @@ Quaternion()                             // Create a quaternion
 ## Graphics - Advanced
 
 ```javascript
-drawMesh(Mesh mesh)                      // Draw a mesh
-drawPolyline(Polyline polyline)          // Draw a polyline
-createBox(float size)                    // Create a box mesh
-createBox(float w, float h, float d)     // Create a box mesh
-createSphere(float radius, int res = 20) // Create a sphere mesh
+void drawMesh(Mesh mesh)                 // Draw a mesh
+void drawPolyline(Polyline polyline)     // Draw a polyline
+Mesh createBox(float size)               // Create a box mesh
+Mesh createBox(float w, float h, float d) // Create a box mesh
+Mesh createSphere(float radius, int res = 20) // Create a sphere mesh
 ```
 
 ## Types - Mesh
