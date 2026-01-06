@@ -203,6 +203,10 @@ categories:
         signatures:
           - params: "float x, float y, float w, float h"
             params_simple: "x, y, w, h"
+          - params: "Vec3 pos, float w, float h"
+            params_simple: "pos, w, h"
+          - params: "Vec3 pos, Vec2 size"
+            params_simple: "pos, size"
         description: "Draw rectangle"
         description_ja: "矩形を描画"
         of_equivalent: "ofDrawRectangle"
@@ -214,6 +218,8 @@ categories:
         signatures:
           - params: "float x, float y, float radius"
             params_simple: "x, y, radius"
+          - params: "Vec3 center, float radius"
+            params_simple: "center, radius"
         description: "Draw circle"
         description_ja: "円を描画"
         of_equivalent: "ofDrawCircle"
@@ -225,6 +231,10 @@ categories:
         signatures:
           - params: "float x, float y, float w, float h"
             params_simple: "x, y, w, h"
+          - params: "Vec3 center, float rx, float ry"
+            params_simple: "center, rx, ry"
+          - params: "Vec3 center, Vec2 radii"
+            params_simple: "center, radii"
         description: "Draw ellipse"
         description_ja: "楕円を描画"
         of_equivalent: "ofDrawEllipse"
@@ -236,6 +246,8 @@ categories:
         signatures:
           - params: "float x1, float y1, float x2, float y2"
             params_simple: "x1, y1, x2, y2"
+          - params: "Vec3 p1, Vec3 p2"
+            params_simple: "p1, p2"
         description: "Draw line"
         description_ja: "線を描画"
         of_equivalent: "ofDrawLine"
@@ -247,6 +259,8 @@ categories:
         signatures:
           - params: "float x1, float y1, float x2, float y2, float x3, float y3"
             params_simple: "x1, y1, x2, y2, x3, y3"
+          - params: "Vec3 p1, Vec3 p2, Vec3 p3"
+            params_simple: "p1, p2, p3"
         description: "Draw triangle"
         description_ja: "三角形を描画"
         of_equivalent: "ofDrawTriangle"
