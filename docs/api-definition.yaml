@@ -976,6 +976,17 @@ categories:
         sketch: true
         snippet: "to_string(${1:value})"
 
+      - name: beep
+        signatures:
+          - params: ""
+            params_simple: ""
+          - params: "float frequency"
+            params_simple: "frequency"
+        description: "Play a beep sound"
+        description_ja: "ビープ音を再生"
+        sketch: true
+        snippet: "beep()"
+
   # ==========================================================================
   # Types - Vec2
   # ==========================================================================
@@ -1079,49 +1090,6 @@ categories:
         description_ja: "OKLabからColorを作成"
         sketch: true
         snippet: "Color_fromOKLab(${1:L}, ${2:a}, ${3:b})"
-
-# ==========================================================================
-# Constants
-# ==========================================================================
-constants:
-  - name: TAU
-    value: "6.283..."
-    description: "Full circle (2*PI)"
-    description_ja: "一周 (2*PI)"
-    sketch: true
-
-  - name: HALF_TAU
-    value: "3.141..."
-    description: "Half circle (PI)"
-    description_ja: "半周 (PI)"
-    sketch: true
-
-  - name: QUARTER_TAU
-    value: "1.570..."
-    description: "Quarter circle (PI/2)"
-    description_ja: "四分の一周 (PI/2)"
-    sketch: true
-
-  - name: PI
-    value: "3.141..."
-    description: "Pi (use TAU instead)"
-    description_ja: "円周率（TAUを推奨）"
-    sketch: true
-
-# ==========================================================================
-# Keywords (for TrussSketch syntax highlighting)
-# ==========================================================================
-keywords:
-  - "def"
-  - "var"
-  - "global"
-  - "if"
-  - "else"
-  - "for"
-  - "while"
-  - "return"
-  - "true"
-  - "false"
 
   # ==========================================================================
   # Graphics - Advanced
@@ -1397,3 +1365,46 @@ keywords:
         description_ja: "内部メッシュを更新（描画前に必須）"
         sketch: true
         snippet: "update()"
+
+# ==========================================================================
+# Constants
+# ==========================================================================
+constants:
+  - name: TAU
+    value: "6.283..."
+    description: "Full circle (2*PI)"
+    description_ja: "一周 (2*PI)"
+    sketch: true
+
+  - name: HALF_TAU
+    value: "3.141..."
+    description: "Half circle (PI)"
+    description_ja: "半周 (PI)"
+    sketch: true
+
+  - name: QUARTER_TAU
+    value: "1.570..."
+    description: "Quarter circle (PI/2)"
+    description_ja: "四分の一周 (PI/2)"
+    sketch: true
+
+  - name: PI
+    value: "3.141..."
+    description: "Pi (use TAU instead)"
+    description_ja: "円周率（TAUを推奨）"
+    sketch: true
+
+# ==========================================================================
+# Keywords (for TrussSketch syntax highlighting)
+# ==========================================================================
+keywords:
+  - "def"
+  - "var"
+  - "global"
+  - "if"
+  - "else"
+  - "for"
+  - "while"
+  - "return"
+  - "true"
+  - "false"
