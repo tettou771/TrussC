@@ -15,7 +15,10 @@ add_library(tc::tcxWebSocket ALIAS ${ADDON_NAME})
 
 target_include_directories(${ADDON_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# Depends on TrussC and tcxTls (for wss://)
-# If tcxTls is not used, only ws:// will work.
-# For simplicity, we make it a hard dependency if we want full features.
-target_link_libraries(${ADDON_NAME} PUBLIC TrussC tc::tcxTls)
+# Depends on TrussC and tcxTls (for wss:// on native)
+# If tcxTls is not used, only ws:// will work on native.
+if(EMSCRIPTEN)
+    target_link_libraries(${ADDON_NAME} PUBLIC TrussC)
+else()
+    target_link_libraries(${ADDON_NAME} PUBLIC TrussC tc::tcxTls)
+endif()

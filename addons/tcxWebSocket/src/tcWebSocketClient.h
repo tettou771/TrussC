@@ -1,7 +1,9 @@
 #pragma once
 
 #include "tc/network/tcTcpClient.h"
+#ifndef __EMSCRIPTEN__
 #include "tcTlsClient.h"
+#endif
 #include <string>
 #include <vector>
 #include <memory>
