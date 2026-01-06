@@ -9,3 +9,11 @@ endif()
 include(${TRUSSC_DIR}/cmake/trussc_app.cmake)
 
 trussc_app()
+
+
+
+if(EMSCRIPTEN)
+
+    target_link_options(example-basic PRIVATE -lwebsocket.js)
+
+endif()

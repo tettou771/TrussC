@@ -19,6 +19,7 @@ categories:
     name_ja: "ライフサイクル"
     functions:
       - name: setup
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -28,6 +29,7 @@ categories:
         snippet: "setup() {\n\t$0\n}"
 
       - name: update
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -37,6 +39,7 @@ categories:
         snippet: "update() {\n\t$0\n}"
 
       - name: draw
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -53,6 +56,7 @@ categories:
     name_ja: "イベント"
     functions:
       - name: mousePressed
+        return: "void"
         signatures:
           - params: "float x, float y, int button"
             params_simple: "x, y, button"
@@ -62,6 +66,7 @@ categories:
         snippet: "mousePressed(x, y, button) {\n\t$0\n}"
 
       - name: mouseReleased
+        return: "void"
         signatures:
           - params: "float x, float y, int button"
             params_simple: "x, y, button"
@@ -71,6 +76,7 @@ categories:
         snippet: "mouseReleased(x, y, button) {\n\t$0\n}"
 
       - name: mouseMoved
+        return: "void"
         signatures:
           - params: "float x, float y"
             params_simple: "x, y"
@@ -80,6 +86,7 @@ categories:
         snippet: "mouseMoved(x, y) {\n\t$0\n}"
 
       - name: mouseDragged
+        return: "void"
         signatures:
           - params: "float x, float y, int button"
             params_simple: "x, y, button"
@@ -89,6 +96,7 @@ categories:
         snippet: "mouseDragged(x, y, button) {\n\t$0\n}"
 
       - name: keyPressed
+        return: "void"
         signatures:
           - params: "int key"
             params_simple: "key"
@@ -98,6 +106,7 @@ categories:
         snippet: "keyPressed(key) {\n\t$0\n}"
 
       - name: keyReleased
+        return: "void"
         signatures:
           - params: "int key"
             params_simple: "key"
@@ -107,6 +116,7 @@ categories:
         snippet: "keyReleased(key) {\n\t$0\n}"
 
       - name: windowResized
+        return: "void"
         signatures:
           - params: "int width, int height"
             params_simple: "width, height"
@@ -1169,6 +1179,7 @@ categories:
     name_ja: "ユーティリティ"
     functions:
       - name: logNotice
+        return: "void"
         signatures:
           - params: "const string& message"
             params_simple: "message"
@@ -1179,6 +1190,7 @@ categories:
         snippet: "logNotice(${1:\"message\"})"
 
       - name: to_string
+        return: "string"
         signatures:
           - params: "value"
             params_simple: "value"
@@ -1189,6 +1201,7 @@ categories:
         snippet: "to_string(${1:value})"
 
       - name: beep
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1207,6 +1220,7 @@ categories:
     name_ja: "サウンド"
     functions:
       - name: Sound
+        return: ""
         signatures:
           - params: ""
             params_simple: ""
@@ -1216,6 +1230,7 @@ categories:
         snippet: "Sound()"
 
       - name: load
+        return: "bool"
         signatures:
           - params: "const string& path"
             params_simple: "path"
@@ -1224,6 +1239,7 @@ categories:
         sketch: false
 
       - name: play
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1233,6 +1249,7 @@ categories:
         snippet: "play()"
 
       - name: stop
+        return: "void"
         signatures:
           - params: ""
             params_simple: ""
@@ -1242,6 +1259,7 @@ categories:
         snippet: "stop()"
 
       - name: setVolume
+        return: "void"
         signatures:
           - params: "float vol"
             params_simple: "vol"
@@ -1251,6 +1269,7 @@ categories:
         snippet: "setVolume(${1:0.8})"
 
       - name: setLoop
+        return: "void"
         signatures:
           - params: "bool loop"
             params_simple: "loop"
@@ -1494,6 +1513,7 @@ categories:
         snippet: "set(${1:x}, ${2:y}, ${3:w}, ${4:h})"
 
       - name: contains
+        return: "bool"
         signatures:
           - params: "float x, float y"
             params_simple: "x, y"
@@ -1503,6 +1523,7 @@ categories:
         snippet: "contains(${1:x}, ${2:y})"
 
       - name: intersects
+        return: "bool"
         signatures:
           - params: "Rect other"
             params_simple: "other"

@@ -7,21 +7,21 @@
             ## Lifecycle
 
 ```javascript
-setup()                                  // Called once at start
-update()                                 // Called every frame before draw
-draw()                                   // Called every frame after update
+void setup()                             // Called once at start
+void update()                            // Called every frame before draw
+void draw()                              // Called every frame after update
 ```
 
 ## Events
 
 ```javascript
-mousePressed(float x, float y, int button) // Mouse button pressed
-mouseReleased(float x, float y, int button) // Mouse button released
-mouseMoved(float x, float y)             // Mouse moved
-mouseDragged(float x, float y, int button) // Mouse dragged
-keyPressed(int key)                      // Key pressed
-keyReleased(int key)                     // Key released
-windowResized(int width, int height)     // Window resized
+void mousePressed(float x, float y, int button) // Mouse button pressed
+void mouseReleased(float x, float y, int button) // Mouse button released
+void mouseMoved(float x, float y)        // Mouse moved
+void mouseDragged(float x, float y, int button) // Mouse dragged
+void keyPressed(int key)                 // Key pressed
+void keyReleased(int key)                // Key released
+void windowResized(int width, int height) // Window resized
 ```
 
 ## Graphics - Color
@@ -204,20 +204,20 @@ getClipboardString()                     // Get text from clipboard
 ## Utility
 
 ```javascript
-logNotice(const string& message)         // Print to console
-to_string(value)                         // Convert to string
-beep()                                   // Play a beep sound
-beep(float frequency)                    // Play a beep sound
+void logNotice(const string& message)    // Print to console
+string to_string(value)                  // Convert to string
+void beep()                              // Play a beep sound
+void beep(float frequency)               // Play a beep sound
 ```
 
 ## Sound
 
 ```javascript
 Sound()                                  // Create a sound player
-play()                                   // Play sound
-stop()                                   // Stop sound
-setVolume(float vol)                     // Set volume (0.0-1.0)
-setLoop(bool loop)                       // Enable/disable looping
+void play()                              // Play sound
+void stop()                              // Stop sound
+void setVolume(float vol)                // Set volume (0.0-1.0)
+void setLoop(bool loop)                  // Enable/disable looping
 ```
 
 ## Animation
@@ -277,8 +277,8 @@ Rect()                                   // Create a rectangle
 Rect(float x, float y, float w, float h) // Create a rectangle
 Rect& set(float x, float y, float w, float h) // Set rectangle properties
 Rect& set(Vec2 pos, float w, float h)    // Set rectangle properties
-contains(float x, float y)               // Check if point is inside
-intersects(Rect other)                   // Check intersection
+bool contains(float x, float y)          // Check if point is inside
+bool intersects(Rect other)              // Check intersection
 ```
 
 ## Scene Graph
