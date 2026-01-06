@@ -1157,6 +1157,7 @@ categories:
         description: "Toggle fullscreen mode"
         description_ja: "フルスクリーンを切り替え"
         sketch: true
+        snippet: "toggleFullscreen()"
 
       - name: setClipboardString
         return: "void"
@@ -1166,6 +1167,7 @@ categories:
         description: "Copy text to clipboard"
         description_ja: "クリップボードにコピー"
         sketch: true
+        snippet: "setClipboardString(${1:\"text\"})"
 
       - name: getClipboardString
         return: "string"
@@ -1175,6 +1177,7 @@ categories:
         description: "Get text from clipboard"
         description_ja: "クリップボードから取得"
         sketch: true
+        snippet: "getClipboardString()"
 
   # ==========================================================================
   # Utility
@@ -1567,6 +1570,7 @@ categories:
         description: "Add a child node"
         description_ja: "子ノードを追加"
         sketch: true
+        snippet: "addChild(${1:child})"
 
       - name: setPosition
         return: "void"
@@ -1578,6 +1582,7 @@ categories:
         description: "Set position"
         description_ja: "位置を設定"
         sketch: true
+        snippet: "setPosition(${1:x}, ${2:y})"
 
       - name: RectNode
         return: ""
@@ -1597,6 +1602,7 @@ categories:
         description: "Set size"
         description_ja: "サイズを設定"
         sketch: true
+        snippet: "setSize(${1:w}, ${2:h})"
 
   # ==========================================================================
   # 3D Camera
@@ -1623,6 +1629,7 @@ categories:
         description: "Apply camera transform"
         description_ja: "カメラ視点を適用"
         sketch: true
+        snippet: "begin()"
 
       - name: end
         return: "void"
@@ -1632,6 +1639,7 @@ categories:
         description: "Restore previous transform"
         description_ja: "カメラ視点を解除"
         sketch: true
+        snippet: "end()"
 
   # ==========================================================================
   # Math - 3D (Matrix / Quaternion)
@@ -1697,6 +1705,7 @@ categories:
         description: "Create a box mesh"
         description_ja: "ボックスメッシュを作成"
         sketch: true
+        snippet: "createBox(${1:size})"
 
       - name: createSphere
         return: "Mesh"
@@ -1706,6 +1715,7 @@ categories:
         description: "Create a sphere mesh"
         description_ja: "球体メッシュを作成"
         sketch: true
+        snippet: "createSphere(${1:radius})"
 
       - name: drawTexture
         return: "void"
