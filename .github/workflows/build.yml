@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: ['*']
   pull_request:
     branches: [main]
 
@@ -72,10 +72,12 @@ jobs:
         shell: bash
         run: |
           chmod +x examples/build_all.py
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # Quick build for PRs or non-main branches
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
              echo "Running quick build (AllFeaturesExample only)..."
              ./examples/build_all.py --test-only --verbose
           else
+             # Full build only for main branch push
              echo "Running full build..."
              ./examples/build_all.py --verbose
           fi
@@ -109,10 +111,12 @@ jobs:
       - name: Build examples (Web)
         run: |
           chmod +x examples/build_all.py
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # Quick build for PRs or non-main branches
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
              echo "Running quick build (AllFeaturesExample only)..."
              ./examples/build_all.py --web-only --test-only --verbose
           else
+             # Full build only for main branch push
              echo "Running full build..."
              ./examples/build_all.py --web-only --verbose
           fi
