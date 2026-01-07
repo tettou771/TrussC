@@ -4,6 +4,7 @@
 # Shell scripts (explicit)
 *.sh text eol=lf
 *.command text eol=lf
+*.py text eol=lf
 
 # Windows batch files (CRLF required)
 *.bat text eol=crlf
