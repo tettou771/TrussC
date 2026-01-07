@@ -39,6 +39,14 @@ macro(trussc_app)
         get_filename_component(_TC_PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
     endif()
 
+    # Check for target collision (for batch builds)
+    if(TARGET ${_TC_PROJECT_NAME})
+        get_filename_component(_TC_PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+        get_filename_component(_TC_PARENT_NAME ${_TC_PARENT_DIR} NAME)
+        set(_TC_PROJECT_NAME "${_TC_PARENT_NAME}_${_TC_PROJECT_NAME}")
+        message(STATUS "Target name collision detected. Renamed to: ${_TC_PROJECT_NAME}")
+    endif()
+
     # Set languages based on platform
     if(APPLE)
         project(${_TC_PROJECT_NAME} LANGUAGES C CXX OBJC OBJCXX)
@@ -61,7 +69,10 @@ macro(trussc_app)
     else()
         set(_TC_BUILD_DIR "${TRUSSC_DIR}/build-linux")
     endif()
-    add_subdirectory(${TRUSSC_DIR} ${_TC_BUILD_DIR})
+    
+    if(NOT TARGET TrussC)
+        add_subdirectory(${TRUSSC_DIR} ${_TC_BUILD_DIR})
+    endif()
 
     # Source files (auto-collect from src/ recursively if not specified)
     if(_TC_APP_SOURCES)
