@@ -16,7 +16,7 @@ echo "=========================================="
 echo ""
 
 # Source directory
-SOURCE_DIR="$SCRIPT_DIR/../examples/tools/projectGenerator"
+SOURCE_DIR="$SCRIPT_DIR/tools/projectGenerator"
 
 # Create build folder
 if [ ! -d "$SOURCE_DIR/build" ]; then
@@ -51,10 +51,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Copy binary to distribution folder
+# Create symlink to binary in distribution folder
 echo ""
-echo "Copying to distribution folder..."
-cp "$SOURCE_DIR/bin/projectGenerator" "$SCRIPT_DIR/"
+echo "Creating symlink to distribution folder..."
+rm -f "$SCRIPT_DIR/projectGenerator"
+ln -s "$SOURCE_DIR/bin/projectGenerator" "$SCRIPT_DIR/projectGenerator"
 
 echo ""
 echo "=========================================="

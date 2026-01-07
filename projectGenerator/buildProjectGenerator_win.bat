@@ -15,7 +15,7 @@ cd /d "%~dp0"
 set SCRIPT_DIR=%cd%
 
 REM Source directory
-set SOURCE_DIR=%SCRIPT_DIR%\..\examples\tools\projectGenerator
+set SOURCE_DIR=%SCRIPT_DIR%\tools\projectGenerator
 
 REM Create build folder
 if not exist "%SOURCE_DIR%\build" (
@@ -49,10 +49,15 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM Copy binary to distribution folder
+REM Create symlink to binary in distribution folder (requires admin or Developer Mode)
 echo.
-echo Copying to distribution folder...
-copy /Y "%SOURCE_DIR%\bin\projectGenerator.exe" "%SCRIPT_DIR%\"
+echo Creating symlink to distribution folder...
+if exist "%SCRIPT_DIR%\projectGenerator.exe" del "%SCRIPT_DIR%\projectGenerator.exe"
+mklink "%SCRIPT_DIR%\projectGenerator.exe" "%SOURCE_DIR%\bin\projectGenerator.exe"
+if %ERRORLEVEL% neq 0 (
+    echo Symlink failed, falling back to copy...
+    copy /Y "%SOURCE_DIR%\bin\projectGenerator.exe" "%SCRIPT_DIR%\"
+)
 
 echo.
 echo ==========================================
