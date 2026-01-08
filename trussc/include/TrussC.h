@@ -164,6 +164,9 @@ namespace internal {
 
 } // namespace trussc (temporarily closed)
 
+// VertexWriter abstraction (for shader integration)
+#include "tc/graphics/tcVertexWriter.h"
+
 // RenderContext class (holds drawing state)
 #include "tc/graphics/tcRenderContext.h"
 
@@ -1850,6 +1853,10 @@ namespace internal {
             }
 
             if (appDrawFunc) appDrawFunc();
+
+            // Reset shader stack if any shaders are still pushed
+            internal::resetShaderStack();
+
             present();
 
             // Decrement redrawCount (don't go below 0)
@@ -2165,6 +2172,9 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
 
 // TrussC custom shader
 #include "tc/gpu/tcShader.h"
+
+// TrussC 3D LUT (color grading)
+#include "tc/gpu/tcLut.h"
 
 // TrussC video input (webcam)
 #include "tc/video/tcVideoGrabber.h"

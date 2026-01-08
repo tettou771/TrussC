@@ -1,53 +1,50 @@
 #pragma once
 
 // =============================================================================
-// tcShader.h - Fullscreen shader (for post-processing)
+// tcShader.h - Shader system with draw integration
 // =============================================================================
 //
-// Fullscreen shader using sokol_gfx directly
-// Combined with FBO to achieve post-process effects
+// Shader class that integrates with TrussC drawing system.
+// Uses sokol-shdc compiled shaders for cross-platform support.
 //
-// Usage example:
+// Usage:
 //   tc::Shader shader;
-//   shader.loadFromSource(fragmentShaderSource);
+//   shader.load(my_shader_desc);  // sokol-shdc generated function
 //
-//   // Inside draw()
-//   shader.begin();
-//   shader.setUniformTime(tc::getElapsedTime());
-//   shader.setUniformResolution(tc::getWindowWidth(), tc::getWindowHeight());
-//   shader.draw();  // Fullscreen draw
-//   shader.end();
+//   // Drawing with shader
+//   pushShader(shader);
+//   drawTriangle(100, 100, 200, 100, 150, 200);  // Uses shader!
+//   drawRect(300, 100, 200, 150);
+//   popShader();
+//
+//   drawCircle(400, 400, 50);  // Normal sokol_gl drawing
 //
 // =============================================================================
+
+// Note: This file is included from TrussC.h after tcMath.h, tcLog.h, etc.
+// Required types: Vec2, Vec3, Vec4, Color, sg_* are already available
 
 #include <string>
-#include <fstream>
-#include <sstream>
-#include <filesystem>
-
-#include "../utils/tcLog.h"
+#include <vector>
+#include <unordered_map>
+#include <cstring>
 
 namespace trussc {
 
-namespace fs = std::filesystem;
-
 // ---------------------------------------------------------------------------
-// Shader class (fullscreen shader)
+// Shader class
 // ---------------------------------------------------------------------------
 class Shader {
 public:
     Shader() = default;
-    ~Shader() { clear(); }
+    virtual ~Shader() { clear(); }
 
     // Copy prohibited
     Shader(const Shader&) = delete;
     Shader& operator=(const Shader&) = delete;
 
     // Move support
-    Shader(Shader&& other) noexcept {
-        moveFrom(std::move(other));
-    }
-
+    Shader(Shader&& other) noexcept { moveFrom(std::move(other)); }
     Shader& operator=(Shader&& other) noexcept {
         if (this != &other) {
             clear();
@@ -57,95 +54,406 @@ public:
     }
 
     // -------------------------------------------------------------------------
-    // Shader loading
+    // Loading
     // -------------------------------------------------------------------------
 
-    // Load from file
-    bool load(const fs::path& path) {
-        std::ifstream file(path);
-        if (!file) {
-            logError() << "Shader: failed to open " << path.string();
-            return false;
-        }
-
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        return loadFromSource(buffer.str());
-    }
-
-    // Load from fragment shader source (Metal MSL)
-    bool loadFromSource(const std::string& fragmentSource) {
+    // Load from sokol-shdc generated descriptor function
+    bool load(const sg_shader_desc* (*descFn)(sg_backend)) {
         clear();
 
-        fragmentSource_ = fragmentSource;
+        sg_backend backend = sg_query_backend();
+        const sg_shader_desc* desc = descFn(backend);
+        if (!desc) {
+            logError("Shader") << "Failed to get shader desc";
+            return false;
+        }
 
-        // Vertex shader (fixed: for fullscreen quad)
-        const char* vertexSource = R"(
-            #include <metal_stdlib>
-            using namespace metal;
+        shader = sg_make_shader(desc);
+        if (sg_query_shader_state(shader) != SG_RESOURCESTATE_VALID) {
+            logError("Shader") << "Failed to create shader";
+            return false;
+        }
 
-            struct VertexIn {
-                float2 position [[attribute(0)]];
-                float2 texcoord [[attribute(1)]];
-            };
+        // Create pipeline with standard vertex layout
+        sg_pipeline_desc pipDesc = createPipelineDesc();
+        pipDesc.shader = shader;
 
-            struct VertexOut {
-                float4 position [[position]];
-                float2 texcoord;
-            };
+        pipeline = sg_make_pipeline(&pipDesc);
+        if (sg_query_pipeline_state(pipeline) != SG_RESOURCESTATE_VALID) {
+            logError("Shader") << "Failed to create pipeline";
+            sg_destroy_shader(shader);
+            shader = {};
+            return false;
+        }
 
-            vertex VertexOut vertexMain(VertexIn in [[stage_in]]) {
-                VertexOut out;
-                out.position = float4(in.position, 0.0, 1.0);
-                out.texcoord = in.texcoord;
-                return out;
+        // Create dynamic vertex buffer
+        createVertexBuffer();
+
+        loaded = true;
+        return true;
+    }
+
+    void clear() {
+        if (loaded) {
+            if (indexBuffer.id) sg_destroy_buffer(indexBuffer);
+            if (vertexBuffer.id) sg_destroy_buffer(vertexBuffer);
+            if (pipeline.id) sg_destroy_pipeline(pipeline);
+            if (shader.id) sg_destroy_shader(shader);
+        }
+        shader = {};
+        pipeline = {};
+        vertexBuffer = {};
+        indexBuffer = {};
+        loaded = false;
+    }
+
+    bool isLoaded() const { return loaded; }
+
+    // -------------------------------------------------------------------------
+    // Begin / End
+    // -------------------------------------------------------------------------
+
+    void begin() {
+        if (!loaded) return;
+
+        // Flush sokol_gl
+        sgl_draw();
+
+        // Push to stack
+        internal::shaderStack.push_back(this);
+
+        // Apply pipeline
+        sg_apply_pipeline(pipeline);
+
+        // Call virtual hook
+        onBegin();
+    }
+
+    void end() {
+        if (!loaded) return;
+        if (internal::shaderStack.empty()) return;
+        if (internal::shaderStack.back() != this) {
+            logWarning("Shader") << "end() called on wrong shader";
+            return;
+        }
+
+        // Call virtual hook
+        onEnd();
+
+        // Pop from stack
+        internal::shaderStack.pop_back();
+
+        // Restore sokol_gl state if no more shaders
+        if (internal::shaderStack.empty()) {
+            sgl_defaults();
+            // Restore projection (will be set by setupScreenOrtho in main loop)
+            sgl_matrix_mode_projection();
+            sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -10000.0f, 10000.0f);
+            sgl_matrix_mode_modelview();
+            sgl_load_identity();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Uniform setters
+    // -------------------------------------------------------------------------
+
+    void setUniform(int slot, float value) {
+        float data[4] = { value, 0, 0, 0 };
+        sg_range range = { data, sizeof(data) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const Vec2& v) {
+        float data[4] = { v.x, v.y, 0, 0 };
+        sg_range range = { data, sizeof(data) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const Vec3& v) {
+        float data[4] = { v.x, v.y, v.z, 0 };
+        sg_range range = { data, sizeof(data) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const Vec4& v) {
+        float data[4] = { v.x, v.y, v.z, v.w };
+        sg_range range = { data, sizeof(data) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const Color& c) {
+        float data[4] = { c.r, c.g, c.b, c.a };
+        sg_range range = { data, sizeof(data) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const std::vector<float>& v) {
+        sg_range range = { v.data(), v.size() * sizeof(float) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const std::vector<Vec2>& v) {
+        sg_range range = { v.data(), v.size() * sizeof(Vec2) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const std::vector<Vec4>& v) {
+        sg_range range = { v.data(), v.size() * sizeof(Vec4) };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    void setUniform(int slot, const void* data, size_t size) {
+        sg_range range = { data, size };
+        sg_apply_uniforms(slot, &range);
+    }
+
+    // -------------------------------------------------------------------------
+    // Texture binding
+    // -------------------------------------------------------------------------
+
+    void setTexture(int slot, sg_image image, sg_sampler sampler) {
+        pendingTextures[slot] = { image, sampler };
+    }
+
+    void setTexture(int slot, sg_view view, sg_sampler sampler) {
+        pendingViews[slot] = { view, sampler };
+    }
+
+    // -------------------------------------------------------------------------
+    // Drawing (called by ShaderWriter)
+    // -------------------------------------------------------------------------
+
+    void submitVertices(const ShaderVertex* data, int count, PrimitiveType type) {
+        if (count == 0) return;
+
+        // Update vertex buffer
+        sg_range range = { data, (size_t)count * sizeof(ShaderVertex) };
+        sg_update_buffer(vertexBuffer, &range);
+
+        // Setup bindings
+        sg_bindings bind = {};
+        bind.vertex_buffers[0] = vertexBuffer;
+
+        // Apply pending textures
+        for (auto& [slot, tex] : pendingViews) {
+            bind.views[slot] = tex.view;
+            bind.samplers[slot] = tex.sampler;
+        }
+
+        setupBindings(bind);
+        sg_apply_bindings(&bind);
+
+        // Handle quads -> triangles conversion
+        if (type == PrimitiveType::Quads) {
+            // Convert quads to triangles
+            int numQuads = count / 4;
+            std::vector<uint16_t> indices;
+            indices.reserve(numQuads * 6);
+            for (int i = 0; i < numQuads; i++) {
+                int base = i * 4;
+                indices.push_back(base + 0);
+                indices.push_back(base + 1);
+                indices.push_back(base + 2);
+                indices.push_back(base + 0);
+                indices.push_back(base + 2);
+                indices.push_back(base + 3);
             }
-        )";
 
-        // Create shader
-        sg_shader_desc shd_desc = {};
-        shd_desc.vertex_func.source = vertexSource;
-        shd_desc.vertex_func.entry = "vertexMain";
-        shd_desc.fragment_func.source = fragmentSource_.c_str();
-        shd_desc.fragment_func.entry = "fragmentMain";
+            // Update index buffer
+            sg_range idxRange = { indices.data(), indices.size() * sizeof(uint16_t) };
+            sg_update_buffer(indexBuffer, &idxRange);
 
-        // Vertex attributes
-        shd_desc.attrs[0].base_type = SG_SHADERATTRBASETYPE_FLOAT;  // position
-        shd_desc.attrs[1].base_type = SG_SHADERATTRBASETYPE_FLOAT;  // texcoord
+            bind.index_buffer = indexBuffer;
+            sg_apply_bindings(&bind);
+            sg_draw(0, (int)indices.size(), 1);
+        } else {
+            sg_draw(0, count, 1);
+        }
+    }
 
-        // Uniform block
-        shd_desc.uniform_blocks[0].stage = SG_SHADERSTAGE_FRAGMENT;
-        shd_desc.uniform_blocks[0].size = sizeof(Uniforms);
-        shd_desc.uniform_blocks[0].msl_buffer_n = 0;
+protected:
+    // Sokol resources
+    sg_shader shader = {};
+    sg_pipeline pipeline = {};
+    sg_buffer vertexBuffer = {};
+    sg_buffer indexBuffer = {};
+    bool loaded = false;
 
-        shd_desc.label = "fullscreen_shader";
+    // Pending texture bindings
+    struct TextureBinding {
+        sg_image image;
+        sg_sampler sampler;
+    };
+    struct ViewBinding {
+        sg_view view;
+        sg_sampler sampler;
+    };
+    std::unordered_map<int, TextureBinding> pendingTextures;
+    std::unordered_map<int, ViewBinding> pendingViews;
 
-        shader_ = sg_make_shader(&shd_desc);
-        if (sg_query_shader_state(shader_) != SG_RESOURCESTATE_VALID) {
-            logError() << "Shader: failed to create shader";
-            return false;
+    // -------------------------------------------------------------------------
+    // Virtual hooks for derived classes
+    // -------------------------------------------------------------------------
+
+    virtual sg_pipeline_desc createPipelineDesc() {
+        sg_pipeline_desc desc = {};
+
+        // Standard vertex layout: position(3) + texcoord(2) + color(4)
+        desc.layout.attrs[0].format = SG_VERTEXFORMAT_FLOAT3;  // position
+        desc.layout.attrs[1].format = SG_VERTEXFORMAT_FLOAT2;  // texcoord
+        desc.layout.attrs[2].format = SG_VERTEXFORMAT_FLOAT4;  // color
+
+        // Default alpha blending
+        desc.colors[0].blend.enabled = true;
+        desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+        desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+
+        // Index buffer for quad support
+        desc.index_type = SG_INDEXTYPE_UINT16;
+
+        desc.label = "tc_shader_pipeline";
+        return desc;
+    }
+
+    virtual void createVertexBuffer() {
+        // Dynamic vertex buffer (max ~64K vertices)
+        // usage.immutable defaults to false (dynamic buffer)
+        sg_buffer_desc vbufDesc = {};
+        vbufDesc.size = 65536 * sizeof(ShaderVertex);
+        vbufDesc.label = "tc_shader_vertices";
+        vertexBuffer = sg_make_buffer(&vbufDesc);
+
+        // Index buffer for quads (dynamic)
+        sg_buffer_desc ibufDesc = {};
+        ibufDesc.size = 65536 * sizeof(uint16_t);
+        ibufDesc.usage.index_buffer = true;
+        ibufDesc.label = "tc_shader_indices";
+        indexBuffer = sg_make_buffer(&ibufDesc);
+    }
+
+    virtual void onBegin() {}
+    virtual void onEnd() {}
+    virtual void setupBindings(sg_bindings& bind) {}
+
+private:
+    void moveFrom(Shader&& other) {
+        shader = other.shader;
+        pipeline = other.pipeline;
+        vertexBuffer = other.vertexBuffer;
+        indexBuffer = other.indexBuffer;
+        loaded = other.loaded;
+        pendingTextures = std::move(other.pendingTextures);
+        pendingViews = std::move(other.pendingViews);
+
+        other.shader = {};
+        other.pipeline = {};
+        other.vertexBuffer = {};
+        other.indexBuffer = {};
+        other.loaded = false;
+    }
+};
+
+// ---------------------------------------------------------------------------
+// ShaderWriter::end() implementation (needs Shader class)
+// ---------------------------------------------------------------------------
+inline void ShaderWriter::end() {
+    Shader* shader = internal::getCurrentShader();
+    if (shader && !vertices.empty()) {
+        shader->submitVertices(vertices.data(), (int)vertices.size(), currentType);
+    }
+    vertices.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Global functions
+// ---------------------------------------------------------------------------
+
+inline void pushShader(Shader& shader) {
+    shader.begin();
+}
+
+inline void popShader() {
+    Shader* current = internal::getCurrentShader();
+    if (current) {
+        current->end();
+    }
+}
+
+// Reset shader stack (called at end of frame)
+inline void resetShaderStack() {
+    while (!internal::shaderStack.empty()) {
+        popShader();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// FullscreenShader - Fullscreen effect shader (position + texcoord layout)
+// ---------------------------------------------------------------------------
+class FullscreenShader : public Shader {
+public:
+    FullscreenShader() = default;
+
+    // Set uniform params (call before draw)
+    template<typename T>
+    void setParams(const T& params) {
+        paramsData_.resize(sizeof(T));
+        std::memcpy(paramsData_.data(), &params, sizeof(T));
+    }
+
+    // Draw fullscreen quad with shader
+    void draw() {
+        if (!loaded) return;
+
+        // Flush sokol_gl
+        sgl_draw();
+
+        sg_apply_pipeline(pipeline);
+
+        sg_bindings bind = {};
+        bind.vertex_buffers[0] = vertexBuffer;
+        bind.index_buffer = indexBuffer;
+        setupBindings(bind);
+        sg_apply_bindings(&bind);
+
+        // Apply uniform params
+        if (!paramsData_.empty()) {
+            sg_range range = { paramsData_.data(), paramsData_.size() };
+            sg_apply_uniforms(0, &range);
         }
 
-        // Create pipeline
-        sg_pipeline_desc pip_desc = {};
-        pip_desc.shader = shader_;
-        pip_desc.layout.attrs[0].format = SG_VERTEXFORMAT_FLOAT2;  // position
-        pip_desc.layout.attrs[1].format = SG_VERTEXFORMAT_FLOAT2;  // texcoord
-        pip_desc.index_type = SG_INDEXTYPE_UINT16;  // Use index buffer
-        pip_desc.colors[0].blend.enabled = true;
-        pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
-        pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
-        pip_desc.label = "fullscreen_pipeline";
+        sg_draw(0, 6, 1);
 
-        pipeline_ = sg_make_pipeline(&pip_desc);
-        if (sg_query_pipeline_state(pipeline_) != SG_RESOURCESTATE_VALID) {
-            logError() << "Shader: failed to create pipeline";
-            sg_destroy_shader(shader_);
-            shader_ = {};
-            return false;
-        }
+        // Restore sokol_gl
+        sgl_defaults();
+        sgl_matrix_mode_projection();
+        sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -10000.0f, 10000.0f);
+        sgl_matrix_mode_modelview();
+        sgl_load_identity();
+    }
 
-        // Create vertex buffer for fullscreen quad
+protected:
+    sg_pipeline_desc createPipelineDesc() override {
+        sg_pipeline_desc desc = {};
+
+        // Fullscreen shader layout: position(2) + texcoord(2)
+        desc.layout.attrs[0].format = SG_VERTEXFORMAT_FLOAT2;  // position
+        desc.layout.attrs[1].format = SG_VERTEXFORMAT_FLOAT2;  // texcoord
+
+        // Default alpha blending
+        desc.colors[0].blend.enabled = true;
+        desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+        desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+
+        // Index buffer for quad
+        desc.index_type = SG_INDEXTYPE_UINT16;
+
+        desc.label = "tc_fullscreen_pipeline";
+        return desc;
+    }
+
+    void createVertexBuffer() override {
+        // Immutable fullscreen quad
         float vertices[] = {
             // position    texcoord
             -1.0f, -1.0f,  0.0f, 1.0f,
@@ -154,144 +462,21 @@ public:
             -1.0f,  1.0f,  0.0f, 0.0f,
         };
 
-        sg_buffer_desc vbuf_desc = {};
-        vbuf_desc.data = SG_RANGE(vertices);
-        vbuf_desc.label = "fullscreen_vertices";
-        vertexBuffer_ = sg_make_buffer(&vbuf_desc);
+        sg_buffer_desc vbufDesc = {};
+        vbufDesc.data = SG_RANGE(vertices);
+        vbufDesc.label = "tc_fullscreen_vertices";
+        vertexBuffer = sg_make_buffer(&vbufDesc);
 
-        // Index buffer
         uint16_t indices[] = { 0, 1, 2, 0, 2, 3 };
-        sg_buffer_desc ibuf_desc = {};
-        ibuf_desc.usage.index_buffer = true;
-        ibuf_desc.data = SG_RANGE(indices);
-        ibuf_desc.label = "fullscreen_indices";
-        indexBuffer_ = sg_make_buffer(&ibuf_desc);
-
-        loaded_ = true;
-        return true;
-    }
-
-    // Release resources
-    void clear() {
-        if (loaded_) {
-            sg_destroy_buffer(indexBuffer_);
-            sg_destroy_buffer(vertexBuffer_);
-            sg_destroy_pipeline(pipeline_);
-            sg_destroy_shader(shader_);
-            loaded_ = false;
-        }
-        shader_ = {};
-        pipeline_ = {};
-        vertexBuffer_ = {};
-        indexBuffer_ = {};
-        fragmentSource_.clear();
-    }
-
-    bool isLoaded() const { return loaded_; }
-
-    // -------------------------------------------------------------------------
-    // Shader application and drawing
-    // -------------------------------------------------------------------------
-
-    // Enable shader
-    void begin() {
-        if (!loaded_) return;
-        active_ = true;
-
-        // Flush sokol_gl drawing
-        sgl_draw();
-
-        sg_apply_pipeline(pipeline_);
-
-        sg_bindings bindings = {};
-        bindings.vertex_buffers[0] = vertexBuffer_;
-        bindings.index_buffer = indexBuffer_;
-        sg_apply_bindings(&bindings);
-    }
-
-    // Fullscreen draw
-    void draw() {
-        if (!active_) return;
-
-        // Apply uniforms
-        sg_range range = { &uniforms_, sizeof(Uniforms) };
-        sg_apply_uniforms(0, &range);
-
-        sg_draw(0, 6, 1);
-    }
-
-    // Disable shader
-    void end() {
-        if (!active_) return;
-        active_ = false;
-        // Reset sokol_gl state
-        sgl_defaults();
-        sgl_matrix_mode_projection();
-        sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -10000.0f, 10000.0f);
-        sgl_matrix_mode_modelview();
-        sgl_load_identity();
-    }
-
-    // -------------------------------------------------------------------------
-    // Uniform settings
-    // -------------------------------------------------------------------------
-
-    void setUniformTime(float time) {
-        uniforms_.time = time;
-    }
-
-    void setUniformResolution(float width, float height) {
-        uniforms_.resolution[0] = width;
-        uniforms_.resolution[1] = height;
-    }
-
-    void setUniformMouse(float x, float y) {
-        uniforms_.mouse[0] = x;
-        uniforms_.mouse[1] = y;
-    }
-
-    void setUniformCustom(int index, float value) {
-        if (index >= 0 && index < 4) {
-            uniforms_.custom[index] = value;
-        }
+        sg_buffer_desc ibufDesc = {};
+        ibufDesc.usage.index_buffer = true;
+        ibufDesc.data = SG_RANGE(indices);
+        ibufDesc.label = "tc_fullscreen_indices";
+        indexBuffer = sg_make_buffer(&ibufDesc);
     }
 
 private:
-    // Uniform block (Metal 16-byte alignment)
-    struct Uniforms {
-        float time = 0;
-        float _pad0[3] = {0, 0, 0};
-        float resolution[4] = {0, 0, 0, 0};  // xy: resolution, zw: unused
-        float mouse[4] = {0, 0, 0, 0};       // xy: mouse, zw: unused
-        float custom[4] = {0, 0, 0, 0};
-    };
-
-    sg_shader shader_ = {};
-    sg_pipeline pipeline_ = {};
-    sg_buffer vertexBuffer_ = {};
-    sg_buffer indexBuffer_ = {};
-    std::string fragmentSource_;
-    bool loaded_ = false;
-    bool active_ = false;
-    Uniforms uniforms_;
-
-    void moveFrom(Shader&& other) {
-        shader_ = other.shader_;
-        pipeline_ = other.pipeline_;
-        vertexBuffer_ = other.vertexBuffer_;
-        indexBuffer_ = other.indexBuffer_;
-        fragmentSource_ = std::move(other.fragmentSource_);
-        loaded_ = other.loaded_;
-        active_ = other.active_;
-        uniforms_ = other.uniforms_;
-
-        other.shader_ = {};
-        other.pipeline_ = {};
-        other.vertexBuffer_ = {};
-        other.indexBuffer_ = {};
-        other.loaded_ = false;
-        other.active_ = false;
-    }
+    std::vector<uint8_t> paramsData_;
 };
 
 } // namespace trussc

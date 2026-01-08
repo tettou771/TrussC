@@ -116,6 +116,13 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
 }
 
+// Called when a frame is dropped - silently ignore to suppress OS warnings
+- (void)captureOutput:(AVCaptureOutput*)output
+  didDropSampleBuffer:(CMSampleBufferRef)sampleBuffer
+       fromConnection:(AVCaptureConnection*)connection {
+    // Intentionally empty - frames are dropped when processing can't keep up
+}
+
 @end
 
 namespace trussc {

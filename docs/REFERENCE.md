@@ -6,7 +6,7 @@
             
             ## Lifecycle
 
-```javascript
+```cpp
 void setup()                             // Called once at start
 void update()                            // Called every frame before draw
 void draw()                              // Called every frame after update
@@ -14,7 +14,7 @@ void draw()                              // Called every frame after update
 
 ## Events
 
-```javascript
+```cpp
 void mousePressed(float x, float y, int button) // Mouse button pressed
 void mouseReleased(float x, float y, int button) // Mouse button released
 void mouseMoved(float x, float y)        // Mouse moved
@@ -26,7 +26,7 @@ void windowResized(int width, int height) // Window resized
 
 ## Graphics - Color
 
-```javascript
+```cpp
 void clear(float gray)                   // Clear screen
 void clear(float r, float g, float b)    // Clear screen
 void setColor(float gray)                // Set drawing color (0.0-1.0)
@@ -39,7 +39,7 @@ void setColorOKLab(float L, float a, float b) // Set color from OKLab
 
 ## Graphics - Shapes
 
-```javascript
+```cpp
 void drawRect(float x, float y, float w, float h) // Draw rectangle
 void drawRect(Vec3 pos, float w, float h) // Draw rectangle
 void drawRect(Vec3 pos, Vec2 size)       // Draw rectangle
@@ -75,7 +75,7 @@ void drawBitmapString(const string& text, float x, float y) // Draw text
 
 ## Graphics - Style
 
-```javascript
+```cpp
 void fill()                              // Enable fill mode (shapes are solid, no outline)
 void noFill()                            // Enable stroke mode (shapes show outline only)
 void setStrokeWeight(float weight)       // Set stroke width
@@ -83,7 +83,7 @@ void setStrokeWeight(float weight)       // Set stroke width
 
 ## Transform
 
-```javascript
+```cpp
 void translate(float x, float y)         // Move origin
 void translate(float x, float y, float z) // Move origin
 void rotate(float radians)               // Rotate by radians (single axis, euler angles, or quaternion)
@@ -101,7 +101,7 @@ void popMatrix()                         // Restore transform state
 
 ## Window & Input
 
-```javascript
+```cpp
 int getWindowWidth()                     // Get canvas width
 int getWindowHeight()                    // Get canvas height
 Vec2 getWindowSize()                     // Get canvas size as Vec2
@@ -114,7 +114,7 @@ bool isMousePressed()                    // Is mouse button pressed
 
 ## Time - Frame
 
-```javascript
+```cpp
 double getDeltaTime()                    // Seconds since last frame
 double getFrameRate()                    // Current FPS
 uint64_t getFrameCount()                 // Total frames rendered
@@ -122,7 +122,7 @@ uint64_t getFrameCount()                 // Total frames rendered
 
 ## Time - Elapsed
 
-```javascript
+```cpp
 float getElapsedTimef()                  // Elapsed seconds (float)
 uint64_t getElapsedTimeMillis()          // Elapsed milliseconds (int64)
 uint64_t getElapsedTimeMicros()          // Elapsed microseconds (int64)
@@ -131,7 +131,7 @@ void resetElapsedTimeCounter()           // Reset elapsed time
 
 ## Time - System
 
-```javascript
+```cpp
 uint64_t getSystemTimeMillis()           // Unix time in milliseconds
 uint64_t getSystemTimeMicros()           // Unix time in microseconds
 string getTimestampString()              // Formatted timestamp
@@ -140,7 +140,7 @@ string getTimestampString(const string& format) // Formatted timestamp
 
 ## Time - Current
 
-```javascript
+```cpp
 int getSeconds()                         // Current seconds (0-59)
 int getMinutes()                         // Current minutes (0-59)
 int getHours()                           // Current hours (0-23)
@@ -152,7 +152,7 @@ int getWeekday()                         // Weekday (0=Sun, 6=Sat)
 
 ## Math - Random & Noise
 
-```javascript
+```cpp
 float random()                           // Random number
 float random(float max)                  // Random number
 float random(float min, float max)       // Random number
@@ -172,7 +172,7 @@ float fbm(float x, float y, float z, int octaves = 4, float lacunarity = 2.0, fl
 
 ## Math - Interpolation
 
-```javascript
+```cpp
 float lerp(float a, float b, float t)    // Linear interpolation
 float clamp(float v, float min, float max) // Clamp value to range
 float map(float v, float inMin, float inMax, float outMin, float outMax) // Map value between ranges
@@ -180,7 +180,7 @@ float map(float v, float inMin, float inMax, float outMin, float outMax) // Map 
 
 ## Math - Trigonometry
 
-```javascript
+```cpp
 float sin(float x)                       // Sine
 float cos(float x)                       // Cosine
 float tan(float x)                       // Tangent
@@ -194,7 +194,7 @@ float rad2deg(float radians)             // Radians to degrees
 
 ## Math - General
 
-```javascript
+```cpp
 float abs(float x)                       // Absolute value
 float sqrt(float x)                      // Square root
 float sq(float x)                        // Square (x*x)
@@ -213,14 +213,14 @@ float fract(float x)                     // Fractional part
 
 ## Math - Geometry
 
-```javascript
+```cpp
 float dist(float x1, float y1, float x2, float y2) // Distance between points
 float distSquared(float x1, float y1, float x2, float y2) // Squared distance
 ```
 
 ## Window & System
 
-```javascript
+```cpp
 void toggleFullscreen()                  // Toggle fullscreen mode
 void setClipboardString(const string& text) // Copy text to clipboard
 string getClipboardString()              // Get text from clipboard
@@ -228,7 +228,7 @@ string getClipboardString()              // Get text from clipboard
 
 ## Utility
 
-```javascript
+```cpp
 void logNotice(const string& message)    // Print to console
 string to_string(value)                  // Convert to string
 void beep()                              // Play a beep sound
@@ -237,7 +237,7 @@ void beep(float frequency)               // Play a beep sound
 
 ## Sound
 
-```javascript
+```cpp
 Sound()                                  // Create a sound player
 void play()                              // Play sound
 void stop()                              // Stop sound
@@ -247,7 +247,7 @@ void setLoop(bool loop)                  // Enable/disable looping
 
 ## Animation
 
-```javascript
+```cpp
 Tween()                                  // Create a tween
 void setDuration(float seconds)          // Set animation duration
 void start()                             // Start animation
@@ -257,7 +257,7 @@ float getValue()                         // Get current tween value
 
 ## Types - Vec2
 
-```javascript
+```cpp
 Vec2()                                   // Create 2D vector
 Vec2(float x, float y)                   // Create 2D vector
 Vec2(float v)                            // Create 2D vector
@@ -269,7 +269,7 @@ Vec2 Vec2_fromAngle(float radians, float length) // Create Vec2 from angle
 
 ## Types - Vec3
 
-```javascript
+```cpp
 Vec3()                                   // Create 3D vector
 Vec3(float x, float y, float z)          // Create 3D vector
 Vec3(float v)                            // Create 3D vector
@@ -279,7 +279,7 @@ Vec3& set(Vec3 v)                        // Set vector components
 
 ## Types - Color
 
-```javascript
+```cpp
 Color()                                  // Create color (0.0-1.0)
 Color(float r, float g, float b)         // Create color (0.0-1.0)
 Color(float r, float g, float b, float a) // Create color (0.0-1.0)
@@ -297,7 +297,7 @@ Color Color_fromOKLab(float L, float a, float b, float alpha) // Create Color fr
 
 ## Types - Rect
 
-```javascript
+```cpp
 Rect()                                   // Create a rectangle
 Rect(float x, float y, float w, float h) // Create a rectangle
 Rect& set(float x, float y, float w, float h) // Set rectangle properties
@@ -308,7 +308,7 @@ bool intersects(Rect other)              // Check intersection
 
 ## Scene Graph
 
-```javascript
+```cpp
 Node()                                   // Create a base scene node
 void addChild(shared_ptr<Node> child)    // Add a child node
 void setPosition(float x, float y)       // Set position
@@ -319,7 +319,7 @@ void setSize(float w, float h)           // Set size
 
 ## 3D Setup
 
-```javascript
+```cpp
 void setupScreenPerspective()            // Set up perspective projection (oF-style default 3D)
 void setupScreenPerspective(float fovDeg) // Set up perspective projection (oF-style default 3D)
 void setupScreenPerspective(float fovDeg, float nearDist, float farDist) // Set up perspective projection (oF-style default 3D)
@@ -332,7 +332,7 @@ float getDefaultScreenFov()              // Get current default screen FOV
 
 ## 3D Camera
 
-```javascript
+```cpp
 EasyCam()                                // Create an easy-to-use 3D camera
 void begin()                             // Apply camera transform
 void end()                               // Restore previous transform
@@ -340,14 +340,14 @@ void end()                               // Restore previous transform
 
 ## Math - 3D
 
-```javascript
+```cpp
 Mat4()                                   // Create a 4x4 matrix
 Quaternion()                             // Create a quaternion
 ```
 
 ## Graphics - Advanced
 
-```javascript
+```cpp
 void drawMesh(Mesh mesh)                 // Draw a mesh
 void drawPolyline(Polyline polyline)     // Draw a polyline
 Mesh createBox(float size)               // Create a box mesh
@@ -357,7 +357,7 @@ Mesh createSphere(float radius, int res = 20) // Create a sphere mesh
 
 ## Types - Mesh
 
-```javascript
+```cpp
 Mesh()                                   // Create a new Mesh
 void setMode(int mode)                   // Set primitive mode (MESH_TRIANGLES, etc.)
 void addVertex(float x, float y, float z) // Add a vertex
@@ -374,7 +374,7 @@ void draw()                              // Draw the mesh
 
 ## Types - Polyline
 
-```javascript
+```cpp
 Polyline()                               // Create a new Polyline (Path)
 void addVertex(float x, float y)         // Add a vertex
 void lineTo(float x, float y)            // Add a line segment to point
@@ -387,7 +387,7 @@ void close()                             // Close the shape
 
 ## Types - StrokeMesh
 
-```javascript
+```cpp
 StrokeMesh()                             // Create a new StrokeMesh
 void setWidth(float width)               // Set stroke width
 void setColor(Color color)               // Set stroke color
@@ -399,7 +399,7 @@ void update()                            // Update the internal mesh
 
 ## Constants
 
-```javascript
+```cpp
 TAU                          // 6.283... (Full circle (2*PI))
 HALF_TAU                     // 3.141... (Half circle (PI))
 QUARTER_TAU                  // 1.570... (Quarter circle (PI/2))
@@ -408,14 +408,14 @@ PI                           // 3.141... (Pi (use TAU instead))
 
 ## Variables
 
-```javascript
+```cpp
 global myVar = 0         // Global variable (persists across frames)
 var localVar = 0         // Local variable (scope-limited)
 ```
 
 ## Example
 
-```javascript
+```cpp
 global angle = 0.0
 
 def setup() {

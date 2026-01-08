@@ -2016,17 +2016,26 @@ categories:
         signatures:
           - params: ""
             params_simple: ""
-        description: "Create a shader"
-        description_ja: "シェーダーを作成"
+        description: "Create a shader (base class, inheritable)"
+        description_ja: "シェーダーを作成（基底クラス、継承可能）"
         sketch: false
 
       - name: load
         return: "bool"
         signatures:
-          - params: "const string& vertPath, const string& fragPath"
-            params_simple: "vert, frag"
-        description: "Load shader from files"
-        description_ja: "ファイルからシェーダーを読み込む"
+          - params: "const sg_shader_desc* (*descFn)(sg_backend)"
+            params_simple: "descFn"
+        description: "Load from sokol-shdc generated function"
+        description_ja: "sokol-shdc生成関数からロード"
+        sketch: false
+
+      - name: isLoaded
+        return: "bool"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Check if shader is loaded"
+        description_ja: "シェーダーが読み込まれているか確認"
         sketch: false
 
       - name: begin
@@ -2034,8 +2043,8 @@ categories:
         signatures:
           - params: ""
             params_simple: ""
-        description: "Begin shader"
-        description_ja: "シェーダーを開始"
+        description: "Begin shader (pushes to stack)"
+        description_ja: "シェーダーを開始（スタックにプッシュ）"
         sketch: false
 
       - name: end
@@ -2043,23 +2052,54 @@ categories:
         signatures:
           - params: ""
             params_simple: ""
-        description: "End shader"
-        description_ja: "シェーダーを終了"
+        description: "End shader (pops from stack)"
+        description_ja: "シェーダーを終了（スタックからポップ）"
+        sketch: false
+
+      - name: pushShader
+        return: "void"
+        signatures:
+          - params: "Shader& shader"
+            params_simple: "shader"
+        description: "Push shader to stack (subsequent draws use this shader)"
+        description_ja: "シェーダーをスタックにプッシュ（以降の描画にこのシェーダーを使用）"
+        sketch: false
+
+      - name: popShader
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Pop shader from stack"
+        description_ja: "シェーダーをスタックからポップ"
         sketch: false
 
       - name: setUniform
         return: "void"
         signatures:
-          - params: "const string& name, float value"
-            params_simple: "name, val"
-          - params: "const string& name, float x, float y"
-            params_simple: "name, x, y"
-          - params: "const string& name, const Vec2& v"
-            params_simple: "name, v"
-          - params: "const string& name, const Color& c"
-            params_simple: "name, c"
-        description: "Set uniform variable"
-        description_ja: "Uniform変数を設定"
+          - params: "int slot, float value"
+            params_simple: "slot, value"
+          - params: "int slot, const Vec2& v"
+            params_simple: "slot, v"
+          - params: "int slot, const Vec3& v"
+            params_simple: "slot, v"
+          - params: "int slot, const Vec4& v"
+            params_simple: "slot, v"
+          - params: "int slot, const Color& c"
+            params_simple: "slot, c"
+          - params: "int slot, const vector<float>& v"
+            params_simple: "slot, v"
+        description: "Set uniform variable by slot"
+        description_ja: "スロット番号でUniform変数を設定"
+        sketch: false
+
+      - name: setTexture
+        return: "void"
+        signatures:
+          - params: "int slot, sg_view view, sg_sampler sampler"
+            params_simple: "slot, view, sampler"
+        description: "Bind texture to slot"
+        description_ja: "スロットにテクスチャをバインド"
         sketch: false
 
   - id: graphics_pixels
@@ -2388,6 +2428,186 @@ categories:
         description_ja: "内部メッシュを更新（描画前に必須）"
         sketch: true
         snippet: "update()"
+
+  # ==========================================================================
+  # GPU - LUT (Color Grading)
+  # ==========================================================================
+  - id: gpu_lut
+    name: "GPU - LUT (Color Grading)"
+    name_ja: "GPU - LUT（カラーグレーディング）"
+    functions:
+      - name: Lut3D
+        return: ""
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Create a 3D LUT for color grading"
+        description_ja: "カラーグレーディング用3D LUTを作成"
+        sketch: false
+
+      - name: load
+        return: "bool"
+        signatures:
+          - params: "const fs::path& path"
+            params_simple: "path"
+        description: "Load .cube file"
+        description_ja: ".cubeファイルを読み込む"
+        sketch: false
+
+      - name: allocate
+        return: "void"
+        signatures:
+          - params: "int size, const float* data = nullptr"
+            params_simple: "size, data"
+        description: "Allocate LUT with optional data"
+        description_ja: "LUTをメモリ確保（データ指定可）"
+        sketch: false
+
+      - name: isAllocated
+        return: "bool"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Check if LUT is allocated"
+        description_ja: "LUTが確保済みか確認"
+        sketch: false
+
+      - name: getSize
+        return: "int"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get LUT size (e.g., 32 for 32x32x32)"
+        description_ja: "LUTサイズを取得（32x32x32なら32）"
+        sketch: false
+
+      - name: lut::createIdentity
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create identity LUT (no color change)"
+        description_ja: "Identity LUTを生成（色変更なし）"
+        sketch: false
+
+      - name: lut::createVintage
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create vintage/faded look LUT"
+        description_ja: "ビンテージ/フェード風LUTを生成"
+        sketch: false
+
+      - name: lut::createCinematic
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create cinematic orange/teal LUT"
+        description_ja: "シネマティック（オレンジ/ティール）LUTを生成"
+        sketch: false
+
+      - name: lut::createFilmNoir
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create film noir high-contrast B&W LUT"
+        description_ja: "フィルムノワール（高コントラストB&W）LUTを生成"
+        sketch: false
+
+      - name: lut::createWarm
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create warm color shift LUT"
+        description_ja: "暖色系LUTを生成"
+        sketch: false
+
+      - name: lut::createCool
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create cool color shift LUT"
+        description_ja: "寒色系LUTを生成"
+        sketch: false
+
+      - name: lut::createCyberpunk
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create cyberpunk neon pink/cyan LUT"
+        description_ja: "サイバーパンク（ネオンピンク/シアン）LUTを生成"
+        sketch: false
+
+      - name: lut::createPastel
+        return: "Lut3D"
+        signatures:
+          - params: "int size = 32"
+            params_simple: "size"
+        description: "Create soft pastel LUT"
+        description_ja: "パステル調LUTを生成"
+        sketch: false
+
+      - name: LutShader
+        return: ""
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Create a LUT shader for color grading"
+        description_ja: "カラーグレーディング用LUTシェーダーを作成"
+        sketch: false
+
+      - name: setTexture
+        return: "void"
+        signatures:
+          - params: "const T& tex"
+            params_simple: "tex"
+        description: "Set source texture (VideoGrabber, Texture, Fbo, etc.)"
+        description_ja: "ソーステクスチャを設定（VideoGrabber, Texture, Fboなど）"
+        sketch: false
+
+      - name: setLut
+        return: "void"
+        signatures:
+          - params: "const Lut3D& lut"
+            params_simple: "lut"
+        description: "Set LUT to apply"
+        description_ja: "適用するLUTを設定"
+        sketch: false
+
+      - name: setBlend
+        return: "void"
+        signatures:
+          - params: "float blend"
+            params_simple: "blend"
+        description: "Set blend amount (0=original, 1=full LUT)"
+        description_ja: "ブレンド量を設定（0=元画像, 1=LUT全適用）"
+        sketch: false
+
+      - name: draw
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+            params_simple: "x, y"
+          - params: "float x, float y, float w, float h"
+            params_simple: "x, y, w, h"
+        description: "Draw with LUT applied"
+        description_ja: "LUTを適用して描画"
+        sketch: false
+
+      - name: drawSubsection
+        return: "void"
+        signatures:
+          - params: "float x, float y, float w, float h, float sx, float sy, float sw, float sh"
+            params_simple: "x, y, w, h, sx, sy, sw, sh"
+        description: "Draw subsection with LUT applied"
+        description_ja: "LUTを適用して部分描画"
+        sketch: false
 
 # ==========================================================================
 # Constants

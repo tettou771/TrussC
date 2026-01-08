@@ -241,31 +241,33 @@ public:
     }
 
     // -----------------------------------------------------------------------
-    // Basic shape drawing
+    // Basic shape drawing (uses VertexWriter for shader support)
     // -----------------------------------------------------------------------
 
     // Main implementation (Vec3)
     void drawRect(Vec3 pos, Vec2 size) {
         float x = pos.x, y = pos.y, z = pos.z;
         float w = size.x, h = size.y;
+        auto& writer = internal::getActiveWriter();
+
         if (fillEnabled_) {
-            sgl_begin_quads();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v3f(x, y, z);
-            sgl_v3f(x + w, y, z);
-            sgl_v3f(x + w, y + h, z);
-            sgl_v3f(x, y + h, z);
-            sgl_end();
+            writer.begin(PrimitiveType::Quads);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+            writer.vertex(x, y, z);
+            writer.vertex(x + w, y, z);
+            writer.vertex(x + w, y + h, z);
+            writer.vertex(x, y + h, z);
+            writer.end();
         }
         if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v3f(x, y, z);
-            sgl_v3f(x + w, y, z);
-            sgl_v3f(x + w, y + h, z);
-            sgl_v3f(x, y + h, z);
-            sgl_v3f(x, y, z);
-            sgl_end();
+            writer.begin(PrimitiveType::LineStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+            writer.vertex(x, y, z);
+            writer.vertex(x + w, y, z);
+            writer.vertex(x + w, y + h, z);
+            writer.vertex(x, y + h, z);
+            writer.vertex(x, y, z);
+            writer.end();
         }
     }
 
@@ -281,29 +283,30 @@ public:
     void drawCircle(Vec3 center, float radius) {
         int segments = circleResolution_;
         float cx = center.x, cy = center.y, cz = center.z;
+        auto& writer = internal::getActiveWriter();
 
         if (fillEnabled_) {
-            sgl_begin_triangle_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
+            writer.begin(PrimitiveType::TriangleStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
             for (int i = 0; i <= segments; i++) {
                 float angle = (float)i / segments * TAU;
                 float px = cx + cos(angle) * radius;
                 float py = cy + sin(angle) * radius;
-                sgl_v3f(cx, cy, cz);
-                sgl_v3f(px, py, cz);
+                writer.vertex(cx, cy, cz);
+                writer.vertex(px, py, cz);
             }
-            sgl_end();
+            writer.end();
         }
         if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
+            writer.begin(PrimitiveType::LineStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
             for (int i = 0; i <= segments; i++) {
                 float angle = (float)i / segments * TAU;
                 float px = cx + cos(angle) * radius;
                 float py = cy + sin(angle) * radius;
-                sgl_v3f(px, py, cz);
+                writer.vertex(px, py, cz);
             }
-            sgl_end();
+            writer.end();
         }
     }
 
@@ -316,29 +319,30 @@ public:
         int segments = circleResolution_;
         float cx = center.x, cy = center.y, cz = center.z;
         float rx = radii.x, ry = radii.y;
+        auto& writer = internal::getActiveWriter();
 
         if (fillEnabled_) {
-            sgl_begin_triangle_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
+            writer.begin(PrimitiveType::TriangleStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
             for (int i = 0; i <= segments; i++) {
                 float angle = (float)i / segments * TAU;
                 float px = cx + cos(angle) * rx;
                 float py = cy + sin(angle) * ry;
-                sgl_v3f(cx, cy, cz);
-                sgl_v3f(px, py, cz);
+                writer.vertex(cx, cy, cz);
+                writer.vertex(px, py, cz);
             }
-            sgl_end();
+            writer.end();
         }
         if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
+            writer.begin(PrimitiveType::LineStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
             for (int i = 0; i <= segments; i++) {
                 float angle = (float)i / segments * TAU;
                 float px = cx + cos(angle) * rx;
                 float py = cy + sin(angle) * ry;
-                sgl_v3f(px, py, cz);
+                writer.vertex(px, py, cz);
             }
-            sgl_end();
+            writer.end();
         }
     }
 
@@ -352,11 +356,12 @@ public:
 
     // Main implementation (Vec3)
     void drawLine(Vec3 p1, Vec3 p2) {
-        sgl_begin_lines();
-        sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-        sgl_v3f(p1.x, p1.y, p1.z);
-        sgl_v3f(p2.x, p2.y, p2.z);
-        sgl_end();
+        auto& writer = internal::getActiveWriter();
+        writer.begin(PrimitiveType::Lines);
+        writer.color(currentR_, currentG_, currentB_, currentA_);
+        writer.vertex(p1.x, p1.y, p1.z);
+        writer.vertex(p2.x, p2.y, p2.z);
+        writer.end();
     }
 
     void drawLine(float x1, float y1, float x2, float y2) {
@@ -365,22 +370,24 @@ public:
 
     // Main implementation (Vec3)
     void drawTriangle(Vec3 p1, Vec3 p2, Vec3 p3) {
+        auto& writer = internal::getActiveWriter();
+
         if (fillEnabled_) {
-            sgl_begin_triangles();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v3f(p1.x, p1.y, p1.z);
-            sgl_v3f(p2.x, p2.y, p2.z);
-            sgl_v3f(p3.x, p3.y, p3.z);
-            sgl_end();
+            writer.begin(PrimitiveType::Triangles);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+            writer.vertex(p1.x, p1.y, p1.z);
+            writer.vertex(p2.x, p2.y, p2.z);
+            writer.vertex(p3.x, p3.y, p3.z);
+            writer.end();
         }
         if (strokeEnabled_) {
-            sgl_begin_line_strip();
-            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-            sgl_v3f(p1.x, p1.y, p1.z);
-            sgl_v3f(p2.x, p2.y, p2.z);
-            sgl_v3f(p3.x, p3.y, p3.z);
-            sgl_v3f(p1.x, p1.y, p1.z);
-            sgl_end();
+            writer.begin(PrimitiveType::LineStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+            writer.vertex(p1.x, p1.y, p1.z);
+            writer.vertex(p2.x, p2.y, p2.z);
+            writer.vertex(p3.x, p3.y, p3.z);
+            writer.vertex(p1.x, p1.y, p1.z);
+            writer.end();
         }
     }
 
@@ -390,10 +397,11 @@ public:
 
     // Main implementation (Vec3)
     void drawPoint(Vec3 pos) {
-        sgl_begin_points();
-        sgl_c4f(currentR_, currentG_, currentB_, currentA_);
-        sgl_v3f(pos.x, pos.y, pos.z);
-        sgl_end();
+        auto& writer = internal::getActiveWriter();
+        writer.begin(PrimitiveType::Points);
+        writer.color(currentR_, currentG_, currentB_, currentA_);
+        writer.vertex(pos.x, pos.y, pos.z);
+        writer.end();
     }
 
     void drawPoint(float x, float y) {
