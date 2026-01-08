@@ -2,12 +2,17 @@ name: Build
 
 on:
   push:
-    branches: ['*']
+    branches: [main]
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -72,17 +77,16 @@ jobs:
         shell: bash
         run: |
           chmod +x examples/build_all.py
-          # Quick build for PRs or non-main branches
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
              echo "Running quick build (AllFeaturesExample only)..."
              ./examples/build_all.py --test-only --verbose
           else
-             # Full build only for main branch push
              echo "Running full build..."
              ./examples/build_all.py --verbose
           fi
 
   build-web:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
 
     steps:
@@ -111,12 +115,10 @@ jobs:
       - name: Build examples (Web)
         run: |
           chmod +x examples/build_all.py
-          # Quick build for PRs or non-main branches
-          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
              echo "Running quick build (AllFeaturesExample only)..."
              ./examples/build_all.py --web-only --test-only --verbose
           else
-             # Full build only for main branch push
              echo "Running full build..."
              ./examples/build_all.py --web-only --verbose
           fi
