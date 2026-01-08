@@ -8,9 +8,6 @@
 using namespace std;
 using namespace tc;
 
-// Include generated shader header
-#include "shaders/lut.glsl.h"
-
 class tcApp : public App {
 public:
     void setup() override;

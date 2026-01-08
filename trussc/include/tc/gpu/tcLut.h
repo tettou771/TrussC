@@ -24,6 +24,7 @@
 #include <algorithm>
 
 #include "../utils/tcLog.h"
+#include "shaders/lut.glsl.h"
 
 namespace trussc {
 
@@ -619,22 +620,24 @@ inline Lut3D createPastel(int size = 32) {
 // LutShader - Shader specialized for LUT color grading
 // =============================================================================
 // Inherits from Shader and provides convenient LUT-specific functionality.
-// Requires a sokol-shdc compiled LUT shader (e.g., from lut.glsl)
+// Built-in LUT shader is automatically available (no external shader needed).
 //
 // Usage:
 //   LutShader lutShader;
-//   lutShader.load(lut_apply_shader_desc);  // sokol-shdc generated
+//   lutShader.load();  // Uses built-in shader
 //   lutShader.setLut(myLut);
-//   lutShader.setSource(videoGrabber.getTexture());
+//   lutShader.setTexture(videoGrabber.getTexture());
 //   lutShader.setBlend(0.8f);
-//
-//   pushShader(lutShader);
-//   drawRect(0, 0, 800, 600);
-//   popShader();
+//   lutShader.draw(0, 0, 800, 600);
 // =============================================================================
 class LutShader : public Shader {
 public:
     LutShader() = default;
+
+    // Load with built-in LUT shader (no external shader file needed)
+    bool load() {
+        return Shader::load(lut_apply_shader_desc);
+    }
 
     // -------------------------------------------------------------------------
     // LUT settings

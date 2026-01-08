@@ -37,8 +37,8 @@ void tcApp::setup() {
     luts[7].load(getDataPath("customLut.cube"));
 #endif
 
-    // Load LUT shader
-    if (!lutShader.load(lut_apply_shader_desc)) {
+    // Load LUT shader (uses built-in shader from TrussC core)
+    if (!lutShader.load()) {
         logError("tcApp") << "Failed to load LUT shader";
     }
 }
