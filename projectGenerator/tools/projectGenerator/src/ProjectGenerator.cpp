@@ -259,6 +259,17 @@ void ProjectGenerator::writeCMakePresets(const string& destPath) {
     macosBuildPreset["jobs"] = 4;
     presets["buildPresets"].push_back(macosBuildPreset);
 
+    // Xcode preset
+    Json xcodePreset;
+    xcodePreset["name"] = "xcode";
+    xcodePreset["displayName"] = "Xcode";
+    xcodePreset["binaryDir"] = "${sourceDir}/xcode";
+    xcodePreset["generator"] = "Xcode";
+    if (!trusscDir.empty()) {
+        xcodePreset["cacheVariables"]["TRUSSC_DIR"] = trusscDir;
+    }
+    presets["configurePresets"].push_back(xcodePreset);
+
 #elif defined(_WIN32)
     // Windows preset with ninja path and environment
     Json windowsPreset;
@@ -626,10 +637,9 @@ void ProjectGenerator::generateXcodeProject(const string& path) {
     if (fs::exists(xcodePath)) {
         fs::remove_all(xcodePath);
     }
-    fs::create_directories(xcodePath);
 
-    string cmd = "cd \"" + xcodePath + "\" && " + getCmakePath() + " -G Xcode ..";
-    log("Running: cmake -G Xcode");
+    string cmd = "cd \"" + path + "\" && " + getCmakePath() + " --preset xcode";
+    log("Running: cmake --preset xcode");
 
     auto [result, output] = executeCommand(cmd);
     if (!output.empty()) {
