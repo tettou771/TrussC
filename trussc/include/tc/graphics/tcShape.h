@@ -56,31 +56,32 @@ inline void endShape(bool close = false) {
     size_t n = verts.size();
     auto& ctx = getDefaultContext();
     Color col = ctx.getColor();
+    auto& writer = internal::getActiveWriter();
 
     // Fill mode: triangle fan (only renders convex shapes correctly)
     if (ctx.isFillEnabled() && n >= 3) {
-        sgl_begin_triangles();
-        sgl_c4f(col.r, col.g, col.b, col.a);
+        writer.begin(PrimitiveType::Triangles);
+        writer.color(col.r, col.g, col.b, col.a);
         // Triangle fan: vertex 0 as center
         for (size_t i = 1; i < n - 1; i++) {
-            sgl_v3f(verts[0].x, verts[0].y, verts[0].z);
-            sgl_v3f(verts[i].x, verts[i].y, verts[i].z);
-            sgl_v3f(verts[i+1].x, verts[i+1].y, verts[i+1].z);
+            writer.vertex(verts[0].x, verts[0].y, verts[0].z);
+            writer.vertex(verts[i].x, verts[i].y, verts[i].z);
+            writer.vertex(verts[i+1].x, verts[i+1].y, verts[i+1].z);
         }
-        sgl_end();
+        writer.end();
     }
 
     // Stroke mode: line strip
     if (ctx.isStrokeEnabled() && n >= 2) {
-        sgl_c4f(col.r, col.g, col.b, col.a);
-        sgl_begin_line_strip();
+        writer.begin(PrimitiveType::LineStrip);
+        writer.color(col.r, col.g, col.b, col.a);
         for (size_t i = 0; i < n; i++) {
-            sgl_v3f(verts[i].x, verts[i].y, verts[i].z);
+            writer.vertex(verts[i].x, verts[i].y, verts[i].z);
         }
         if (close && n > 2) {
-            sgl_v3f(verts[0].x, verts[0].y, verts[0].z);
+            writer.vertex(verts[0].x, verts[0].y, verts[0].z);
         }
-        sgl_end();
+        writer.end();
     }
 
     internal::shapeVertices.clear();

@@ -116,14 +116,13 @@ public:
     void begin() {
         if (!loaded) return;
 
-        // Flush sokol_gl
-        sgl_draw();
-
         // Push to stack
         internal::shaderStack.push_back(this);
 
-        // Apply pipeline
-        sg_apply_pipeline(pipeline);
+        // Increment layer for post-shader sokol_gl draws
+        // (shader draws will be deferred and executed between layers)
+        internal::sglLayerNext++;
+        sgl_layer(internal::sglLayerNext);
 
         // Call virtual hook
         onBegin();
@@ -145,12 +144,8 @@ public:
 
         // Restore sokol_gl state if no more shaders
         if (internal::shaderStack.empty()) {
-            sgl_defaults();
-            // Restore projection (will be set by setupScreenOrtho in main loop)
-            sgl_matrix_mode_projection();
-            sgl_ortho(0.0f, (float)sapp_width(), (float)sapp_height(), 0.0f, -10000.0f, 10000.0f);
-            sgl_matrix_mode_modelview();
-            sgl_load_identity();
+            // Reset sokol_gfx state cache so sokol_gl can apply its pipeline
+            sg_reset_state_cache();
         }
     }
 
@@ -160,52 +155,56 @@ public:
 
     void setUniform(int slot, float value) {
         float data[4] = { value, 0, 0, 0 };
-        sg_range range = { data, sizeof(data) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, data, sizeof(data));
     }
 
     void setUniform(int slot, const Vec2& v) {
         float data[4] = { v.x, v.y, 0, 0 };
-        sg_range range = { data, sizeof(data) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, data, sizeof(data));
     }
 
     void setUniform(int slot, const Vec3& v) {
         float data[4] = { v.x, v.y, v.z, 0 };
-        sg_range range = { data, sizeof(data) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, data, sizeof(data));
     }
 
     void setUniform(int slot, const Vec4& v) {
         float data[4] = { v.x, v.y, v.z, v.w };
-        sg_range range = { data, sizeof(data) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, data, sizeof(data));
     }
 
     void setUniform(int slot, const Color& c) {
         float data[4] = { c.r, c.g, c.b, c.a };
-        sg_range range = { data, sizeof(data) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, data, sizeof(data));
     }
 
     void setUniform(int slot, const std::vector<float>& v) {
-        sg_range range = { v.data(), v.size() * sizeof(float) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, v.data(), v.size() * sizeof(float));
     }
 
     void setUniform(int slot, const std::vector<Vec2>& v) {
-        sg_range range = { v.data(), v.size() * sizeof(Vec2) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, v.data(), v.size() * sizeof(Vec2));
     }
 
     void setUniform(int slot, const std::vector<Vec4>& v) {
-        sg_range range = { v.data(), v.size() * sizeof(Vec4) };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, v.data(), v.size() * sizeof(Vec4));
     }
 
     void setUniform(int slot, const void* data, size_t size) {
-        sg_range range = { data, size };
-        sg_apply_uniforms(slot, &range);
+        storeUniform(slot, data, size);
+    }
+
+    // Store uniform data for later application
+    void storeUniform(int slot, const void* data, size_t size) {
+        pendingUniforms[slot].assign((const uint8_t*)data, (const uint8_t*)data + size);
+    }
+
+    // Apply all stored uniforms
+    void applyUniforms() {
+        for (auto& [slot, data] : pendingUniforms) {
+            sg_range range = { data.data(), data.size() };
+            sg_apply_uniforms(slot, &range);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -221,15 +220,41 @@ public:
     }
 
     // -------------------------------------------------------------------------
-    // Drawing (called by ShaderWriter)
+    // Drawing (called by ShaderWriter) - defers draw to present()
     // -------------------------------------------------------------------------
 
     void submitVertices(const ShaderVertex* data, int count, PrimitiveType type) {
         if (count == 0) return;
 
-        // Update vertex buffer
-        sg_range range = { data, (size_t)count * sizeof(ShaderVertex) };
-        sg_update_buffer(vertexBuffer, &range);
+        // Lines/LineStrip are not supported in shader mode (use StrokeMesh instead)
+        if (type == PrimitiveType::Lines || type == PrimitiveType::LineStrip) {
+            return;
+        }
+
+        // Defer this draw - will be executed in present() between sokol_gl layers
+        DeferredShaderDraw draw;
+        draw.layerId = internal::sglLayerNext - 1;  // Layer before this shader
+        draw.shader = this;
+        draw.vertices.assign(data, data + count);
+        draw.type = type;
+        internal::deferredShaderDraws.push_back(std::move(draw));
+    }
+
+    // Execute a deferred draw (called from present())
+    void executeDeferredDraw(const std::vector<ShaderVertex>& vertices, PrimitiveType type) {
+        if (vertices.empty()) return;
+
+        // Ensure pipeline and uniforms are applied
+        sg_apply_pipeline(pipeline);
+        applyUniforms();
+
+        // Append to vertex buffer
+        sg_range range = { vertices.data(), vertices.size() * sizeof(ShaderVertex) };
+        int vertexOffset = sg_append_buffer(vertexBuffer, &range);
+        if (vertexOffset < 0) {
+            logWarning("Shader") << "Vertex buffer overflow, skipping draw";
+            return;
+        }
 
         // Setup bindings
         sg_bindings bind = {};
@@ -242,13 +267,13 @@ public:
         }
 
         setupBindings(bind);
-        sg_apply_bindings(&bind);
 
-        // Handle quads -> triangles conversion
+        // Generate triangle indices
+        std::vector<uint16_t> indices;
+        int count = (int)vertices.size();
+
         if (type == PrimitiveType::Quads) {
-            // Convert quads to triangles
             int numQuads = count / 4;
-            std::vector<uint16_t> indices;
             indices.reserve(numQuads * 6);
             for (int i = 0; i < numQuads; i++) {
                 int base = i * 4;
@@ -259,17 +284,51 @@ public:
                 indices.push_back(base + 2);
                 indices.push_back(base + 3);
             }
-
-            // Update index buffer
-            sg_range idxRange = { indices.data(), indices.size() * sizeof(uint16_t) };
-            sg_update_buffer(indexBuffer, &idxRange);
-
-            bind.index_buffer = indexBuffer;
-            sg_apply_bindings(&bind);
-            sg_draw(0, (int)indices.size(), 1);
-        } else {
-            sg_draw(0, count, 1);
+        } else if (type == PrimitiveType::TriangleStrip) {
+            if (count >= 3) {
+                indices.reserve((count - 2) * 3);
+                for (int i = 0; i < count - 2; i++) {
+                    if (i % 2 == 0) {
+                        indices.push_back(i);
+                        indices.push_back(i + 1);
+                        indices.push_back(i + 2);
+                    } else {
+                        indices.push_back(i + 1);
+                        indices.push_back(i);
+                        indices.push_back(i + 2);
+                    }
+                }
+            }
+        } else if (type == PrimitiveType::Triangles) {
+            indices.reserve(count);
+            for (int i = 0; i < count; i++) {
+                indices.push_back((uint16_t)i);
+            }
+        } else if (type == PrimitiveType::Points) {
+            return;
         }
+
+        // Adjust indices for vertex buffer offset
+        int baseVertex = vertexOffset / sizeof(ShaderVertex);
+        for (auto& idx : indices) {
+            idx += baseVertex;
+        }
+
+        // Append to index buffer
+        sg_range idxRange = { indices.data(), indices.size() * sizeof(uint16_t) };
+        int indexOffset = sg_append_buffer(indexBuffer, &idxRange);
+        if (indexOffset < 0) {
+            logWarning("Shader") << "Index buffer overflow, skipping draw";
+            return;
+        }
+
+        bind.index_buffer = indexBuffer;
+        bind.vertex_buffer_offsets[0] = 0;
+        sg_apply_bindings(&bind);
+
+        // Draw
+        int baseElement = indexOffset / sizeof(uint16_t);
+        sg_draw(baseElement, (int)indices.size(), 1);
     }
 
 protected:
@@ -292,6 +351,9 @@ protected:
     std::unordered_map<int, TextureBinding> pendingTextures;
     std::unordered_map<int, ViewBinding> pendingViews;
 
+    // Pending uniform data (stored for reapplication after pipeline switch)
+    std::unordered_map<int, std::vector<uint8_t>> pendingUniforms;
+
     // -------------------------------------------------------------------------
     // Virtual hooks for derived classes
     // -------------------------------------------------------------------------
@@ -303,6 +365,11 @@ protected:
         desc.layout.attrs[0].format = SG_VERTEXFORMAT_FLOAT3;  // position
         desc.layout.attrs[1].format = SG_VERTEXFORMAT_FLOAT2;  // texcoord
         desc.layout.attrs[2].format = SG_VERTEXFORMAT_FLOAT4;  // color
+
+        // Explicitly disable depth test and face culling
+        desc.depth.compare = SG_COMPAREFUNC_ALWAYS;
+        desc.depth.write_enabled = false;
+        desc.cull_mode = SG_CULLMODE_NONE;
 
         // Default alpha blending
         desc.colors[0].blend.enabled = true;
@@ -317,17 +384,18 @@ protected:
     }
 
     virtual void createVertexBuffer() {
-        // Dynamic vertex buffer (max ~64K vertices)
-        // usage.immutable defaults to false (dynamic buffer)
+        // Vertex buffer for append mode (stream usage)
         sg_buffer_desc vbufDesc = {};
         vbufDesc.size = 65536 * sizeof(ShaderVertex);
+        vbufDesc.usage.stream_update = true;  // Enable append mode
         vbufDesc.label = "tc_shader_vertices";
         vertexBuffer = sg_make_buffer(&vbufDesc);
 
-        // Index buffer for quads (dynamic)
+        // Index buffer for append mode
         sg_buffer_desc ibufDesc = {};
         ibufDesc.size = 65536 * sizeof(uint16_t);
         ibufDesc.usage.index_buffer = true;
+        ibufDesc.usage.stream_update = true;  // Enable append mode
         ibufDesc.label = "tc_shader_indices";
         indexBuffer = sg_make_buffer(&ibufDesc);
     }
@@ -360,6 +428,14 @@ private:
 inline void ShaderWriter::end() {
     Shader* shader = internal::getCurrentShader();
     if (shader && !vertices.empty()) {
+        // Apply current transformation matrix to vertices
+        Mat4 mat = getCurrentMatrix();
+        for (auto& v : vertices) {
+            Vec3 transformed = mat * Vec3(v.x, v.y, v.z);
+            v.x = transformed.x;
+            v.y = transformed.y;
+            v.z = transformed.z;
+        }
         shader->submitVertices(vertices.data(), (int)vertices.size(), currentType);
     }
     vertices.clear();
@@ -385,6 +461,30 @@ inline void resetShaderStack() {
     while (!internal::shaderStack.empty()) {
         popShader();
     }
+}
+
+// Flush deferred shader draws (called from present())
+// Draws sokol_gl layers interleaved with shader draws for correct ordering
+inline void flushDeferredShaderDraws() {
+    // For each layer: draw sokol_gl, then execute shader draws for that layer
+    for (int layer = 0; layer <= internal::sglLayerNext; layer++) {
+        // Draw sokol_gl content for this layer
+        sgl_draw_layer(layer);
+
+        // Execute deferred shader draws that belong after this layer
+        for (auto& draw : internal::deferredShaderDraws) {
+            if (draw.layerId == layer) {
+                draw.shader->executeDeferredDraw(draw.vertices, draw.type);
+            }
+        }
+    }
+
+    // Clear deferred draws for next frame
+    internal::deferredShaderDraws.clear();
+
+    // Reset layer for next frame
+    internal::sglLayerNext = 0;
+    sgl_layer(0);
 }
 
 // ---------------------------------------------------------------------------

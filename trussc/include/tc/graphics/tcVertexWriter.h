@@ -128,12 +128,29 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// Deferred shader draw - for proper draw ordering
+// ---------------------------------------------------------------------------
+struct DeferredShaderDraw {
+    int layerId;                        // sokol_gl layer before this draw
+    Shader* shader;                     // shader to use
+    std::vector<ShaderVertex> vertices; // vertex data
+    PrimitiveType type;                 // primitive type
+};
+
+// ---------------------------------------------------------------------------
 // Global shader stack and vertex writers
 // ---------------------------------------------------------------------------
 namespace internal {
     inline std::vector<Shader*> shaderStack;
     inline SglWriter sglWriter;
     inline ShaderWriter shaderWriter;
+
+    // sokol_gl layer management for proper draw ordering with shaders
+    // Each pushShader() increments this, so post-shader draws go to a new layer
+    inline int sglLayerNext = 0;
+
+    // Deferred shader draws - executed in present() for proper ordering
+    inline std::vector<DeferredShaderDraw> deferredShaderDraws;
 
     inline Shader* getCurrentShader() {
         return shaderStack.empty() ? nullptr : shaderStack.back();

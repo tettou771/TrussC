@@ -514,12 +514,17 @@ inline void clear(const Color& c) {
     clear(c.r, c.g, c.b, c.a);
 }
 
+// Forward declaration (implemented in tcShader.h after Shader class)
+void flushDeferredShaderDraws();
+
 // End pass and commit (call at end of draw)
 inline void present() {
     // Skip in headless mode (no graphics context)
     if (headless::isActive()) return;
 
-    sgl_draw();
+    // Flush sokol_gl layers and deferred shader draws
+    flushDeferredShaderDraws();
+
     sg_end_pass();
     internal::inSwapchainPass = false;
     sg_commit();

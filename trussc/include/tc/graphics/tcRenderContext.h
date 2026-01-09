@@ -355,6 +355,8 @@ public:
     }
 
     // Main implementation (Vec3)
+    // NOTE: drawLine uses GL_LINES (1px fixed width, not affected by strokeWeight)
+    //       For thick lines or shader support, use StrokeMesh instead
     void drawLine(Vec3 p1, Vec3 p2) {
         auto& writer = internal::getActiveWriter();
         writer.begin(PrimitiveType::Lines);

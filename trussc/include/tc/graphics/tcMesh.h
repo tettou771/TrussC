@@ -366,58 +366,62 @@ public:
         bool useColors = hasColors() && colors_.size() >= vertices_.size();
         bool useIndices = hasIndices();
         Color defColor = getDefaultContext().getColor();
+        auto& writer = internal::getActiveWriter();
 
-        // Start sokol_gl draw mode
+        // Convert PrimitiveMode to PrimitiveType and begin
+        PrimitiveType primType;
         switch (mode_) {
             case PrimitiveMode::Triangles:
-                sgl_begin_triangles();
+                primType = PrimitiveType::Triangles;
                 break;
             case PrimitiveMode::TriangleStrip:
-                sgl_begin_triangle_strip();
+                primType = PrimitiveType::TriangleStrip;
                 break;
             case PrimitiveMode::TriangleFan:
-                // sokol_gl doesn't have triangle_fan, use triangles instead
+                // No direct support, expand to triangles
                 drawTriangleFan(useColors, useIndices);
                 return;
             case PrimitiveMode::Lines:
-                sgl_begin_lines();
+                primType = PrimitiveType::Lines;
                 break;
             case PrimitiveMode::LineStrip:
-                sgl_begin_line_strip();
+                primType = PrimitiveType::LineStrip;
                 break;
             case PrimitiveMode::LineLoop:
-                // sokol_gl doesn't have line_loop, use line_strip + close
+                // No direct support, use line_strip + close
                 drawLineLoop(useColors, useIndices);
                 return;
             case PrimitiveMode::Points:
-                sgl_begin_points();
+                primType = PrimitiveType::Points;
                 break;
         }
+
+        writer.begin(primType);
 
         // Add vertices
         if (useIndices) {
             for (auto idx : indices_) {
                 if (idx < vertices_.size()) {
                     if (useColors) {
-                        sgl_c4f(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
+                        writer.color(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
                     } else {
-                        sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                        writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                     }
-                    sgl_v3f(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
+                    writer.vertex(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
                 }
             }
         } else {
             for (size_t i = 0; i < vertices_.size(); i++) {
                 if (useColors) {
-                    sgl_c4f(colors_[i].r, colors_[i].g, colors_[i].b, colors_[i].a);
+                    writer.color(colors_[i].r, colors_[i].g, colors_[i].b, colors_[i].a);
                 } else {
-                    sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                    writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                 }
-                sgl_v3f(vertices_[i].x, vertices_[i].y, vertices_[i].z);
+                writer.vertex(vertices_[i].x, vertices_[i].y, vertices_[i].z);
             }
         }
 
-        sgl_end();
+        writer.end();
     }
 
     // Draw with lighting (CPU-side lighting calculation)
@@ -658,7 +662,8 @@ private:
         if (vertices_.size() < 3) return;
 
         Color defColor = getDefaultContext().getColor();
-        sgl_begin_triangles();
+        auto& writer = internal::getActiveWriter();
+        writer.begin(PrimitiveType::Triangles);
 
         if (useIndices && indices_.size() >= 3) {
             // Using indices
@@ -670,11 +675,11 @@ private:
                 for (auto idx : {i0, i1, i2}) {
                     if (idx < vertices_.size()) {
                         if (useColors && idx < colors_.size()) {
-                            sgl_c4f(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
+                            writer.color(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
                         } else {
-                            sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                            writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                         }
-                        sgl_v3f(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
+                        writer.vertex(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
                     }
                 }
             }
@@ -683,16 +688,16 @@ private:
             for (size_t i = 1; i < vertices_.size() - 1; i++) {
                 for (size_t j : {(size_t)0, i, i + 1}) {
                     if (useColors) {
-                        sgl_c4f(colors_[j].r, colors_[j].g, colors_[j].b, colors_[j].a);
+                        writer.color(colors_[j].r, colors_[j].g, colors_[j].b, colors_[j].a);
                     } else {
-                        sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                        writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                     }
-                    sgl_v3f(vertices_[j].x, vertices_[j].y, vertices_[j].z);
+                    writer.vertex(vertices_[j].x, vertices_[j].y, vertices_[j].z);
                 }
             }
         }
 
-        sgl_end();
+        writer.end();
     }
 
     // Draw Line Loop as line_strip (close at end)
@@ -700,48 +705,49 @@ private:
         if (vertices_.size() < 2) return;
 
         Color defColor = getDefaultContext().getColor();
-        sgl_begin_line_strip();
+        auto& writer = internal::getActiveWriter();
+        writer.begin(PrimitiveType::LineStrip);
 
         if (useIndices && !indices_.empty()) {
             for (auto idx : indices_) {
                 if (idx < vertices_.size()) {
                     if (useColors && idx < colors_.size()) {
-                        sgl_c4f(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
+                        writer.color(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
                     } else {
-                        sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                        writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                     }
-                    sgl_v3f(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
+                    writer.vertex(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
                 }
             }
             // Close
             if (!indices_.empty() && indices_[0] < vertices_.size()) {
                 auto idx = indices_[0];
                 if (useColors && idx < colors_.size()) {
-                    sgl_c4f(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
+                    writer.color(colors_[idx].r, colors_[idx].g, colors_[idx].b, colors_[idx].a);
                 } else {
-                    sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                    writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                 }
-                sgl_v3f(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
+                writer.vertex(vertices_[idx].x, vertices_[idx].y, vertices_[idx].z);
             }
         } else {
             for (size_t i = 0; i < vertices_.size(); i++) {
                 if (useColors) {
-                    sgl_c4f(colors_[i].r, colors_[i].g, colors_[i].b, colors_[i].a);
+                    writer.color(colors_[i].r, colors_[i].g, colors_[i].b, colors_[i].a);
                 } else {
-                    sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                    writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
                 }
-                sgl_v3f(vertices_[i].x, vertices_[i].y, vertices_[i].z);
+                writer.vertex(vertices_[i].x, vertices_[i].y, vertices_[i].z);
             }
             // Close
             if (useColors) {
-                sgl_c4f(colors_[0].r, colors_[0].g, colors_[0].b, colors_[0].a);
+                writer.color(colors_[0].r, colors_[0].g, colors_[0].b, colors_[0].a);
             } else {
-                sgl_c4f(defColor.r, defColor.g, defColor.b, defColor.a);
+                writer.color(defColor.r, defColor.g, defColor.b, defColor.a);
             }
-            sgl_v3f(vertices_[0].x, vertices_[0].y, vertices_[0].z);
+            writer.vertex(vertices_[0].x, vertices_[0].y, vertices_[0].z);
         }
 
-        sgl_end();
+        writer.end();
     }
 
     // Draw Triangle Fan with texture

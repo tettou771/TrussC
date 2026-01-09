@@ -1,85 +1,165 @@
 // =============================================================================
-// shaderExample - Cross-Platform Shader Demo
-// =============================================================================
-// Demonstrates 4 fullscreen shader effects using FullscreenShader class.
-//
-// Controls:
-//   1-4: Select effect
-//   SPACE: Cycle effects
+// shaderExample - Demonstrating pushShader() with various draw functions
 // =============================================================================
 
 #include "tcApp.h"
-
-// Shader desc getter function array
-typedef const sg_shader_desc* (*ShaderDescFunc)(sg_backend);
-static ShaderDescFunc shaderDescFuncs[] = {
-    gradient_shader_desc,
-    ripple_shader_desc,
-    plasma_shader_desc,
-    mouse_follow_shader_desc
-};
+#include "TrussC.h"
 
 void tcApp::setup() {
-    logNotice("tcApp") << "shaderExample: Cross-Platform Shader Demo";
-    logNotice("tcApp") << "  Press 1-4 to switch effects";
-    logNotice("tcApp") << "  Press SPACE to cycle effects";
+    logNotice("tcApp") << "Shader Example - pushShader() demo";
+    logNotice("tcApp") << "  Press UP/DOWN to adjust effect strength";
 
-    // Load all 4 shaders
-    for (int i = 0; i < NUM_EFFECTS; i++) {
-        if (!shaders[i].load(shaderDescFuncs[i])) {
-            logError("tcApp") << "Failed to load shader " << i;
-            return;
-        }
+    // Load shader
+    if (!shader.load(rainbow_shader_desc)) {
+        logError("tcApp") << "Failed to load shader";
     }
 
-    logNotice("tcApp") << "All 4 effects loaded successfully!";
+    createStarMesh();
+    createStrokeMesh();
+}
+
+void tcApp::createStarMesh() {
+    // Create a 5-pointed star mesh
+    starMesh.setMode(PrimitiveMode::TriangleFan);
+    starMesh.clear();
+
+    float outerRadius = 40.0f;
+    float innerRadius = 16.0f;
+    int points = 5;
+
+    // Center vertex
+    starMesh.addVertex(0, 0, 0);
+    starMesh.addColor(colors::white);
+
+    // Star points
+    for (int i = 0; i <= points * 2; i++) {
+        float angle = (float)i / (points * 2) * TAU - TAU * 0.25f;
+        float radius = (i % 2 == 0) ? outerRadius : innerRadius;
+        float x = cos(angle) * radius;
+        float y = sin(angle) * radius;
+        starMesh.addVertex(x, y, 0);
+        starMesh.addColor(colors::yellow);
+    }
+}
+
+void tcApp::createStrokeMesh() {
+    // Create a zigzag stroke
+    strokeMesh.addVertex(-50, -15);
+    strokeMesh.addVertex(-20, 15);
+    strokeMesh.addVertex(20, -15);
+    strokeMesh.addVertex(50, 15);
+
+    strokeMesh.setWidth(8.0f);
+    strokeMesh.setCapType(StrokeMesh::CAP_ROUND);
+    strokeMesh.setJoinType(StrokeMesh::JOIN_ROUND);
+    strokeMesh.setColor(colors::hotPink);
+    strokeMesh.update();
+}
+
+void tcApp::drawShapes() {
+    // Rectangle
+    setColor(colors::coral);
+    drawRect(-60, 55, 120, 50);
+
+    // Circle
+    setColor(colors::skyBlue);
+    drawCircle(0, 150, 35);
+
+    // Triangle
+    setColor(colors::limeGreen);
+    drawTriangle(-45, 250, 45, 250, 0, 200);
+
+    // Line (NOTE: NOT rendered in shader mode - use StrokeMesh instead)
+    setColor(colors::cyan);
+    drawLine(-50, 280, 50, 310);
+
+    // beginShape polygon
+    setColor(colors::orchid);
+    beginShape();
+    vertex(-35, 340);
+    vertex(35, 340);
+    vertex(45, 380);
+    vertex(0, 410);
+    vertex(-45, 380);
+    endShape(true);
+
+    // Star Mesh
+    pushMatrix();
+    translate(0, 460);
+    setColor(colors::gold);
+    starMesh.draw();
+    popMatrix();
+
+    // StrokeMesh (shader-compatible alternative to drawLine)
+    pushMatrix();
+    translate(0, 530);
+    strokeMesh.draw();
+    popMatrix();
 }
 
 void tcApp::update() {
-    params.time = getElapsedTime();
-    params.resolution[0] = (float)getWindowWidth();
-    params.resolution[1] = (float)getWindowHeight();
-    params.mouse[0] = (float)getGlobalMouseX();
-    params.mouse[1] = (float)getGlobalMouseY();
 }
 
 void tcApp::draw() {
-    clear(0.0f);
+    clear(0.15f);
 
-    if (!shaders[currentEffect].isLoaded()) {
-        setColor(1.0f, 0.3f, 0.3f);
-        drawBitmapString("Shader failed to load", 10, 20);
-        return;
-    }
+    float time = getElapsedTimef();
+    float winW = (float)getWindowWidth();
+    float winH = (float)getWindowHeight();
 
-    // Draw fullscreen effect
-    shaders[currentEffect].setParams(params);
-    shaders[currentEffect].draw();
+    // Set shader uniforms
+    vs_params_t vsParams = {};
+    vsParams.screenSize[0] = winW;
+    vsParams.screenSize[1] = winH;
 
-    // Display info
-    string info = "Effect " + to_string(currentEffect + 1) + ": " + getEffectName(currentEffect);
-    drawBitmapStringHighlight(info, 10, 20,
-        Color(0, 0, 0, 0.7f), Color(1, 1, 1));
-    drawBitmapStringHighlight("Press 1-4 or SPACE to change", 10, 40,
-        Color(0, 0, 0, 0.7f), Color(0.7f, 0.7f, 0.7f));
+    effect_params_t fsParams = {};
+    fsParams.time = time;
+    fsParams.effectStrength = effectStrength;
+
+    // =========================================================================
+    // LEFT SIDE: Normal drawing (no shader)
+    // =========================================================================
+    pushMatrix();
+    translate(winW * 0.25f, 0);
+
+    setColor(colors::white);
+    drawBitmapString("Normal", -30, 30);
+
+    drawShapes();
+
+    popMatrix();
+
+    // =========================================================================
+    // RIGHT SIDE: With shader applied
+    // =========================================================================
+    pushMatrix();
+    translate(winW * 0.75f, 0);
+
+    setColor(colors::white);
+    drawBitmapString("With Shader", -45, 30);
+
+    // Apply shader to all following draw calls
+    pushShader(shader);
+    shader.setUniform(1, &vsParams, sizeof(vsParams));
+    shader.setUniform(0, &fsParams, sizeof(fsParams));
+
+    drawShapes();
+
+    popShader();
+
+    popMatrix();
+
+    // =========================================================================
+    // UI (top of screen) - must be drawn before shader usage
+    // =========================================================================
+    setColor(colors::white);
+    drawBitmapString("UP/DOWN: Adjust strength (" + to_string((int)(effectStrength * 100)) + "%)", 10, winH - 20);
 }
 
 void tcApp::keyPressed(int key) {
-    if (key == '1') currentEffect = 0;
-    else if (key == '2') currentEffect = 1;
-    else if (key == '3') currentEffect = 2;
-    else if (key == '4') currentEffect = 3;
-    else if (key == ' ') {
-        currentEffect = (currentEffect + 1) % NUM_EFFECTS;
+    if (key == KEY_UP) {
+        effectStrength = std::min(1.0f, effectStrength + 0.1f);
+    } else if (key == KEY_DOWN) {
+        effectStrength = std::max(0.0f, effectStrength - 0.1f);
     }
-}
-
-const char* tcApp::getEffectName(int index) {
-    static const char* names[] = {
-        "Gradient",
-        "Ripple",
-        "Plasma",
-        "Mouse Follow"
-    };
-    return names[index];
 }

@@ -42,6 +42,7 @@ These tools are always available in MCP mode:
 | Tool | Arguments | Description |
 |------|-----------|-------------|
 | `get_screenshot` | (none) | Get current screen as Base64 PNG image |
+| `save_screenshot` | `path` | Save screenshot to file (returns `{"path":"...", "status":"ok"}`) |
 | `enable_input_monitor` | `enabled` | Enable/Disable user input monitoring logs |
 
 ## Creating Custom Tools
@@ -123,9 +124,35 @@ You can manually interact with the app using named pipes (FIFO), useful for test
 
 ```bash
 mkfifo input_pipe
-TRUSSC_MCP=1 ./myApp < input_pipe | cat & 
+TRUSSC_MCP=1 ./myApp < input_pipe | cat &
 echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}' > input_pipe
 ```
+
+### Taking Screenshots from Shell
+
+**IMPORTANT for AI agents**: Do NOT use macOS `screencapture` or similar OS commands. TrussC apps may render with Metal/OpenGL and the OS cannot capture the screen correctly. Always use the MCP `save_screenshot` tool.
+
+```bash
+# One-liner to take a screenshot (waits for app to start, then saves to /tmp/screenshot.png)
+cd /path/to/your/app
+export TRUSSC_MCP=1
+(
+  sleep 1.5
+  echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}'
+  sleep 1
+  echo '{"jsonrpc":"2.0","method":"tools/call","id":2,"params":{"name":"save_screenshot","arguments":{"path":"/tmp/screenshot.png"}}}'
+  sleep 1
+) | ./bin/myApp.app/Contents/MacOS/myApp &
+sleep 4
+pkill -f "myApp"
+# Screenshot is now at /tmp/screenshot.png
+```
+
+This method:
+1. Starts the app in MCP mode
+2. Sends `initialize` after 1.5 seconds (waits for app to start)
+3. Sends `save_screenshot` after another second
+4. Kills the app after screenshot is saved
 
 ### Via MCP Clients (Claude Desktop, etc.)
 Configure your MCP client to run the executable with the environment variable set.

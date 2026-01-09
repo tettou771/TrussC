@@ -1,9 +1,22 @@
+// =============================================================================
+// shaderExample - Demonstrating pushShader() with various draw functions
+// =============================================================================
+// Shows how custom shaders can be applied to any geometry:
+//   - drawRect, drawCircle, drawTriangle, drawEllipse
+//   - beginShape/endShape
+//   - Mesh.draw()
+//   - StrokeMesh.draw()
+// NOTE: drawLine is NOT supported in shader mode (use StrokeMesh instead)
+// =============================================================================
+
 #pragma once
 
 #include <TrussC.h>
-#include "shaders/effects.glsl.h"
 using namespace std;
 using namespace tc;
+
+// Include generated shader header
+#include "shaders/effect.glsl.h"
 
 class tcApp : public App {
 public:
@@ -13,12 +26,13 @@ public:
     void keyPressed(int key) override;
 
 private:
-    static constexpr int NUM_EFFECTS = 4;
+    Shader shader;
+    Mesh starMesh;
+    StrokeMesh strokeMesh;
 
-    FullscreenShader shaders[NUM_EFFECTS];
-    fs_params_t params = {};
+    float effectStrength = 0.8f;
 
-    int currentEffect = 0;
-
-    const char* getEffectName(int index);
+    void createStarMesh();
+    void createStrokeMesh();
+    void drawShapes();
 };
