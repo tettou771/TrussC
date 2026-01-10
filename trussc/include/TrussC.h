@@ -1096,6 +1096,19 @@ inline void setCircleResolution(int res) {
     getDefaultContext().setCircleResolution(res);
 }
 
+inline int getCircleResolution() {
+    return getDefaultContext().getCircleResolution();
+}
+
+// Check fill/stroke state
+inline bool isFillEnabled() {
+    return getDefaultContext().isFillEnabled();
+}
+
+inline bool isStrokeEnabled() {
+    return getDefaultContext().isStrokeEnabled();
+}
+
 // ---------------------------------------------------------------------------
 // Bitmap string drawing (delegated to RenderContext)
 // ---------------------------------------------------------------------------

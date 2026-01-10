@@ -82,11 +82,66 @@ function generateSketchAPI(api) {
                         value: c.value,
                         desc: c.description
                     }));
-            
+
+                // Process types (class definitions with properties and methods)
+                const types = [];
+                if (api.types) {
+                    for (const type of api.types) {
+                        if (!type.sketch) continue;
+
+                        const typeData = {
+                            name: type.name,
+                            desc: type.description
+                        };
+
+                        // Constructor
+                        if (type.constructor) {
+                            typeData.constructor = {
+                                signatures: type.constructor.signatures.map(s => s.params || ''),
+                                snippet: type.constructor.snippet
+                            };
+                        }
+
+                        // Properties
+                        if (type.properties) {
+                            typeData.properties = type.properties.map(p => ({
+                                name: p.name,
+                                type: p.type,
+                                desc: p.description
+                            }));
+                        }
+
+                        // Methods (instance)
+                        if (type.methods) {
+                            typeData.methods = type.methods.map(m => ({
+                                name: m.name,
+                                return: m.return,
+                                signatures: m.signatures.map(s => s.params || ''),
+                                desc: m.description,
+                                snippet: m.snippet
+                            }));
+                        }
+
+                        // Static methods
+                        if (type.static_methods) {
+                            typeData.static_methods = type.static_methods.map(m => ({
+                                name: m.name,
+                                return: m.return,
+                                signatures: m.signatures.map(s => s.params || ''),
+                                desc: m.description,
+                                snippet: m.snippet
+                            }));
+                        }
+
+                        types.push(typeData);
+                    }
+                }
+
                 const output = {
                     categories: categories,
                     constants: constants,
-                    keywords: api.keywords
+                    keywords: api.keywords,
+                    types: types
                 };
             
                 // Generate JavaScript source

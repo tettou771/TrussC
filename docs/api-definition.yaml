@@ -400,6 +400,78 @@ categories:
         sketch: true
         snippet: "drawBitmapString(${1:\"text\"}, ${2:x}, ${3:y})"
 
+      - name: setTextAlign
+        return: "void"
+        signatures:
+          - params: "TextAlign horizontal"
+            params_simple: "horizontal"
+          - params: "TextAlign horizontal, TextAlign vertical"
+            params_simple: "horizontal, vertical"
+        description: "Set text alignment"
+        description_ja: "テキストの配置を設定"
+        sketch: true
+        snippet: "setTextAlign(TextAlign::${1:Left})"
+
+      - name: getTextAlignH
+        return: "TextAlign"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get horizontal text alignment"
+        description_ja: "水平方向のテキスト配置を取得"
+        sketch: true
+        snippet: "getTextAlignH()"
+
+      - name: getTextAlignV
+        return: "TextAlign"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get vertical text alignment"
+        description_ja: "垂直方向のテキスト配置を取得"
+        sketch: true
+        snippet: "getTextAlignV()"
+
+      - name: getBitmapFontHeight
+        return: "float"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get bitmap font height"
+        description_ja: "ビットマップフォントの高さを取得"
+        sketch: true
+        snippet: "getBitmapFontHeight()"
+
+      - name: getBitmapStringWidth
+        return: "float"
+        signatures:
+          - params: "const string& text"
+            params_simple: "text"
+        description: "Get text width"
+        description_ja: "テキストの幅を取得"
+        sketch: true
+        snippet: "getBitmapStringWidth(${1:\"text\"})"
+
+      - name: getBitmapStringHeight
+        return: "float"
+        signatures:
+          - params: "const string& text"
+            params_simple: "text"
+        description: "Get text height"
+        description_ja: "テキストの高さを取得"
+        sketch: true
+        snippet: "getBitmapStringHeight(${1:\"text\"})"
+
+      - name: getBitmapStringBBox
+        return: "Rect"
+        signatures:
+          - params: "const string& text, float x, float y"
+            params_simple: "text, x, y"
+        description: "Get text bounding box"
+        description_ja: "テキストのバウンディングボックスを取得"
+        sketch: true
+        snippet: "getBitmapStringBBox(${1:\"text\"}, ${2:x}, ${3:y})"
+
   # ==========================================================================
   # Graphics - Style
   # ==========================================================================
@@ -489,6 +561,47 @@ categories:
         description_ja: "現在のストローク結合部スタイルを取得"
         sketch: true
         snippet: "getStrokeJoin()"
+
+      - name: isFillEnabled
+        return: "bool"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Check if fill mode is enabled"
+        description_ja: "塗りつぶしモードが有効か確認"
+        sketch: true
+        snippet: "isFillEnabled()"
+
+      - name: isStrokeEnabled
+        return: "bool"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Check if stroke mode is enabled"
+        description_ja: "ストロークモードが有効か確認"
+        sketch: true
+        snippet: "isStrokeEnabled()"
+
+      - name: setCircleResolution
+        return: "void"
+        signatures:
+          - params: "int resolution"
+            params_simple: "resolution"
+        description: "Set circle segment count"
+        description_ja: "円の分割数を設定"
+        of_equivalent: "ofSetCircleResolution"
+        sketch: true
+        snippet: "setCircleResolution(${1:32})"
+
+      - name: getCircleResolution
+        return: "int"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get circle segment count"
+        description_ja: "円の分割数を取得"
+        sketch: true
+        snippet: "getCircleResolution()"
 
   # ==========================================================================
   # Transform
@@ -2914,3 +3027,448 @@ keywords:
   - "null"
   # Modifiers
   - "const"
+
+# ==========================================================================
+# Types (class definitions with properties and methods)
+# ==========================================================================
+# This section defines class types for context-aware autocomplete.
+# - properties: member variables (shown after "instance.")
+# - methods: instance methods (shown after "instance.")
+# - static_methods: static methods (shown after "ClassName.")
+# - constructor: constructor signatures (shown as global)
+#
+# Note: The "Types - X" categories above are kept for backward compatibility
+# but will be deprecated in favor of this section.
+# ==========================================================================
+types:
+  - name: Vec2
+    description: "2D vector"
+    description_ja: "2Dベクトル"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+        - params: "float x, float y"
+        - params: "float v"
+      snippet: "Vec2(${1:x}, ${2:y})"
+    properties:
+      - name: x
+        type: float
+        description: "X component"
+        description_ja: "X成分"
+      - name: y
+        type: float
+        description: "Y component"
+        description_ja: "Y成分"
+    methods:
+      - name: set
+        return: "Vec2&"
+        signatures:
+          - params: "float x, float y"
+          - params: "Vec2 v"
+        description: "Set vector components"
+        description_ja: "ベクトルの成分を設定"
+        snippet: "set(${1:x}, ${2:y})"
+      - name: length
+        return: float
+        signatures:
+          - params: ""
+        description: "Get vector length"
+        description_ja: "ベクトルの長さを取得"
+        snippet: "length()"
+      - name: lengthSquared
+        return: float
+        signatures:
+          - params: ""
+        description: "Get squared length (faster, no sqrt)"
+        description_ja: "長さの二乗を取得（sqrtなしで高速）"
+        snippet: "lengthSquared()"
+      - name: normalized
+        return: Vec2
+        signatures:
+          - params: ""
+        description: "Get normalized copy"
+        description_ja: "正規化したコピーを取得"
+        snippet: "normalized()"
+      - name: normalize
+        return: "Vec2&"
+        signatures:
+          - params: ""
+        description: "Normalize in place"
+        description_ja: "その場で正規化"
+        snippet: "normalize()"
+      - name: limit
+        return: "Vec2&"
+        signatures:
+          - params: "float max"
+        description: "Limit length to max"
+        description_ja: "長さを最大値に制限"
+        snippet: "limit(${1:max})"
+      - name: dot
+        return: float
+        signatures:
+          - params: "Vec2 v"
+        description: "Dot product"
+        description_ja: "内積"
+        snippet: "dot(${1:v})"
+      - name: cross
+        return: float
+        signatures:
+          - params: "Vec2 v"
+        description: "Cross product (z component)"
+        description_ja: "外積（z成分）"
+        snippet: "cross(${1:v})"
+      - name: distance
+        return: float
+        signatures:
+          - params: "Vec2 v"
+        description: "Distance to another vector"
+        description_ja: "別のベクトルとの距離"
+        snippet: "distance(${1:v})"
+      - name: distanceSquared
+        return: float
+        signatures:
+          - params: "Vec2 v"
+        description: "Squared distance (faster)"
+        description_ja: "距離の二乗（高速）"
+        snippet: "distanceSquared(${1:v})"
+      - name: angle
+        return: float
+        signatures:
+          - params: ""
+          - params: "Vec2 v"
+        description: "Angle in radians"
+        description_ja: "ラジアンでの角度"
+        snippet: "angle()"
+      - name: rotated
+        return: Vec2
+        signatures:
+          - params: "float radians"
+        description: "Get rotated copy"
+        description_ja: "回転したコピーを取得"
+        snippet: "rotated(${1:radians})"
+      - name: rotate
+        return: "Vec2&"
+        signatures:
+          - params: "float radians"
+        description: "Rotate in place"
+        description_ja: "その場で回転"
+        snippet: "rotate(${1:radians})"
+      - name: lerp
+        return: Vec2
+        signatures:
+          - params: "Vec2 target, float t"
+        description: "Linear interpolation"
+        description_ja: "線形補間"
+        snippet: "lerp(${1:target}, ${2:t})"
+      - name: perpendicular
+        return: Vec2
+        signatures:
+          - params: ""
+        description: "Get perpendicular vector"
+        description_ja: "垂直ベクトルを取得"
+        snippet: "perpendicular()"
+      - name: reflected
+        return: Vec2
+        signatures:
+          - params: "Vec2 normal"
+        description: "Get reflected vector"
+        description_ja: "反射ベクトルを取得"
+        snippet: "reflected(${1:normal})"
+    static_methods:
+      - name: fromAngle
+        return: Vec2
+        signatures:
+          - params: "float radians"
+          - params: "float radians, float length"
+        description: "Create Vec2 from angle"
+        description_ja: "角度からVec2を作成"
+        snippet: "Vec2::fromAngle(${1:radians})"
+
+  - name: Vec3
+    description: "3D vector"
+    description_ja: "3Dベクトル"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+        - params: "float x, float y, float z"
+        - params: "float v"
+      snippet: "Vec3(${1:x}, ${2:y}, ${3:z})"
+    properties:
+      - name: x
+        type: float
+        description: "X component"
+        description_ja: "X成分"
+      - name: y
+        type: float
+        description: "Y component"
+        description_ja: "Y成分"
+      - name: z
+        type: float
+        description: "Z component"
+        description_ja: "Z成分"
+    methods:
+      - name: set
+        return: "Vec3&"
+        signatures:
+          - params: "float x, float y, float z"
+          - params: "Vec3 v"
+        description: "Set vector components"
+        description_ja: "ベクトルの成分を設定"
+        snippet: "set(${1:x}, ${2:y}, ${3:z})"
+      - name: length
+        return: float
+        signatures:
+          - params: ""
+        description: "Get vector length"
+        description_ja: "ベクトルの長さを取得"
+        snippet: "length()"
+      - name: lengthSquared
+        return: float
+        signatures:
+          - params: ""
+        description: "Get squared length"
+        description_ja: "長さの二乗を取得"
+        snippet: "lengthSquared()"
+      - name: normalized
+        return: Vec3
+        signatures:
+          - params: ""
+        description: "Get normalized copy"
+        description_ja: "正規化したコピーを取得"
+        snippet: "normalized()"
+      - name: normalize
+        return: "Vec3&"
+        signatures:
+          - params: ""
+        description: "Normalize in place"
+        description_ja: "その場で正規化"
+        snippet: "normalize()"
+      - name: limit
+        return: "Vec3&"
+        signatures:
+          - params: "float max"
+        description: "Limit length to max"
+        description_ja: "長さを最大値に制限"
+        snippet: "limit(${1:max})"
+      - name: dot
+        return: float
+        signatures:
+          - params: "Vec3 v"
+        description: "Dot product"
+        description_ja: "内積"
+        snippet: "dot(${1:v})"
+      - name: cross
+        return: Vec3
+        signatures:
+          - params: "Vec3 v"
+        description: "Cross product"
+        description_ja: "外積"
+        snippet: "cross(${1:v})"
+      - name: distance
+        return: float
+        signatures:
+          - params: "Vec3 v"
+        description: "Distance to another vector"
+        description_ja: "別のベクトルとの距離"
+        snippet: "distance(${1:v})"
+      - name: distanceSquared
+        return: float
+        signatures:
+          - params: "Vec3 v"
+        description: "Squared distance"
+        description_ja: "距離の二乗"
+        snippet: "distanceSquared(${1:v})"
+      - name: lerp
+        return: Vec3
+        signatures:
+          - params: "Vec3 target, float t"
+        description: "Linear interpolation"
+        description_ja: "線形補間"
+        snippet: "lerp(${1:target}, ${2:t})"
+      - name: reflected
+        return: Vec3
+        signatures:
+          - params: "Vec3 normal"
+        description: "Get reflected vector"
+        description_ja: "反射ベクトルを取得"
+        snippet: "reflected(${1:normal})"
+      - name: xy
+        return: Vec2
+        signatures:
+          - params: ""
+        description: "Get XY components as Vec2"
+        description_ja: "XY成分をVec2として取得"
+        snippet: "xy()"
+
+  - name: Color
+    description: "RGBA color (0.0-1.0)"
+    description_ja: "RGBAカラー (0.0-1.0)"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+        - params: "float r, float g, float b"
+        - params: "float r, float g, float b, float a"
+        - params: "float gray"
+        - params: "float gray, float a"
+      snippet: "Color(${1:r}, ${2:g}, ${3:b})"
+    properties:
+      - name: r
+        type: float
+        description: "Red component (0.0-1.0)"
+        description_ja: "赤成分 (0.0-1.0)"
+      - name: g
+        type: float
+        description: "Green component (0.0-1.0)"
+        description_ja: "緑成分 (0.0-1.0)"
+      - name: b
+        type: float
+        description: "Blue component (0.0-1.0)"
+        description_ja: "青成分 (0.0-1.0)"
+      - name: a
+        type: float
+        description: "Alpha component (0.0-1.0)"
+        description_ja: "アルファ成分 (0.0-1.0)"
+    methods:
+      - name: set
+        return: "Color&"
+        signatures:
+          - params: "float r, float g, float b"
+          - params: "float r, float g, float b, float a"
+          - params: "float gray"
+        description: "Set color components"
+        description_ja: "カラー成分を設定"
+        snippet: "set(${1:r}, ${2:g}, ${3:b})"
+      - name: toHex
+        return: "uint32_t"
+        signatures:
+          - params: ""
+          - params: "bool includeAlpha"
+        description: "Convert to hex value"
+        description_ja: "16進数値に変換"
+        snippet: "toHex()"
+      - name: lerp
+        return: Color
+        signatures:
+          - params: "Color target, float t"
+        description: "Interpolate in OKLab space"
+        description_ja: "OKLab空間で補間"
+        snippet: "lerp(${1:target}, ${2:t})"
+      - name: lerpRGB
+        return: Color
+        signatures:
+          - params: "Color target, float t"
+        description: "Interpolate in RGB space"
+        description_ja: "RGB空間で補間"
+        snippet: "lerpRGB(${1:target}, ${2:t})"
+      - name: clamped
+        return: Color
+        signatures:
+          - params: ""
+        description: "Get clamped copy (0.0-1.0)"
+        description_ja: "クランプしたコピーを取得"
+        snippet: "clamped()"
+    static_methods:
+      - name: fromHex
+        return: Color
+        signatures:
+          - params: "uint32_t hex"
+          - params: "uint32_t hex, bool hasAlpha"
+        description: "Create from hex value"
+        description_ja: "16進数値から作成"
+        snippet: "Color::fromHex(${1:0xRRGGBB})"
+      - name: fromHSB
+        return: Color
+        signatures:
+          - params: "float h, float s, float b"
+          - params: "float h, float s, float b, float a"
+        description: "Create from HSB (H: 0-TAU)"
+        description_ja: "HSBから作成 (H: 0-TAU)"
+        snippet: "Color::fromHSB(${1:h}, ${2:s}, ${3:b})"
+      - name: fromBytes
+        return: Color
+        signatures:
+          - params: "int r, int g, int b"
+          - params: "int r, int g, int b, int a"
+        description: "Create from 0-255 values"
+        description_ja: "0-255の値から作成"
+        snippet: "Color::fromBytes(${1:r}, ${2:g}, ${3:b})"
+
+  - name: Rect
+    description: "Rectangle (x, y, width, height)"
+    description_ja: "矩形 (x, y, width, height)"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+        - params: "float x, float y, float width, float height"
+      snippet: "Rect(${1:x}, ${2:y}, ${3:width}, ${4:height})"
+    properties:
+      - name: x
+        type: float
+        description: "X position"
+        description_ja: "X座標"
+      - name: y
+        type: float
+        description: "Y position"
+        description_ja: "Y座標"
+      - name: width
+        type: float
+        description: "Width"
+        description_ja: "幅"
+      - name: height
+        type: float
+        description: "Height"
+        description_ja: "高さ"
+    methods:
+      - name: set
+        return: "Rect&"
+        signatures:
+          - params: "float x, float y, float w, float h"
+        description: "Set rectangle bounds"
+        description_ja: "矩形の範囲を設定"
+        snippet: "set(${1:x}, ${2:y}, ${3:w}, ${4:h})"
+      - name: getRight
+        return: float
+        signatures:
+          - params: ""
+        description: "Get right edge (x + width)"
+        description_ja: "右端を取得"
+        snippet: "getRight()"
+      - name: getBottom
+        return: float
+        signatures:
+          - params: ""
+        description: "Get bottom edge (y + height)"
+        description_ja: "下端を取得"
+        snippet: "getBottom()"
+      - name: getCenterX
+        return: float
+        signatures:
+          - params: ""
+        description: "Get center X"
+        description_ja: "中心Xを取得"
+        snippet: "getCenterX()"
+      - name: getCenterY
+        return: float
+        signatures:
+          - params: ""
+        description: "Get center Y"
+        description_ja: "中心Yを取得"
+        snippet: "getCenterY()"
+      - name: contains
+        return: bool
+        signatures:
+          - params: "float px, float py"
+        description: "Check if point is inside"
+        description_ja: "点が内部にあるか判定"
+        snippet: "contains(${1:px}, ${2:py})"
+      - name: intersects
+        return: bool
+        signatures:
+          - params: "Rect other"
+        description: "Check if intersects with another rect"
+        description_ja: "別の矩形と交差するか判定"
+        snippet: "intersects(${1:other})"
