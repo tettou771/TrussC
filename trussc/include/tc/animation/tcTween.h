@@ -73,38 +73,43 @@ public:
         return *this;
     }
 
-    // ----- Control -----
+    // ----- Control (chainable) -----
 
-    void start() {
+    Tween& start() {
         elapsed_ = 0.0f;
         playing_ = true;
         completed_ = false;
+        return *this;
     }
 
-    void pause() {
+    Tween& pause() {
         playing_ = false;
+        return *this;
     }
 
-    void resume() {
+    Tween& resume() {
         if (!completed_) {
             playing_ = true;
         }
+        return *this;
     }
 
-    void reset() {
+    Tween& reset() {
         elapsed_ = 0.0f;
         playing_ = false;
         completed_ = false;
+        return *this;
     }
 
     // Finish immediately (jump to end)
-    void finish() {
+    Tween& finish() {
         elapsed_ = duration_;
         playing_ = false;
         if (!completed_) {
             completed_ = true;
             if (complete) complete->notify();
         }
+        return *this;
     }
 
     // ----- Update -----

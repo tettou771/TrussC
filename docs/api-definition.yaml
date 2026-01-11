@@ -8,7 +8,7 @@
 #   - TrussC_vs_openFrameworks.md mapping (future)
 #   - for-of-users.html tables (future)
 
-version: "0.0.1"
+version: "0.0.2"
 
 categories:
   # ==========================================================================
@@ -240,6 +240,18 @@ categories:
         of_equivalent: "ofDrawEllipse"
         sketch: true
         snippet: "drawEllipse(${1:x}, ${2:y}, ${3:w}, ${4:h})"
+
+      - name: drawPoint
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+            params_simple: "x, y"
+          - params: "Vec3 pos"
+            params_simple: "pos"
+        description: "Draw a single point"
+        description_ja: "点を描画"
+        sketch: true
+        snippet: "drawPoint(${1:x}, ${2:y})"
 
       - name: drawLine
         return: "void"
@@ -603,6 +615,38 @@ categories:
         sketch: true
         snippet: "getCircleResolution()"
 
+      - name: pushStyle
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Save current style state (color, stroke, fill)"
+        description_ja: "現在のスタイル状態を保存（色、ストローク、塗りつぶし）"
+        of_equivalent: "ofPushStyle"
+        sketch: true
+        snippet: "pushStyle()"
+
+      - name: popStyle
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Restore previous style state"
+        description_ja: "保存したスタイル状態を復元"
+        of_equivalent: "ofPopStyle"
+        sketch: true
+        snippet: "popStyle()"
+
+      - name: getColor
+        return: "Color"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get current fill color"
+        description_ja: "現在の塗りつぶし色を取得"
+        sketch: true
+        snippet: "getColor()"
+
   # ==========================================================================
   # Transform
   # ==========================================================================
@@ -656,6 +700,66 @@ categories:
         sketch: true
         snippet: "rotateDeg(${1:degrees})"
 
+      - name: rotateX
+        return: "void"
+        signatures:
+          - params: "float radians"
+            params_simple: "radians"
+        description: "Rotate around X axis"
+        description_ja: "X軸周りに回転"
+        sketch: true
+        snippet: "rotateX(${1:radians})"
+
+      - name: rotateY
+        return: "void"
+        signatures:
+          - params: "float radians"
+            params_simple: "radians"
+        description: "Rotate around Y axis"
+        description_ja: "Y軸周りに回転"
+        sketch: true
+        snippet: "rotateY(${1:radians})"
+
+      - name: rotateZ
+        return: "void"
+        signatures:
+          - params: "float radians"
+            params_simple: "radians"
+        description: "Rotate around Z axis"
+        description_ja: "Z軸周りに回転"
+        sketch: true
+        snippet: "rotateZ(${1:radians})"
+
+      - name: rotateXDeg
+        return: "void"
+        signatures:
+          - params: "float degrees"
+            params_simple: "degrees"
+        description: "Rotate around X axis (degrees)"
+        description_ja: "X軸周りに回転（度）"
+        sketch: true
+        snippet: "rotateXDeg(${1:degrees})"
+
+      - name: rotateYDeg
+        return: "void"
+        signatures:
+          - params: "float degrees"
+            params_simple: "degrees"
+        description: "Rotate around Y axis (degrees)"
+        description_ja: "Y軸周りに回転（度）"
+        sketch: true
+        snippet: "rotateYDeg(${1:degrees})"
+
+      - name: rotateZDeg
+        return: "void"
+        signatures:
+          - params: "float degrees"
+            params_simple: "degrees"
+        description: "Rotate around Z axis (degrees)"
+        description_ja: "Z軸周りに回転（度）"
+        sketch: true
+        snippet: "rotateZDeg(${1:degrees})"
+
       - name: scale
         return: "void"
         signatures:
@@ -690,6 +794,36 @@ categories:
         of_equivalent: "ofPopMatrix"
         sketch: true
         snippet: "popMatrix()"
+
+      - name: getCurrentMatrix
+        return: "Mat4"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get current transformation matrix"
+        description_ja: "現在の変換行列を取得"
+        sketch: true
+        snippet: "getCurrentMatrix()"
+
+      - name: resetMatrix
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Reset transformation matrix to identity"
+        description_ja: "変換行列をリセット"
+        sketch: true
+        snippet: "resetMatrix()"
+
+      - name: setMatrix
+        return: "void"
+        signatures:
+          - params: "const Mat4& mat"
+            params_simple: "mat"
+        description: "Set transformation matrix directly"
+        description_ja: "変換行列を直接設定"
+        sketch: true
+        snippet: "setMatrix(${1:mat})"
 
   # ==========================================================================
   # Window & Input
@@ -1664,35 +1798,147 @@ categories:
     name: "Animation"
     name_ja: "アニメーション"
     functions:
-      - name: Tween
-        return: ""
+      # Easing functions
+      - name: ease
+        return: "float"
+        signatures:
+          - params: "float t, EaseType type, EaseMode mode"
+            params_simple: "t, type, mode"
+        description: "Apply easing to value (0-1)"
+        description_ja: "イージングを適用 (0-1)"
+        sketch: true
+        snippet: "ease(${1:t}, EaseType::${2:Cubic}, EaseMode::${3:InOut})"
+
+      - name: easeIn
+        return: "float"
+        signatures:
+          - params: "float t, EaseType type"
+            params_simple: "t, type"
+        description: "Apply ease-in to value (0-1)"
+        description_ja: "イーズインを適用 (0-1)"
+        sketch: true
+        snippet: "easeIn(${1:t}, EaseType::${2:Cubic})"
+
+      - name: easeOut
+        return: "float"
+        signatures:
+          - params: "float t, EaseType type"
+            params_simple: "t, type"
+        description: "Apply ease-out to value (0-1)"
+        description_ja: "イーズアウトを適用 (0-1)"
+        sketch: true
+        snippet: "easeOut(${1:t}, EaseType::${2:Cubic})"
+
+      - name: easeInOut
+        return: "float"
+        signatures:
+          - params: "float t, EaseType type"
+            params_simple: "t, type"
+        description: "Apply ease-in-out to value (0-1)"
+        description_ja: "イーズインアウトを適用 (0-1)"
+        sketch: true
+        snippet: "easeInOut(${1:t}, EaseType::${2:Cubic})"
+
+      # Tween class
+      - name: createTween
+        return: "Tween@"
         signatures:
           - params: ""
             params_simple: ""
-        description: "Create a tween"
+        description: "Create a tween object"
         description_ja: "トゥイーンを作成"
         sketch: true
-        snippet: "Tween()"
+        snippet: "createTween()"
 
-      - name: setDuration
-        return: "void"
+      - name: from
+        return: "Tween@"
+        signatures:
+          - params: "float value"
+            params_simple: "value"
+        description: "Set start value"
+        description_ja: "開始値を設定"
+        sketch: true
+        snippet: "from(${1:0.0})"
+
+      - name: to
+        return: "Tween@"
+        signatures:
+          - params: "float value"
+            params_simple: "value"
+        description: "Set end value"
+        description_ja: "終了値を設定"
+        sketch: true
+        snippet: "to(${1:1.0})"
+
+      - name: duration
+        return: "Tween@"
         signatures:
           - params: "float seconds"
             params_simple: "seconds"
         description: "Set animation duration"
         description_ja: "再生時間を設定"
         sketch: true
-        snippet: "setDuration(${1:1.0})"
+        snippet: "duration(${1:1.0})"
+
+      - name: ease
+        return: "Tween@"
+        signatures:
+          - params: "EaseType type"
+            params_simple: "type"
+        description: "Set easing type"
+        description_ja: "イージングタイプを設定"
+        sketch: true
+        snippet: "ease(EaseType::${1:Cubic})"
 
       - name: start
-        return: "void"
+        return: "Tween@"
         signatures:
           - params: ""
             params_simple: ""
-        description: "Start animation"
-        description_ja: "開始"
+        description: "Start animation (chainable)"
+        description_ja: "開始（チェーン可能）"
         sketch: true
         snippet: "start()"
+
+      - name: pause
+        return: "Tween@"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Pause animation (chainable)"
+        description_ja: "一時停止（チェーン可能）"
+        sketch: true
+        snippet: "pause()"
+
+      - name: resume
+        return: "Tween@"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Resume animation (chainable)"
+        description_ja: "再開（チェーン可能）"
+        sketch: true
+        snippet: "resume()"
+
+      - name: reset
+        return: "Tween@"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Reset animation (chainable)"
+        description_ja: "リセット（チェーン可能）"
+        sketch: true
+        snippet: "reset()"
+
+      - name: finish
+        return: "Tween@"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Jump to end (chainable)"
+        description_ja: "終了位置にジャンプ（チェーン可能）"
+        sketch: true
+        snippet: "finish()"
 
       - name: update
         return: "void"
@@ -1713,6 +1959,76 @@ categories:
         description_ja: "現在の値を取得"
         sketch: true
         snippet: "getValue()"
+
+      - name: getProgress
+        return: "float"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get progress (0-1)"
+        description_ja: "進行度を取得 (0-1)"
+        sketch: true
+        snippet: "getProgress()"
+
+      - name: getElapsed
+        return: "float"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get elapsed time"
+        description_ja: "経過時間を取得"
+        sketch: true
+        snippet: "getElapsed()"
+
+      - name: getDuration
+        return: "float"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get duration"
+        description_ja: "再生時間を取得"
+        sketch: true
+        snippet: "getDuration()"
+
+      - name: isPlaying
+        return: "bool"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Check if playing"
+        description_ja: "再生中か確認"
+        sketch: true
+        snippet: "isPlaying()"
+
+      - name: isComplete
+        return: "bool"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Check if complete"
+        description_ja: "完了したか確認"
+        sketch: true
+        snippet: "isComplete()"
+
+      - name: getStart
+        return: "float"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get start value"
+        description_ja: "開始値を取得"
+        sketch: true
+        snippet: "getStart()"
+
+      - name: getEnd
+        return: "float"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Get end value"
+        description_ja: "終了値を取得"
+        sketch: true
+        snippet: "getEnd()"
 
   # ==========================================================================
   # Types - Vec2
@@ -3472,3 +3788,1192 @@ types:
         description: "Check if intersects with another rect"
         description_ja: "別の矩形と交差するか判定"
         snippet: "intersects(${1:other})"
+
+  - name: Pixels
+    description: "Pixel buffer for image manipulation"
+    description_ja: "画像操作用ピクセルバッファ"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Pixels()"
+    methods:
+      - name: allocate
+        return: "void"
+        signatures:
+          - params: "int width, int height"
+          - params: "int width, int height, int channels"
+        description: "Allocate pixel buffer"
+        description_ja: "ピクセルバッファを確保"
+        snippet: "allocate(${1:width}, ${2:height})"
+      - name: getColor
+        return: Color
+        signatures:
+          - params: "int x, int y"
+        description: "Get pixel color at position"
+        description_ja: "指定位置のピクセル色を取得"
+        snippet: "getColor(${1:x}, ${2:y})"
+      - name: setColor
+        return: "void"
+        signatures:
+          - params: "int x, int y, Color color"
+        description: "Set pixel color at position"
+        description_ja: "指定位置のピクセル色を設定"
+        snippet: "setColor(${1:x}, ${2:y}, ${3:color})"
+      - name: load
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Load image from file"
+        description_ja: "ファイルから画像を読み込む"
+        snippet: "load(${1:\"path\"})"
+      - name: save
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Save image to file"
+        description_ja: "ファイルに画像を保存"
+        snippet: "save(${1:\"path\"})"
+      - name: getWidth
+        return: int
+        signatures:
+          - params: ""
+        description: "Get width"
+        description_ja: "幅を取得"
+        snippet: "getWidth()"
+      - name: getHeight
+        return: int
+        signatures:
+          - params: ""
+        description: "Get height"
+        description_ja: "高さを取得"
+        snippet: "getHeight()"
+      - name: isAllocated
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if allocated"
+        description_ja: "確保されているか確認"
+        snippet: "isAllocated()"
+      - name: clear
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Release pixel buffer"
+        description_ja: "ピクセルバッファを解放"
+        snippet: "clear()"
+      - name: getChannels
+        return: int
+        signatures:
+          - params: ""
+        description: "Get number of channels"
+        description_ja: "チャンネル数を取得"
+        snippet: "getChannels()"
+      - name: getTotalBytes
+        return: int
+        signatures:
+          - params: ""
+        description: "Get total byte size"
+        description_ja: "総バイトサイズを取得"
+        snippet: "getTotalBytes()"
+      - name: getData
+        return: "uint8_t*"
+        signatures:
+          - params: ""
+        description: "Get raw data pointer"
+        description_ja: "生データポインタを取得"
+        sketch: false
+        snippet: "getData()"
+      - name: loadFromMemory
+        return: bool
+        signatures:
+          - params: "const uint8_t* buffer, int len"
+        description: "Load image from memory"
+        description_ja: "メモリから画像を読み込む"
+        sketch: false
+        snippet: "loadFromMemory(${1:buffer}, ${2:len})"
+      - name: setFromPixels
+        return: "void"
+        signatures:
+          - params: "const uint8_t* data, int width, int height, int channels"
+        description: "Copy from external pixel data"
+        description_ja: "外部ピクセルデータからコピー"
+        sketch: false
+        snippet: "setFromPixels(${1:data}, ${2:width}, ${3:height}, ${4:channels})"
+      - name: copyTo
+        return: "void"
+        signatures:
+          - params: "uint8_t* dst"
+        description: "Copy to external buffer"
+        description_ja: "外部バッファにコピー"
+        sketch: false
+        snippet: "copyTo(${1:dst})"
+
+  - name: Image
+    description: "Image with CPU pixels and GPU texture"
+    description_ja: "CPUピクセルとGPUテクスチャを持つ画像"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Image()"
+    methods:
+      - name: load
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Load image from file"
+        description_ja: "ファイルから画像を読み込む"
+        snippet: "load(${1:\"path\"})"
+      - name: loadFromMemory
+        return: bool
+        signatures:
+          - params: "const uint8_t* buffer, int len"
+        description: "Load image from memory"
+        description_ja: "メモリから画像を読み込む"
+        sketch: false
+        snippet: "loadFromMemory(${1:buffer}, ${2:len})"
+      - name: save
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Save image to file"
+        description_ja: "ファイルに画像を保存"
+        snippet: "save(${1:\"path\"})"
+      - name: allocate
+        return: "void"
+        signatures:
+          - params: "int width, int height"
+          - params: "int width, int height, int channels"
+        description: "Allocate empty image for dynamic updates"
+        description_ja: "動的更新用に空の画像を確保"
+        snippet: "allocate(${1:width}, ${2:height})"
+      - name: clear
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Release image resources"
+        description_ja: "画像リソースを解放"
+        snippet: "clear()"
+      - name: isAllocated
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if allocated"
+        description_ja: "確保されているか確認"
+        snippet: "isAllocated()"
+      - name: getWidth
+        return: int
+        signatures:
+          - params: ""
+        description: "Get width"
+        description_ja: "幅を取得"
+        snippet: "getWidth()"
+      - name: getHeight
+        return: int
+        signatures:
+          - params: ""
+        description: "Get height"
+        description_ja: "高さを取得"
+        snippet: "getHeight()"
+      - name: getChannels
+        return: int
+        signatures:
+          - params: ""
+        description: "Get number of channels"
+        description_ja: "チャンネル数を取得"
+        snippet: "getChannels()"
+      - name: getPixels
+        return: "Pixels&"
+        signatures:
+          - params: ""
+        description: "Get pixels reference for direct manipulation"
+        description_ja: "直接操作用にピクセル参照を取得"
+        snippet: "getPixels()"
+      - name: getPixelsData
+        return: "uint8_t*"
+        signatures:
+          - params: ""
+        description: "Get raw pixel data pointer"
+        description_ja: "生ピクセルデータポインタを取得"
+        sketch: false
+        snippet: "getPixelsData()"
+      - name: getColor
+        return: Color
+        signatures:
+          - params: "int x, int y"
+        description: "Get pixel color at position"
+        description_ja: "指定位置のピクセル色を取得"
+        snippet: "getColor(${1:x}, ${2:y})"
+      - name: setColor
+        return: "void"
+        signatures:
+          - params: "int x, int y, Color color"
+        description: "Set pixel color at position (marks image as dirty)"
+        description_ja: "指定位置のピクセル色を設定（ダーティフラグが立つ）"
+        snippet: "setColor(${1:x}, ${2:y}, ${3:color})"
+      - name: update
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Apply pixel changes to GPU texture"
+        description_ja: "ピクセル変更をGPUテクスチャに適用"
+        snippet: "update()"
+      - name: setDirty
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Mark image as needing update"
+        description_ja: "更新が必要とマーク"
+        snippet: "setDirty()"
+      - name: getTexture
+        return: "Texture&"
+        signatures:
+          - params: ""
+        description: "Get internal texture"
+        description_ja: "内部テクスチャを取得"
+        snippet: "getTexture()"
+      - name: draw
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+          - params: "float x, float y, float w, float h"
+        description: "Draw image"
+        description_ja: "画像を描画"
+        snippet: "draw(${1:x}, ${2:y})"
+
+  - name: Texture
+    description: "GPU texture for rendering"
+    description_ja: "レンダリング用GPUテクスチャ"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Texture()"
+    methods:
+      - name: allocate
+        return: "void"
+        signatures:
+          - params: "int width, int height"
+          - params: "Pixels pixels"
+        description: "Allocate texture"
+        description_ja: "テクスチャを確保"
+        snippet: "allocate(${1:width}, ${2:height})"
+      - name: loadData
+        return: "void"
+        signatures:
+          - params: "Pixels pixels"
+        description: "Load pixel data to texture"
+        description_ja: "ピクセルデータをテクスチャに読み込む"
+        snippet: "loadData(${1:pixels})"
+      - name: bind
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Bind texture for rendering"
+        description_ja: "レンダリング用にテクスチャをバインド"
+        snippet: "bind()"
+      - name: unbind
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Unbind texture"
+        description_ja: "テクスチャをアンバインド"
+        snippet: "unbind()"
+      - name: getWidth
+        return: int
+        signatures:
+          - params: ""
+        description: "Get width"
+        description_ja: "幅を取得"
+        snippet: "getWidth()"
+      - name: getHeight
+        return: int
+        signatures:
+          - params: ""
+        description: "Get height"
+        description_ja: "高さを取得"
+        snippet: "getHeight()"
+      - name: isAllocated
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if allocated"
+        description_ja: "確保されているか確認"
+        snippet: "isAllocated()"
+      - name: draw
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+          - params: "float x, float y, float w, float h"
+        description: "Draw texture"
+        description_ja: "テクスチャを描画"
+        snippet: "draw(${1:x}, ${2:y})"
+      - name: drawSubsection
+        return: "void"
+        signatures:
+          - params: "float x, float y, float w, float h, float sx, float sy, float sw, float sh"
+        description: "Draw subsection of texture"
+        description_ja: "テクスチャの一部を描画"
+        snippet: "drawSubsection(${1:x}, ${2:y}, ${3:w}, ${4:h}, ${5:sx}, ${6:sy}, ${7:sw}, ${8:sh})"
+      - name: clear
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Release texture resources"
+        description_ja: "テクスチャリソースを解放"
+        snippet: "clear()"
+      - name: getChannels
+        return: int
+        signatures:
+          - params: ""
+        description: "Get number of channels"
+        description_ja: "チャンネル数を取得"
+        snippet: "getChannels()"
+      - name: getUsage
+        return: TextureUsage
+        signatures:
+          - params: ""
+        description: "Get texture usage mode"
+        description_ja: "テクスチャ使用モードを取得"
+        snippet: "getUsage()"
+      - name: getSampleCount
+        return: int
+        signatures:
+          - params: ""
+        description: "Get MSAA sample count"
+        description_ja: "MSAAサンプル数を取得"
+        snippet: "getSampleCount()"
+      - name: setMinFilter
+        return: "void"
+        signatures:
+          - params: "TextureFilter filter"
+        description: "Set minification filter"
+        description_ja: "縮小フィルタを設定"
+        snippet: "setMinFilter(${1:TextureFilter::Linear})"
+      - name: setMagFilter
+        return: "void"
+        signatures:
+          - params: "TextureFilter filter"
+        description: "Set magnification filter"
+        description_ja: "拡大フィルタを設定"
+        snippet: "setMagFilter(${1:TextureFilter::Linear})"
+      - name: setFilter
+        return: "void"
+        signatures:
+          - params: "TextureFilter filter"
+        description: "Set both min and mag filters"
+        description_ja: "縮小・拡大フィルタを両方設定"
+        snippet: "setFilter(${1:TextureFilter::Linear})"
+      - name: getMinFilter
+        return: TextureFilter
+        signatures:
+          - params: ""
+        description: "Get minification filter"
+        description_ja: "縮小フィルタを取得"
+        snippet: "getMinFilter()"
+      - name: getMagFilter
+        return: TextureFilter
+        signatures:
+          - params: ""
+        description: "Get magnification filter"
+        description_ja: "拡大フィルタを取得"
+        snippet: "getMagFilter()"
+      - name: setWrapU
+        return: "void"
+        signatures:
+          - params: "TextureWrap wrap"
+        description: "Set horizontal wrap mode"
+        description_ja: "水平方向のラップモードを設定"
+        snippet: "setWrapU(${1:TextureWrap::ClampToEdge})"
+      - name: setWrapV
+        return: "void"
+        signatures:
+          - params: "TextureWrap wrap"
+        description: "Set vertical wrap mode"
+        description_ja: "垂直方向のラップモードを設定"
+        snippet: "setWrapV(${1:TextureWrap::ClampToEdge})"
+      - name: setWrap
+        return: "void"
+        signatures:
+          - params: "TextureWrap wrap"
+        description: "Set both wrap modes"
+        description_ja: "ラップモードを両方設定"
+        snippet: "setWrap(${1:TextureWrap::ClampToEdge})"
+      - name: getWrapU
+        return: TextureWrap
+        signatures:
+          - params: ""
+        description: "Get horizontal wrap mode"
+        description_ja: "水平方向のラップモードを取得"
+        snippet: "getWrapU()"
+      - name: getWrapV
+        return: TextureWrap
+        signatures:
+          - params: ""
+        description: "Get vertical wrap mode"
+        description_ja: "垂直方向のラップモードを取得"
+        snippet: "getWrapV()"
+
+  - name: Fbo
+    description: "Framebuffer object for offscreen rendering"
+    description_ja: "オフスクリーンレンダリング用フレームバッファ"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Fbo()"
+    methods:
+      - name: allocate
+        return: "void"
+        signatures:
+          - params: "int width, int height"
+        description: "Allocate framebuffer"
+        description_ja: "フレームバッファを確保"
+        snippet: "allocate(${1:width}, ${2:height})"
+      - name: begin
+        return: "void"
+        signatures:
+          - params: ""
+          - params: "float r, float g, float b, float a"
+        description: "Begin rendering to FBO"
+        description_ja: "FBOへのレンダリングを開始"
+        snippet: "begin()"
+      - name: end
+        return: "void"
+        signatures:
+          - params: ""
+        description: "End rendering to FBO"
+        description_ja: "FBOへのレンダリングを終了"
+        snippet: "end()"
+      - name: getTexture
+        return: Texture
+        signatures:
+          - params: ""
+        description: "Get FBO texture"
+        description_ja: "FBOのテクスチャを取得"
+        snippet: "getTexture()"
+      - name: getWidth
+        return: int
+        signatures:
+          - params: ""
+        description: "Get width"
+        description_ja: "幅を取得"
+        snippet: "getWidth()"
+      - name: getHeight
+        return: int
+        signatures:
+          - params: ""
+        description: "Get height"
+        description_ja: "高さを取得"
+        snippet: "getHeight()"
+      - name: isAllocated
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if allocated"
+        description_ja: "確保されているか確認"
+        snippet: "isAllocated()"
+      - name: draw
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+          - params: "float x, float y, float w, float h"
+        description: "Draw FBO contents"
+        description_ja: "FBOの内容を描画"
+        snippet: "draw(${1:x}, ${2:y})"
+      - name: getSampleCount
+        return: int
+        signatures:
+          - params: ""
+        description: "Get MSAA sample count"
+        description_ja: "MSAAサンプル数を取得"
+        snippet: "getSampleCount()"
+      - name: isActive
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if currently rendering to FBO"
+        description_ja: "FBOに描画中か確認"
+        snippet: "isActive()"
+      - name: clear
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Release FBO resources"
+        description_ja: "FBOリソースを解放"
+        snippet: "clear()"
+      - name: save
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Save FBO contents to file"
+        description_ja: "FBOの内容をファイルに保存"
+        snippet: "save(${1:\"path\"})"
+      - name: copyTo
+        return: bool
+        signatures:
+          - params: "Image image"
+        description: "Copy FBO contents to Image"
+        description_ja: "FBOの内容をImageにコピー"
+        snippet: "copyTo(${1:image})"
+
+  - name: Mesh
+    description: "3D mesh with vertices, colors, normals, and indices"
+    description_ja: "頂点、色、法線、インデックスを持つ3Dメッシュ"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Mesh()"
+    methods:
+      - name: setMode
+        return: "void"
+        signatures:
+          - params: "PrimitiveMode mode"
+        description: "Set primitive mode (Triangles, Lines, Points, etc.)"
+        description_ja: "プリミティブモードを設定"
+        snippet: "setMode(${1:PrimitiveMode::Triangles})"
+      - name: getMode
+        return: PrimitiveMode
+        signatures:
+          - params: ""
+        description: "Get current primitive mode"
+        description_ja: "現在のプリミティブモードを取得"
+        snippet: "getMode()"
+      - name: addVertex
+        return: "void"
+        signatures:
+          - params: "float x, float y, float z"
+          - params: "Vec2 v"
+          - params: "Vec3 v"
+        description: "Add a vertex"
+        description_ja: "頂点を追加"
+        snippet: "addVertex(${1:x}, ${2:y}, ${3:z})"
+      - name: addVertices
+        return: "void"
+        signatures:
+          - params: "vector<Vec3> verts"
+        description: "Add multiple vertices"
+        description_ja: "複数の頂点を追加"
+        snippet: "addVertices(${1:verts})"
+      - name: getVertices
+        return: "vector<Vec3>"
+        signatures:
+          - params: ""
+        description: "Get all vertices"
+        description_ja: "全頂点を取得"
+        snippet: "getVertices()"
+      - name: getNumVertices
+        return: int
+        signatures:
+          - params: ""
+        description: "Get vertex count"
+        description_ja: "頂点数を取得"
+        snippet: "getNumVertices()"
+      - name: addColor
+        return: "void"
+        signatures:
+          - params: "Color c"
+          - params: "float r, float g, float b, float a"
+        description: "Add a vertex color"
+        description_ja: "頂点カラーを追加"
+        snippet: "addColor(${1:color})"
+      - name: addColors
+        return: "void"
+        signatures:
+          - params: "vector<Color> cols"
+        description: "Add multiple vertex colors"
+        description_ja: "複数の頂点カラーを追加"
+        snippet: "addColors(${1:colors})"
+      - name: getColors
+        return: "vector<Color>"
+        signatures:
+          - params: ""
+        description: "Get all vertex colors"
+        description_ja: "全頂点カラーを取得"
+        snippet: "getColors()"
+      - name: getNumColors
+        return: int
+        signatures:
+          - params: ""
+        description: "Get vertex color count"
+        description_ja: "頂点カラー数を取得"
+        snippet: "getNumColors()"
+      - name: hasColors
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if mesh has vertex colors"
+        description_ja: "頂点カラーがあるか確認"
+        snippet: "hasColors()"
+      - name: addIndex
+        return: "void"
+        signatures:
+          - params: "int index"
+        description: "Add an index"
+        description_ja: "インデックスを追加"
+        snippet: "addIndex(${1:index})"
+      - name: addIndices
+        return: "void"
+        signatures:
+          - params: "vector<int> indices"
+        description: "Add multiple indices"
+        description_ja: "複数のインデックスを追加"
+        snippet: "addIndices(${1:indices})"
+      - name: addTriangle
+        return: "void"
+        signatures:
+          - params: "int i0, int i1, int i2"
+        description: "Add a triangle (3 indices)"
+        description_ja: "三角形を追加（インデックス3つ）"
+        snippet: "addTriangle(${1:i0}, ${2:i1}, ${3:i2})"
+      - name: getIndices
+        return: "vector<int>"
+        signatures:
+          - params: ""
+        description: "Get all indices"
+        description_ja: "全インデックスを取得"
+        snippet: "getIndices()"
+      - name: getNumIndices
+        return: int
+        signatures:
+          - params: ""
+        description: "Get index count"
+        description_ja: "インデックス数を取得"
+        snippet: "getNumIndices()"
+      - name: hasIndices
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if mesh has indices"
+        description_ja: "インデックスがあるか確認"
+        snippet: "hasIndices()"
+      - name: addNormal
+        return: "void"
+        signatures:
+          - params: "float nx, float ny, float nz"
+          - params: "Vec3 n"
+        description: "Add a normal vector"
+        description_ja: "法線ベクトルを追加"
+        snippet: "addNormal(${1:nx}, ${2:ny}, ${3:nz})"
+      - name: addNormals
+        return: "void"
+        signatures:
+          - params: "vector<Vec3> normals"
+        description: "Add multiple normals"
+        description_ja: "複数の法線を追加"
+        snippet: "addNormals(${1:normals})"
+      - name: setNormal
+        return: "void"
+        signatures:
+          - params: "int index, Vec3 n"
+        description: "Set normal at index"
+        description_ja: "指定インデックスの法線を設定"
+        snippet: "setNormal(${1:index}, ${2:normal})"
+      - name: getNormal
+        return: Vec3
+        signatures:
+          - params: "int index"
+        description: "Get normal at index"
+        description_ja: "指定インデックスの法線を取得"
+        snippet: "getNormal(${1:index})"
+      - name: getNormals
+        return: "vector<Vec3>"
+        signatures:
+          - params: ""
+        description: "Get all normals"
+        description_ja: "全法線を取得"
+        snippet: "getNormals()"
+      - name: getNumNormals
+        return: int
+        signatures:
+          - params: ""
+        description: "Get normal count"
+        description_ja: "法線数を取得"
+        snippet: "getNumNormals()"
+      - name: hasNormals
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if mesh has normals"
+        description_ja: "法線があるか確認"
+        snippet: "hasNormals()"
+      - name: addTexCoord
+        return: "void"
+        signatures:
+          - params: "float u, float v"
+          - params: "Vec2 t"
+        description: "Add a texture coordinate"
+        description_ja: "テクスチャ座標を追加"
+        snippet: "addTexCoord(${1:u}, ${2:v})"
+      - name: getTexCoords
+        return: "vector<Vec2>"
+        signatures:
+          - params: ""
+        description: "Get all texture coordinates"
+        description_ja: "全テクスチャ座標を取得"
+        snippet: "getTexCoords()"
+      - name: getNumTexCoords
+        return: int
+        signatures:
+          - params: ""
+        description: "Get texture coordinate count"
+        description_ja: "テクスチャ座標数を取得"
+        snippet: "getNumTexCoords()"
+      - name: hasTexCoords
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if mesh has texture coordinates"
+        description_ja: "テクスチャ座標があるか確認"
+        snippet: "hasTexCoords()"
+      - name: hasValidTexCoords
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if texture coordinates match vertex count"
+        description_ja: "テクスチャ座標が頂点数と一致するか確認"
+        snippet: "hasValidTexCoords()"
+      - name: clear
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear all mesh data"
+        description_ja: "全メッシュデータをクリア"
+        snippet: "clear()"
+      - name: clearVertices
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear vertices only"
+        description_ja: "頂点のみクリア"
+        snippet: "clearVertices()"
+      - name: clearColors
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear colors only"
+        description_ja: "色のみクリア"
+        snippet: "clearColors()"
+      - name: clearIndices
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear indices only"
+        description_ja: "インデックスのみクリア"
+        snippet: "clearIndices()"
+      - name: clearNormals
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear normals only"
+        description_ja: "法線のみクリア"
+        snippet: "clearNormals()"
+      - name: clearTexCoords
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear texture coordinates only"
+        description_ja: "テクスチャ座標のみクリア"
+        snippet: "clearTexCoords()"
+      - name: translate
+        return: "void"
+        signatures:
+          - params: "float x, float y, float z"
+          - params: "Vec3 offset"
+        description: "Translate all vertices"
+        description_ja: "全頂点を移動"
+        snippet: "translate(${1:x}, ${2:y}, ${3:z})"
+      - name: rotateX
+        return: "void"
+        signatures:
+          - params: "float radians"
+        description: "Rotate mesh around X axis"
+        description_ja: "X軸周りにメッシュを回転"
+        snippet: "rotateX(${1:radians})"
+      - name: rotateY
+        return: "void"
+        signatures:
+          - params: "float radians"
+        description: "Rotate mesh around Y axis"
+        description_ja: "Y軸周りにメッシュを回転"
+        snippet: "rotateY(${1:radians})"
+      - name: rotateZ
+        return: "void"
+        signatures:
+          - params: "float radians"
+        description: "Rotate mesh around Z axis"
+        description_ja: "Z軸周りにメッシュを回転"
+        snippet: "rotateZ(${1:radians})"
+      - name: scale
+        return: "void"
+        signatures:
+          - params: "float s"
+          - params: "float x, float y, float z"
+        description: "Scale mesh"
+        description_ja: "メッシュをスケール"
+        snippet: "scale(${1:s})"
+      - name: transform
+        return: "void"
+        signatures:
+          - params: "Mat4 matrix"
+        description: "Apply transformation matrix"
+        description_ja: "変換行列を適用"
+        snippet: "transform(${1:matrix})"
+      - name: append
+        return: "void"
+        signatures:
+          - params: "Mesh other"
+        description: "Append another mesh"
+        description_ja: "別のメッシュを追加"
+        snippet: "append(${1:other})"
+      - name: draw
+        return: "void"
+        signatures:
+          - params: ""
+          - params: "Texture texture"
+          - params: "Image image"
+        description: "Draw the mesh"
+        description_ja: "メッシュを描画"
+        snippet: "draw()"
+      - name: drawWireframe
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Draw mesh as wireframe"
+        description_ja: "ワイヤーフレームで描画"
+        snippet: "drawWireframe()"
+
+  - name: Polyline
+    description: "Path/Polyline for drawing lines and curves"
+    description_ja: "線や曲線を描画するためのパス/ポリライン"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+        - params: "vector<Vec2> verts"
+        - params: "vector<Vec3> verts"
+      snippet: "Polyline()"
+    methods:
+      - name: addVertex
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+          - params: "float x, float y, float z"
+          - params: "Vec2 v"
+          - params: "Vec3 v"
+        description: "Add a vertex"
+        description_ja: "頂点を追加"
+        snippet: "addVertex(${1:x}, ${2:y})"
+      - name: addVertices
+        return: "void"
+        signatures:
+          - params: "vector<Vec2> verts"
+          - params: "vector<Vec3> verts"
+        description: "Add multiple vertices"
+        description_ja: "複数の頂点を追加"
+        snippet: "addVertices(${1:verts})"
+      - name: getVertices
+        return: "vector<Vec3>"
+        signatures:
+          - params: ""
+        description: "Get all vertices"
+        description_ja: "全頂点を取得"
+        snippet: "getVertices()"
+      - name: size
+        return: int
+        signatures:
+          - params: ""
+        description: "Get vertex count"
+        description_ja: "頂点数を取得"
+        snippet: "size()"
+      - name: empty
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if polyline is empty"
+        description_ja: "ポリラインが空か確認"
+        snippet: "empty()"
+      - name: clear
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Clear all vertices"
+        description_ja: "全頂点をクリア"
+        snippet: "clear()"
+      - name: lineTo
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+          - params: "float x, float y, float z"
+          - params: "Vec2 p"
+          - params: "Vec3 p"
+        description: "Add line segment to point"
+        description_ja: "点まで線を追加"
+        snippet: "lineTo(${1:x}, ${2:y})"
+      - name: bezierTo
+        return: "void"
+        signatures:
+          - params: "float cx1, float cy1, float cx2, float cy2, float x, float y"
+          - params: "Vec2 cp1, Vec2 cp2, Vec2 to"
+          - params: "Vec3 cp1, Vec3 cp2, Vec3 to"
+        description: "Add cubic bezier curve"
+        description_ja: "3次ベジェ曲線を追加"
+        snippet: "bezierTo(${1:cx1}, ${2:cy1}, ${3:cx2}, ${4:cy2}, ${5:x}, ${6:y})"
+      - name: quadBezierTo
+        return: "void"
+        signatures:
+          - params: "float cx, float cy, float x, float y"
+          - params: "Vec2 cp, Vec2 to"
+          - params: "Vec3 cp, Vec3 to"
+        description: "Add quadratic bezier curve"
+        description_ja: "2次ベジェ曲線を追加"
+        snippet: "quadBezierTo(${1:cx}, ${2:cy}, ${3:x}, ${4:y})"
+      - name: curveTo
+        return: "void"
+        signatures:
+          - params: "float x, float y"
+          - params: "Vec2 to"
+          - params: "Vec3 to"
+        description: "Add Catmull-Rom curve segment"
+        description_ja: "Catmull-Rom曲線を追加"
+        snippet: "curveTo(${1:x}, ${2:y})"
+      - name: arc
+        return: "void"
+        signatures:
+          - params: "float x, float y, float radiusX, float radiusY, float angleBegin, float angleEnd"
+          - params: "Vec2 center, float radiusX, float radiusY, float angleBegin, float angleEnd"
+        description: "Add an arc"
+        description_ja: "円弧を追加"
+        snippet: "arc(${1:x}, ${2:y}, ${3:radiusX}, ${4:radiusY}, ${5:0}, ${6:360})"
+      - name: close
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Close the path"
+        description_ja: "パスを閉じる"
+        snippet: "close()"
+      - name: setClosed
+        return: "void"
+        signatures:
+          - params: "bool closed"
+        description: "Set closed state"
+        description_ja: "閉じた状態を設定"
+        snippet: "setClosed(${1:true})"
+      - name: isClosed
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if path is closed"
+        description_ja: "パスが閉じているか確認"
+        snippet: "isClosed()"
+      - name: draw
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Draw the polyline"
+        description_ja: "ポリラインを描画"
+        snippet: "draw()"
+      - name: getBoundingBox
+        return: "void"
+        signatures:
+          - params: "float minX, float minY, float maxX, float maxY"
+        description: "Get bounding box (output parameters)"
+        description_ja: "バウンディングボックスを取得（出力パラメータ）"
+        snippet: "getBoundingBox(${1:minX}, ${2:minY}, ${3:maxX}, ${4:maxY})"
+      - name: getPerimeter
+        return: float
+        signatures:
+          - params: ""
+        description: "Get total path length"
+        description_ja: "パスの全長を取得"
+        snippet: "getPerimeter()"
+
+  - name: Sound
+    description: "Audio playback"
+    description_ja: "音声再生"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Sound()"
+    methods:
+      - name: load
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Load audio file"
+        description_ja: "音声ファイルを読み込む"
+        snippet: "load(${1:\"path\"})"
+      - name: play
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Play audio"
+        description_ja: "音声を再生"
+        snippet: "play()"
+      - name: stop
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Stop audio"
+        description_ja: "音声を停止"
+        snippet: "stop()"
+      - name: isLoaded
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if loaded"
+        description_ja: "読み込み済みか確認"
+        snippet: "isLoaded()"
+      - name: isPlaying
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if playing"
+        description_ja: "再生中か確認"
+        snippet: "isPlaying()"
+      - name: setVolume
+        return: "void"
+        signatures:
+          - params: "float volume"
+        description: "Set volume (0.0-1.0)"
+        description_ja: "音量を設定 (0.0-1.0)"
+        snippet: "setVolume(${1:1.0})"
+      - name: setLoop
+        return: "void"
+        signatures:
+          - params: "bool loop"
+        description: "Set loop mode"
+        description_ja: "ループモードを設定"
+        snippet: "setLoop(${1:true})"
+      - name: isLoop
+        return: "bool"
+        signatures:
+          - params: ""
+        description: "Check if loop mode is enabled"
+        description_ja: "ループモードが有効か確認"
+        snippet: "isLoop()"
+      - name: setPan
+        return: "void"
+        signatures:
+          - params: "float pan"
+        description: "Set panning (-1.0=left, 0.0=center, 1.0=right)"
+        description_ja: "パンを設定 (-1.0=左, 0.0=中央, 1.0=右)"
+        snippet: "setPan(${1:0.0})"
+      - name: getPan
+        return: "float"
+        signatures:
+          - params: ""
+        description: "Get current panning"
+        description_ja: "現在のパンを取得"
+        snippet: "getPan()"
+      - name: setSpeed
+        return: "void"
+        signatures:
+          - params: "float speed"
+        description: "Set playback speed (1.0=normal)"
+        description_ja: "再生速度を設定 (1.0=標準)"
+        snippet: "setSpeed(${1:1.0})"
+      - name: getSpeed
+        return: "float"
+        signatures:
+          - params: ""
+        description: "Get current playback speed"
+        description_ja: "現在の再生速度を取得"
+        snippet: "getSpeed()"
+      - name: pause
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Pause playback"
+        description_ja: "一時停止"
+        snippet: "pause()"
+      - name: resume
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Resume playback"
+        description_ja: "再生を再開"
+        snippet: "resume()"
+      - name: isPaused
+        return: "bool"
+        signatures:
+          - params: ""
+        description: "Check if paused"
+        description_ja: "一時停止中か確認"
+        snippet: "isPaused()"
+      - name: getPosition
+        return: "float"
+        signatures:
+          - params: ""
+        description: "Get playback position in seconds"
+        description_ja: "再生位置を取得（秒）"
+        snippet: "getPosition()"
+      - name: getDuration
+        return: "float"
+        signatures:
+          - params: ""
+        description: "Get total duration in seconds"
+        description_ja: "総再生時間を取得（秒）"
+        snippet: "getDuration()"
+
+  - name: Font
+    description: "TrueType font for text rendering"
+    description_ja: "テキスト描画用TrueTypeフォント"
+    sketch: true
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "Font()"
+    methods:
+      - name: load
+        return: bool
+        signatures:
+          - params: "string path, int size"
+        description: "Load font file"
+        description_ja: "フォントファイルを読み込む"
+        snippet: "load(${1:\"path\"}, ${2:24})"
+      - name: isLoaded
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if loaded"
+        description_ja: "読み込み済みか確認"
+        snippet: "isLoaded()"
+      - name: drawString
+        return: "void"
+        signatures:
+          - params: "string text, float x, float y"
+        description: "Draw text"
+        description_ja: "テキストを描画"
+        snippet: "drawString(${1:\"text\"}, ${2:x}, ${3:y})"
+      - name: getWidth
+        return: float
+        signatures:
+          - params: "string text"
+        description: "Get text width"
+        description_ja: "テキストの幅を取得"
+        snippet: "getWidth(${1:\"text\"})"
+      - name: getHeight
+        return: float
+        signatures:
+          - params: "string text"
+        description: "Get text height"
+        description_ja: "テキストの高さを取得"
+        snippet: "getHeight(${1:\"text\"})"
+      - name: getLineHeight
+        return: float
+        signatures:
+          - params: ""
+        description: "Get line height"
+        description_ja: "行の高さを取得"
+        snippet: "getLineHeight()"
+      - name: getSize
+        return: int
+        signatures:
+          - params: ""
+        description: "Get font size"
+        description_ja: "フォントサイズを取得"
+        snippet: "getSize()"
