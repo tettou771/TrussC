@@ -134,9 +134,11 @@ public:
     }
 
 protected:
-    // Draw children with clipping support
-    void drawChildren() override {
-        // If clipping enabled, set scissor (push to stack)
+    // -------------------------------------------------------------------------
+    // Clipping via beginDraw/endDraw hooks
+    // -------------------------------------------------------------------------
+
+    void beginDraw() override {
         if (clipping_) {
             // Convert local coordinates (0,0) and (width_, height_) to global
             float gx1, gy1, gx2, gy2;
@@ -152,11 +154,9 @@ protected:
 
             pushScissor(sx, sy, sw, sh);
         }
+    }
 
-        // Draw child nodes
-        Node::drawChildren();
-
-        // Restore clipping (pop from stack)
+    void endDraw() override {
         if (clipping_) {
             popScissor();
         }

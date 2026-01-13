@@ -152,32 +152,43 @@ protected:
     }
 
     // -------------------------------------------------------------------------
-    // Mouse scroll event
+    // Update - apply accumulated scroll
+    // -------------------------------------------------------------------------
+
+    void update() override {
+        if (accumulatedScrollX_ != 0 || accumulatedScrollY_ != 0) {
+            if (verticalScroll_ && maxScrollY_ > 0) {
+                setScrollY(scrollY_ - accumulatedScrollY_ * scrollSpeed_);
+            }
+            if (horizontalScroll_ && maxScrollX_ > 0) {
+                setScrollX(scrollX_ - accumulatedScrollX_ * scrollSpeed_);
+            }
+            accumulatedScrollX_ = 0;
+            accumulatedScrollY_ = 0;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Mouse scroll event - accumulate for processing in update
     // -------------------------------------------------------------------------
 
     bool onMouseScroll(Vec2 local, Vec2 scroll) override {
         (void)local;
 
-        bool handled = false;
+        bool canScroll = false;
 
         if (verticalScroll_ && maxScrollY_ > 0) {
-            float newY = scrollY_ - scroll.y * scrollSpeed_;
-            if (newY != scrollY_) {
-                setScrollY(newY);
-                handled = true;
-            }
+            accumulatedScrollY_ += scroll.y;
+            canScroll = true;
         }
 
         if (horizontalScroll_ && maxScrollX_ > 0) {
-            float newX = scrollX_ - scroll.x * scrollSpeed_;
-            if (newX != scrollX_) {
-                setScrollX(newX);
-                handled = true;
-            }
+            accumulatedScrollX_ += scroll.x;
+            canScroll = true;
         }
 
-        // Consume event if we handled scroll, otherwise bubble up
-        return handled;
+        // Consume event if we can scroll, otherwise bubble up
+        return canScroll;
     }
 
 private:
@@ -189,6 +200,10 @@ private:
     bool horizontalScroll_ = false;  // Disabled by default
     bool verticalScroll_ = true;     // Enabled by default
     float scrollSpeed_ = 20.0f;
+
+    // Accumulated scroll delta (processed in update)
+    float accumulatedScrollX_ = 0;
+    float accumulatedScrollY_ = 0;
 
     float clampScrollX(float x) const {
         return std::max(0.0f, std::min(maxScrollX_, x));

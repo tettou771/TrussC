@@ -24,6 +24,8 @@ using NodeWeakPtr = std::weak_ptr<Node>;
 namespace internal {
     inline Node* hoveredNode = nullptr;      // Currently hovered node
     inline Node* prevHoveredNode = nullptr;  // Previously hovered node
+    inline Node* grabbedNode = nullptr;      // Node grabbed by mouse press
+    inline int grabbedButton = -1;           // Mouse button that caused the grab
 }
 
 // =============================================================================
@@ -423,6 +425,9 @@ private:
             scale(scale_.x, scale_.y, scale_.z);
         }
 
+        // Begin draw hook (for clipping, etc.)
+        beginDraw();
+
         // User drawing
         if (isVisible) {
             draw();
@@ -430,6 +435,9 @@ private:
 
         // Draw child nodes (overridable for clipping, etc.)
         drawChildren();
+
+        // End draw hook
+        endDraw();
 
         popMatrix();
     }
@@ -448,6 +456,9 @@ private:
         if (result.hit()) {
             Vec2 local(result.localPoint.x, result.localPoint.y);
             if (result.node->onMousePress(local, button)) {
+                // Set grabbed node for drag tracking
+                internal::grabbedNode = result.node.get();
+                internal::grabbedButton = button;
                 return result.node;
             }
         }
@@ -456,6 +467,24 @@ private:
     }
 
     Ptr dispatchMouseRelease(float screenX, float screenY, int button) {
+        // Send release to grabbed node if it exists
+        if (internal::grabbedNode && internal::grabbedButton == button) {
+            float localX, localY;
+            internal::grabbedNode->globalToLocal(screenX, screenY, localX, localY);
+            Vec2 local(localX, localY);
+            internal::grabbedNode->onMouseRelease(local, button);
+
+            Ptr result = std::dynamic_pointer_cast<Node>(
+                internal::grabbedNode->shared_from_this());
+
+            // Clear grabbed state
+            internal::grabbedNode = nullptr;
+            internal::grabbedButton = -1;
+
+            return result;
+        }
+
+        // Fallback: send to hit node
         Ray globalRay = Ray::fromScreenPoint2D(screenX, screenY);
         HitResult result = findHitNode(globalRay);
 
@@ -470,6 +499,15 @@ private:
     }
 
     Ptr dispatchMouseMove(float screenX, float screenY) {
+        // Send drag event to grabbed node
+        if (internal::grabbedNode) {
+            float localX, localY;
+            internal::grabbedNode->globalToLocal(screenX, screenY, localX, localY);
+            Vec2 local(localX, localY);
+            internal::grabbedNode->onMouseDrag(local, internal::grabbedButton);
+        }
+
+        // Also send move event to hit node (for hover, etc.)
         Ray globalRay = Ray::fromScreenPoint2D(screenX, screenY);
         HitResult result = findHitNode(globalRay);
 
@@ -488,9 +526,22 @@ private:
         HitResult result = findHitNode(globalRay);
 
         if (result.hit()) {
-            Vec2 local(result.localPoint.x, result.localPoint.y);
-            if (result.node->onMouseScroll(local, scroll)) {
-                return result.node;
+            // Bubble up from hit node to ancestors until consumed
+            Node* current = result.node.get();
+            while (current) {
+                // Convert screen coords to current node's local coords
+                float localX, localY;
+                current->globalToLocal(screenX, screenY, localX, localY);
+                Vec2 local(localX, localY);
+
+                if (current->onMouseScroll(local, scroll)) {
+                    // Event consumed
+                    return std::dynamic_pointer_cast<Node>(
+                        current->shared_from_this());
+                }
+
+                // Bubble up to parent
+                current = current->getParent().get();
             }
         }
 
@@ -603,7 +654,17 @@ private:
 protected:
 
     // -------------------------------------------------------------------------
-    // Draw children (overridable for clipping, etc.)
+    // Draw hooks (for clipping, etc.)
+    // -------------------------------------------------------------------------
+
+    // Called before draw() and drawChildren()
+    virtual void beginDraw() {}
+
+    // Called after draw() and drawChildren()
+    virtual void endDraw() {}
+
+    // -------------------------------------------------------------------------
+    // Draw children (overridable)
     // -------------------------------------------------------------------------
 
     virtual void drawChildren() {
