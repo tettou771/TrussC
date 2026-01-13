@@ -30,6 +30,8 @@
 
 | Feature | Description | Difficulty |
 |---------|-------------|------------|
+| Component system | Attachable behaviors for Node (Layout, Draggable, etc.) | Medium |
+| UI Layout | VStack/HStack/Flex layout components | Medium |
 | 3D model loading | OBJ/glTF loader | High |
 | Spot light | Spotlight support for lighting system | Medium |
 
@@ -53,6 +55,8 @@
 
 | Category | Sample | Description |
 |----------|--------|-------------|
+| ui/ | layoutExample | VStack/HStack layout with components |
+| ui/ | componentExample | Draggable, ScrollBehavior demo |
 | 3d/ | modelLoaderExample | OBJ/glTF model loading |
 | animation/ | spriteSheetExample | Sprite sheet animation |
 | game/ | pongExample | Simple game demo |
@@ -71,6 +75,88 @@ Priority: Low | Difficulty: Medium
 - [ ] Test V4L2 with RPi camera
 - [ ] Verify miniaudio ALSA on ARM
 - [ ] Test on actual hardware
+
+---
+
+## Component System Design
+
+Priority: High | Difficulty: Medium
+
+### Concept
+
+Attach reusable behaviors to Node without modifying Node class itself.
+Unlike child nodes, Components:
+- Don't participate in hit testing
+- Don't get affected by layout
+- Have automatic lifecycle management (setup/update/draw/destroy)
+- Can query owner node
+
+### Base Class
+
+```cpp
+class Component {
+protected:
+    Node* owner_ = nullptr;
+
+    virtual void setup() {}
+    virtual void update() {}
+    virtual void draw() {}
+    virtual void onDestroy() {}
+
+public:
+    Node* getOwner() { return owner_; }
+};
+```
+
+### Node Integration
+
+```cpp
+class Node {
+    vector<unique_ptr<Component>> components_;
+
+public:
+    template<typename T, typename... Args>
+    T* addComponent(Args&&... args);
+
+    template<typename T>
+    T* getComponent();
+
+    template<typename T>
+    void removeComponent();
+};
+```
+
+### Use Cases
+
+| Component | Description |
+|-----------|-------------|
+| VStackLayout | Auto-arrange children vertically |
+| HStackLayout | Auto-arrange children horizontally |
+| Draggable | Make node draggable with mouse |
+| ScrollBehavior | Scroll children with mouse wheel |
+| SpriteAnimator | Animate sprite sheets |
+| AudioEmitter | Spatial audio source |
+
+### Example Usage
+
+```cpp
+auto panel = make_shared<RectNode>(400, 300);
+panel->addComponent<VStackLayout>(10);  // gap = 10
+
+panel->addChild(button1);  // auto-positioned at y=0
+panel->addChild(button2);  // auto-positioned at y=button1.height+10
+panel->addChild(button3);  // auto-positioned at y=...
+
+// Draggable in one line
+panel->addComponent<Draggable>();
+```
+
+### Benefits over External Helpers
+
+- Lifecycle managed by Node (no manual update() calls)
+- Automatic cleanup when Node is destroyed
+- Standard `getComponent<T>()` query pattern
+- Serialization: save/load node with all components
 
 ---
 

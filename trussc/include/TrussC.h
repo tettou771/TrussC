@@ -318,13 +318,19 @@ inline void setup() {
         internal::fontInitialized = true;
     }
 
-    // Create pipeline for 3D drawing (based on sokol-samples sgl-sapp.c)
+    // Create pipeline for 3D drawing (depth test + alpha blend)
     if (!internal::pipeline3dInitialized) {
         sg_pipeline_desc pip_desc = {};
         pip_desc.cull_mode = SG_CULLMODE_NONE;  // No culling
         pip_desc.depth.write_enabled = true;
         pip_desc.depth.compare = SG_COMPAREFUNC_LESS_EQUAL;
         pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;
+        // Enable alpha blending
+        pip_desc.colors[0].blend.enabled = true;
+        pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+        pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+        pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+        pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
         internal::pipeline3d = sgl_make_pipeline(&pip_desc);
         internal::pipeline3dInitialized = true;
     }
@@ -922,8 +928,11 @@ namespace internal {
 
         if (fovDeg <= 0.0f) {
             // Orthographic projection (2D mode)
-            sgl_load_default_pipeline();
             sgl_defaults();
+            // Load alpha blend pipeline for 2D
+            if (blendPipelinesInitialized) {
+                sgl_load_pipeline(blendPipelines[static_cast<int>(BlendMode::Alpha)]);
+            }
             sgl_matrix_mode_projection();
             sgl_ortho(0.0f, viewW, viewH, 0.0f, -farDist, farDist);
             sgl_matrix_mode_modelview();
@@ -2129,7 +2138,7 @@ int runApp(const WindowSettings& settings = WindowSettings()) {
         if (app) app->handleMouseScrolled(dx, dy, internal::mouseX, internal::mouseY);
     };
     internal::appWindowResizedFunc = [](int w, int h) {
-        if (app) app->windowResized(w, h);
+        if (app) app->handleWindowResized(w, h);
     };
     internal::appFilesDroppedFunc = [](const std::vector<std::string>& files) {
         if (app) app->filesDropped(files);

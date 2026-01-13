@@ -6,6 +6,8 @@
 #include <functional>
 #include <algorithm>
 #include <cstdint>
+#include <typeindex>
+#include <unordered_map>
 
 // =============================================================================
 // trussc namespace
@@ -14,6 +16,7 @@ namespace trussc {
 
 // Forward declaration
 class Node;
+class Mod;
 using NodePtr = std::shared_ptr<Node>;
 using NodeWeakPtr = std::weak_ptr<Node>;
 
@@ -30,6 +33,7 @@ namespace internal {
 
 class Node : public std::enable_shared_from_this<Node> {
     friend class App;  // Allow App to call dispatch methods
+    friend class Mod;  // Allow Mod to access owner_
 
 public:
     using Ptr = std::shared_ptr<Node>;
@@ -76,6 +80,43 @@ public:
             globalToLocal(globalX, globalY, localX, localY);
             child->setPos(localX, localY, child->getZ());
         }
+
+        // Notify callback
+        onChildAdded(child);
+    }
+
+    // Insert child node at specific index
+    void insertChild(size_t index, Ptr child, bool keepGlobalPosition = false) {
+        if (!child || child.get() == this) return;
+
+        // If preserving global position, record position before move
+        float globalX = 0, globalY = 0;
+        if (keepGlobalPosition) {
+            child->localToGlobal(0, 0, globalX, globalY);
+        }
+
+        // Remove from existing parent
+        if (auto oldParent = child->parent_.lock()) {
+            oldParent->removeChild(child);
+        }
+
+        child->parent_ = weak_from_this();
+
+        // Clamp index and insert
+        if (index >= children_.size()) {
+            children_.push_back(child);
+        } else {
+            children_.insert(children_.begin() + index, child);
+        }
+
+        // If preserving global position, recalculate local coordinates
+        if (keepGlobalPosition) {
+            float localX, localY;
+            globalToLocal(globalX, globalY, localX, localY);
+            child->setPos(localX, localY, child->getZ());
+        }
+
+        onChildAdded(child);
     }
 
     // Remove child node
@@ -84,6 +125,7 @@ public:
 
         auto it = std::find(children_.begin(), children_.end(), child);
         if (it != children_.end()) {
+            onChildRemoved(child);  // Notify before removal
             (*it)->parent_.reset();
             children_.erase(it);
         }
@@ -92,10 +134,17 @@ public:
     // Remove all child nodes
     void removeAllChildren() {
         for (auto& child : children_) {
+            onChildRemoved(child);  // Notify for each child
             child->parent_.reset();
         }
         children_.clear();
     }
+
+    // Callback when child is added (overridable)
+    virtual void onChildAdded(Ptr child) { (void)child; }
+
+    // Callback when child is removed (overridable)
+    virtual void onChildRemoved(Ptr child) { (void)child; }
 
     // Get parent node
     Ptr getParent() const {
@@ -293,6 +342,36 @@ public:
     // Traversed in reverse draw order (later drawn = higher priority)
     HitResult findHitNode(const Ray& globalRay) {
         return findHitNodeRecursive(globalRay, getGlobalMatrixInverse());
+    }
+
+    // -------------------------------------------------------------------------
+    // Mod system - attach behaviors to nodes
+    // -------------------------------------------------------------------------
+
+    // Get a mod by type (returns nullptr if not found)
+    template<typename T>
+    T* getMod() {
+        auto it = mods_.find(std::type_index(typeid(T)));
+        if (it != mods_.end()) {
+            return static_cast<T*>(it->second.get());
+        }
+        return nullptr;
+    }
+
+    // Add a mod to this node (returns pointer for chaining)
+    template<typename T, typename... Args>
+    T* addMod(Args&&... args) {
+        auto mod = std::make_unique<T>(std::forward<Args>(args)...);
+        T* ptr = mod.get();
+        mod->owner_ = this;
+        mods_[std::type_index(typeid(T))] = std::move(mod);
+        return ptr;
+    }
+
+    // Remove a mod by type
+    template<typename T>
+    void removeMod() {
+        mods_.erase(std::type_index(typeid(T)));
     }
 
 private:
@@ -642,6 +721,9 @@ private:
     WeakPtr parent_;
     std::vector<Ptr> children_;
     bool eventsEnabled_ = false;  // Enabled via enableEvents()
+
+    // Mod system
+    std::unordered_map<std::type_index, std::unique_ptr<Mod>> mods_;
 
     // -------------------------------------------------------------------------
     // Transform data (private)

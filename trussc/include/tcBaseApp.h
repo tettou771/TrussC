@@ -1,7 +1,11 @@
 #pragma once
 
 #include "tcNode.h"
+#include "tc/types/tcMod.h"
 #include "tc/types/tcRectNode.h"
+#include "tc/types/tcLayoutMod.h"
+#include "tc/types/tcScrollContainer.h"
+#include "tc/types/tcScrollBar.h"
 #include <vector>
 #include <string>
 
@@ -12,13 +16,24 @@ namespace trussc {
 
 // =============================================================================
 // App - Application base class
-// Inherits from tc::Node and functions as scene graph root node
+// Inherits from tc::RectNode and functions as scene graph root node
+// Size is synchronized with window size
 // Create tcApp by inheriting this class
 // =============================================================================
 
-class App : public Node {
+class App : public RectNode {
 public:
     virtual ~App() = default;
+
+    // -------------------------------------------------------------------------
+    // Size (synchronized with window)
+    // -------------------------------------------------------------------------
+
+    // Override setSize to resize window
+    void setSize(float w, float h) override {
+        setWindowSize(static_cast<int>(w), static_cast<int>(h));
+        // Actual size update happens in windowResized callback
+    }
 
     // -------------------------------------------------------------------------
     // Exit request (for programmatic termination)
@@ -142,6 +157,13 @@ public:
     void handleMouseScrolled(float dx, float dy, int mouseX, int mouseY) {
         mouseScrolled(Vec2(dx, dy));
         dispatchMouseScroll((float)mouseX, (float)mouseY, Vec2(dx, dy));
+    }
+
+    void handleWindowResized(int width, int height) {
+        // Update internal size (call RectNode::setSize directly, not our override)
+        RectNode::setSize(static_cast<float>(width), static_cast<float>(height));
+        // Call user callback
+        windowResized(width, height);
     }
 
     void handleUpdate(int mouseX, int mouseY) {

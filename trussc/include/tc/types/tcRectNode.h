@@ -44,7 +44,7 @@ public:
         }
     }
 
-    void setSize(float w, float h) {
+    virtual void setSize(float w, float h) {
         if (width_ != w || height_ != h) {
             width_ = w;
             height_ = h;
@@ -52,7 +52,7 @@ public:
         }
     }
 
-    void setSize(float size) {
+    virtual void setSize(float size) {
         setSize(size, size);
     }
 
@@ -201,7 +201,9 @@ protected:
         args.scrollX = scroll.x;
         args.scrollY = scroll.y;
         mouseScrolled.notify(args);
-        return true;
+        // Return false to allow bubbling to parent (e.g., ScrollContainer)
+        // Override and return true to consume the event
+        return false;
     }
 
     // -------------------------------------------------------------------------
