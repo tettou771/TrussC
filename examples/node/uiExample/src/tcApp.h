@@ -6,7 +6,7 @@ using namespace std;
 using namespace tc;
 
 // =============================================================================
-// UIButton - Button that fires event on click
+// UIButton - Simple button with click callback
 // =============================================================================
 class UIButton : public RectNode {
 public:
@@ -16,8 +16,6 @@ public:
     Color normalColor = Color(0.25f, 0.25f, 0.3f);
     Color hoverColor = Color(0.35f, 0.35f, 0.45f);
     Color pressColor = Color(0.15f, 0.15f, 0.2f);
-
-    // Click event (register callback from outside)
     function<void()> onClick;
 
     UIButton() {
@@ -25,33 +23,17 @@ public:
         setSize(120, 40);
     }
 
-    void update() override {
-        // No manual hover detection needed - use isMouseOver() in draw()
-    }
-
     void draw() override {
-        // Color based on state
-        if (isPressed_) {
-            setColor(pressColor);
-        } else if (isMouseOver()) {
-            setColor(hoverColor);
-        } else {
-            setColor(normalColor);
-        }
-
+        setColor(isPressed_ ? pressColor : isMouseOver() ? hoverColor : normalColor);
         fill();
         drawRect(0, 0, getWidth(), getHeight());
 
-        // Border
         noFill();
         setColor(0.5f, 0.5f, 0.6f);
         drawRect(0, 0, getWidth(), getHeight());
 
-        // Label (y is baseline position)
-        fill();
         setColor(1.0f, 1.0f, 1.0f);
-        float textX = getWidth() / 2 - label.length() * 4;
-        drawBitmapString(label, textX, getHeight() / 2 - 13 + 10, false);
+        drawBitmapString(label, getWidth() / 2 - label.length() * 4, getHeight() / 2 + 4, false);
     }
 
 protected:
@@ -63,27 +45,23 @@ protected:
     }
 
     bool onMouseRelease(Vec2 local, int button) override {
-        if (isPressed_ && isMouseOver() && onClick) {
-            onClick();  // Fire click event
-        }
+        if (isPressed_ && isMouseOver() && onClick) onClick();
         isPressed_ = false;
         return RectNode::onMouseRelease(local, button);
     }
 };
 
 // =============================================================================
-// UISlider - Slider to change value by drag & scroll
+// UISlider - Slider with drag and scroll support
 // =============================================================================
 class UISlider : public RectNode {
 public:
     using Ptr = shared_ptr<UISlider>;
 
-    float value = 0.5f;  // 0.0 ~ 1.0
+    float value = 0.5f;
     float minValue = 0.0f;
     float maxValue = 1.0f;
     string label = "Slider";
-
-    // Value change event
     function<void(float)> onValueChanged;
 
     UISlider() {
@@ -91,48 +69,23 @@ public:
         setSize(200, 30);
     }
 
-    float getValue() const {
-        return minValue + value * (maxValue - minValue);
-    }
-
-    void setValue(float v) {
-        value = (v - minValue) / (maxValue - minValue);
-        value = std::max<float>(0.0f, std::min<float>(1.0f, value));
-    }
-
-    // Receive scroll event from outside
-    void handleScroll(float dx, float dy) {
-        (void)dx;  // Unused
-        float delta = dy * 0.05f;
-        float oldValue = value;
-        value = std::max<float>(0.0f, std::min<float>(1.0f, value + delta));
-        if (value != oldValue && onValueChanged) {
-            onValueChanged(getValue());
-        }
-    }
+    float getValue() const { return minValue + value * (maxValue - minValue); }
+    void setValue(float v) { value = clamp((v - minValue) / (maxValue - minValue), 0.0f, 1.0f); }
 
     void draw() override {
-        // Background
         setColor(0.2f, 0.2f, 0.25f);
         fill();
         drawRect(0, 0, getWidth(), getHeight());
 
-        // Track
-        float trackY = getHeight() / 2;
-        float trackH = 4;
         setColor(0.4f, 0.4f, 0.45f);
-        drawRect(0, trackY - trackH / 2, getWidth(), trackH);
+        drawRect(0, getHeight() / 2 - 2, getWidth(), 4);
 
-        // Knob
         float knobX = value * getWidth();
-        float knobW = 12;
-        float knobH = getHeight() - 4;
         setColor(isDragging_ ? Color(0.6f, 0.7f, 0.9f) : Color(0.5f, 0.6f, 0.8f));
-        drawRect(knobX - knobW / 2, 2, knobW, knobH);
+        drawRect(knobX - 6, 2, 12, getHeight() - 4);
 
-        // Label and value (above slider, y is baseline)
         setColor(1.0f, 1.0f, 1.0f);
-        drawBitmapString(format("{}: {:.2f}", label, getValue()), 4, -13 - 4, false);
+        drawBitmapString(format("{}: {:.2f}", label, getValue()), 4, -17, false);
     }
 
 protected:
@@ -141,125 +94,59 @@ protected:
     bool onMousePress(Vec2 local, int button) override {
         isDragging_ = true;
         updateValue(local.x);
-        return RectNode::onMousePress(local, button);
+        return true;
     }
 
     bool onMouseRelease(Vec2 local, int button) override {
+        (void)local; (void)button;
         isDragging_ = false;
-        return RectNode::onMouseRelease(local, button);
+        return true;
     }
 
     bool onMouseDrag(Vec2 local, int button) override {
-        if (isDragging_) {
-            updateValue(local.x);
-        }
-        return RectNode::onMouseDrag(local, button);
-    }
-
-    bool onMouseMove(Vec2 local) override {
-        // Update value while dragging
-        if (isDragging_) {
-            updateValue(local.x);
-        }
-        return RectNode::onMouseMove(local);
+        (void)button;
+        if (isDragging_) updateValue(local.x);
+        return true;
     }
 
     bool onMouseScroll(Vec2 local, Vec2 scroll) override {
-        // Change value by scroll
-        float delta = scroll.y * 0.05f;
-        float oldValue = value;
-        value = std::max<float>(0.0f, std::min<float>(1.0f, value + delta));
-        if (value != oldValue && onValueChanged) {
-            onValueChanged(getValue());
-        }
-        return RectNode::onMouseScroll(local, scroll);
+        (void)local;
+        float old = value;
+        value = clamp(value + scroll.y * 0.05f, 0.0f, 1.0f);
+        if (value != old && onValueChanged) onValueChanged(getValue());
+        return true;
     }
 
 private:
     void updateValue(float lx) {
-        float oldValue = value;
-        value = std::max<float>(0.0f, std::min<float>(1.0f, lx / getWidth()));
-        if (value != oldValue && onValueChanged) {
-            onValueChanged(getValue());
-        }
+        float old = value;
+        value = clamp(lx / getWidth(), 0.0f, 1.0f);
+        if (value != old && onValueChanged) onValueChanged(getValue());
     }
 };
 
 // =============================================================================
-// UIScrollBox - Box that scrolls content by scroll
+// ListItem - Item for scroll list
 // =============================================================================
-class UIScrollBox : public RectNode {
+class ListItem : public RectNode {
 public:
-    using Ptr = shared_ptr<UIScrollBox>;
+    using Ptr = shared_ptr<ListItem>;
+    string label;
+    Color color;
 
-    float scrollY = 0;
-    float contentHeight = 300;  // Internal content height
-
-    UIScrollBox() {
-        enableEvents();
-        setSize(200, 150);
-    }
-
-    // Receive scroll event from outside
-    void handleScroll(float dx, float dy) {
-        (void)dx;  // Unused
-        float maxScroll = std::max<float>(0.0f, contentHeight - getHeight());
-        scrollY = std::max<float>(0.0f, std::min<float>(maxScroll, scrollY - dy * 20));
+    ListItem(int index, float w, float h) {
+        setSize(w, h);
+        label = format("Item {}", index + 1);
+        color = Color::fromHSB(index * 0.08f, 0.4f, 0.5f);
     }
 
     void draw() override {
-        // Background
-        setColor(0.15f, 0.15f, 0.18f);
+        setColor(color);
         fill();
         drawRect(0, 0, getWidth(), getHeight());
 
-        // Set clipping (in global coordinates, considering DPI scale)
-        float gx, gy;
-        localToGlobal(0, 0, gx, gy);
-        float dpi = sapp_dpi_scale();
-        pushScissor(gx * dpi, gy * dpi, getWidth() * dpi, getHeight() * dpi);
-
-        // Scrollable content
-        pushMatrix();
-        translate(0, -scrollY);
-
-        // Content (multiple items) - automatically hidden outside range by clipping
-        for (int i = 0; i < 10; i++) {
-            float itemY = i * 30;
-            setColor(0.3f + i * 0.05f, 0.3f, 0.35f);
-            fill();
-            drawRect(5, itemY + 2, getWidth() - 10, 26);
-
-            setColor(1.0f, 1.0f, 1.0f);
-            drawBitmapString(format("Item {}", i + 1), 10, itemY, false);
-        }
-
-        popMatrix();
-
-        // Restore clipping
-        popScissor();
-
-        // Border
-        noFill();
-        setColor(0.4f, 0.4f, 0.5f);
-        drawRect(0, 0, getWidth(), getHeight());
-
-        // Scrollbar
-        float maxScroll = std::max<float>(0.0f, contentHeight - getHeight());
-        if (maxScroll > 0) {
-            float barHeight = getHeight() * (getHeight() / contentHeight);
-            float barY = (scrollY / maxScroll) * (getHeight() - barHeight);
-            fill();
-            setColor(0.5f, 0.5f, 0.6f);
-            drawRect(getWidth() - 8, barY, 6, barHeight);
-        }
-    }
-
-protected:
-    bool onMouseScroll(Vec2 local, Vec2 scroll) override {
-        float maxScroll = std::max<float>(0.0f, contentHeight - getHeight());
-        scrollY = std::max<float>(0.0f, std::min<float>(maxScroll, scrollY - scroll.y * 20));
-        return RectNode::onMouseScroll(local, scroll);
+        setColor(1.0f, 1.0f, 1.0f);
+        drawBitmapString(label, 10, getHeight() / 2 + 4);
     }
 };
 
@@ -271,7 +158,6 @@ public:
     void setup() override;
     void update() override;
     void draw() override;
-
     void keyPressed(int key) override;
 
 private:
@@ -279,7 +165,11 @@ private:
     UIButton::Ptr button2_;
     UISlider::Ptr slider1_;
     UISlider::Ptr slider2_;
-    UIScrollBox::Ptr scrollBox_;
+
+    ScrollContainer::Ptr scrollContainer_;
+    RectNode::Ptr scrollContent_;
+    ScrollBar::Ptr scrollBar_;
+    LayoutMod* layout_ = nullptr;
 
     int clickCount_ = 0;
     Color bgColor_ = Color(0.1f, 0.1f, 0.12f);

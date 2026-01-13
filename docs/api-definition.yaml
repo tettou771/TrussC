@@ -2480,6 +2480,86 @@ categories:
         sketch: false
         snippet: "setSize(${1:w}, ${2:h})"
 
+      - name: setClipping
+        return: "void"
+        signatures:
+          - params: "bool enabled"
+            params_simple: "enabled"
+        description: "Enable/disable scissor clipping for RectNode (C++ only)"
+        description_ja: "RectNodeのシザークリッピングを有効/無効化（C++のみ）"
+        sketch: false
+        snippet: "setClipping(${1:true})"
+
+      - name: enableEvents
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Enable mouse/key events for this node (C++ only)"
+        description_ja: "このノードのマウス/キーイベントを有効化（C++のみ）"
+        sketch: false
+        snippet: "enableEvents()"
+
+      - name: ScrollContainer
+        return: ""
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Scrollable container node with clipping (C++ only)"
+        description_ja: "クリッピング付きスクロール可能コンテナノード（C++のみ）"
+        sketch: false
+        snippet: "make_shared<ScrollContainer>()"
+
+      - name: setContent
+        return: "void"
+        signatures:
+          - params: "shared_ptr<RectNode> content"
+            params_simple: "content"
+        description: "Set content node for ScrollContainer (C++ only)"
+        description_ja: "ScrollContainerのコンテンツノードを設定（C++のみ）"
+        sketch: false
+        snippet: "setContent(${1:content})"
+
+      - name: setScrollY
+        return: "void"
+        signatures:
+          - params: "float y"
+            params_simple: "y"
+        description: "Set vertical scroll position (C++ only)"
+        description_ja: "縦スクロール位置を設定（C++のみ）"
+        sketch: false
+        snippet: "setScrollY(${1:0})"
+
+      - name: ScrollBar
+        return: ""
+        signatures:
+          - params: "ScrollContainer* container, Direction dir = Vertical"
+            params_simple: "container, dir"
+        description: "Visual scroll indicator for ScrollContainer (C++ only)"
+        description_ja: "ScrollContainer用のスクロールバー表示（C++のみ）"
+        sketch: false
+        snippet: "make_shared<ScrollBar>(${1:container}, ScrollBar::Vertical)"
+
+      - name: LayoutMod
+        return: ""
+        signatures:
+          - params: "LayoutDirection dir, float spacing = 0"
+            params_simple: "dir, spacing"
+        description: "Layout modifier for automatic child arrangement (C++ only)"
+        description_ja: "子ノードの自動配置用レイアウトMod（C++のみ）"
+        sketch: false
+        snippet: "addMod<LayoutMod>(LayoutDirection::Vertical, ${1:8.0f})"
+
+      - name: updateLayout
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Recalculate layout (call after adding/removing children) (C++ only)"
+        description_ja: "レイアウトを再計算（子の追加/削除後に呼ぶ）（C++のみ）"
+        sketch: false
+        snippet: "updateLayout()"
+
   # ==========================================================================
   # 3D Setup
   # ==========================================================================
