@@ -63,8 +63,8 @@ void main() {
     float G = Y + Cg;
     float B = Y - Co - Cg;
 
-    // DEBUG: Force blue to test if shader is applied
-    frag_color = vec4(R, G, 1.0, 1.0) * vertColor;
+    // YCoCg to RGB - final output
+    frag_color = vec4(R, G, B, 1.0) * vertColor;
 }
 @end
 

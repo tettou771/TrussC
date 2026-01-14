@@ -252,8 +252,8 @@ public:
     void draw(float x, float y, float w, float h) const override {
         if (!initialized_ || !texture_.isAllocated()) return;
 
-        if (hapFormat_ == HapFormat::YCoCgDXT5 && ycocgShader_.isLoaded()) {
-            // Use YCoCg shader for HAP-Q
+        if (hapFormat_ == HapFormat::YCoCgDXT5) {
+            // Use YCoCg shader for HAP-Q (shader loaded lazily inside)
             drawWithYCoCgShader(x, y, w, h);
         } else {
             // Standard texture draw for HAP/HAP Alpha
@@ -424,8 +424,11 @@ private:
 
     void initYCoCgShader() const {
         if (!ycocgShader_.isLoaded()) {
+            tc::logNotice("HapPlayer") << "Loading YCoCg shader...";
             if (!ycocgShader_.load(ycocg_shader_desc)) {
-                tc::logWarning("HapPlayer") << "Failed to load YCoCg shader";
+                tc::logError("HapPlayer") << "Failed to load YCoCg shader!";
+            } else {
+                tc::logNotice("HapPlayer") << "YCoCg shader loaded successfully";
             }
         }
     }
@@ -435,6 +438,11 @@ private:
         initYCoCgShader();
         if (!ycocgShader_.isLoaded()) {
             // Fallback to standard draw (will show wrong colors)
+            static bool warned = false;
+            if (!warned) {
+                tc::logWarning("HapPlayer") << "YCoCg shader not loaded, using fallback";
+                warned = true;
+            }
             texture_.draw(x, y, w, h);
             return;
         }
@@ -453,24 +461,18 @@ private:
         // Set vertex shader uniforms
         ycocgShader_.setUniform(0, &vsParams, sizeof(vsParams));
 
-        // Create textured quad mesh (using TriangleFan: center + 4 corners)
-        tc::Mesh quad;
-        quad.setMode(tc::PrimitiveMode::TriangleFan);
-        // Vertex order for TriangleFan: 0-1-2-3-1 forms a quad
-        quad.addVertex(x, y, 0);          // top-left
-        quad.addVertex(x + w, y, 0);      // top-right
-        quad.addVertex(x + w, y + h, 0);  // bottom-right
-        quad.addVertex(x, y + h, 0);      // bottom-left
-        quad.addTexCoord(0.0f, 0.0f);
-        quad.addTexCoord(1.0f, 0.0f);
-        quad.addTexCoord(1.0f, 1.0f);
-        quad.addTexCoord(0.0f, 1.0f);
-        quad.addColor(tc::colors::white);
-        quad.addColor(tc::colors::white);
-        quad.addColor(tc::colors::white);
-        quad.addColor(tc::colors::white);
+        // Create textured quad vertices directly for shader
+        tc::ShaderVertex verts[4];
+        // Top-left
+        verts[0] = {x, y, 0, 0.0f, 0.0f, 1, 1, 1, 1};
+        // Top-right
+        verts[1] = {x + w, y, 0, 1.0f, 0.0f, 1, 1, 1, 1};
+        // Bottom-right
+        verts[2] = {x + w, y + h, 0, 1.0f, 1.0f, 1, 1, 1, 1};
+        // Bottom-left
+        verts[3] = {x, y + h, 0, 0.0f, 1.0f, 1, 1, 1, 1};
 
-        quad.draw();
+        ycocgShader_.submitVertices(verts, 4, tc::PrimitiveType::Quads);
 
         tc::popShader();
     }
