@@ -3,7 +3,8 @@
 // =============================================================================
 // tcVideoPlayer.h - Video playback
 // =============================================================================
-// Platform: macOS uses AVFoundation, Windows uses Media Foundation (future)
+// Platform: macOS uses AVFoundation, Windows uses Media Foundation,
+//           Linux uses FFmpeg
 //
 // Usage:
 //   tc::VideoPlayer video;
@@ -19,23 +20,17 @@
 //   }
 // =============================================================================
 
-#include <string>
-#include <atomic>
-#include <mutex>
+#include "tcVideoPlayerBase.h"
 
 namespace trussc {
 
 // ---------------------------------------------------------------------------
-// VideoPlayer - Video playback class (inherits HasTexture)
+// VideoPlayer - Standard video playback (RGBA output)
 // ---------------------------------------------------------------------------
-class VideoPlayer : public HasTexture {
+class VideoPlayer : public VideoPlayerBase {
 public:
     VideoPlayer() = default;
     ~VideoPlayer() { close(); }
-
-    // Non-copyable
-    VideoPlayer(const VideoPlayer&) = delete;
-    VideoPlayer& operator=(const VideoPlayer&) = delete;
 
     // Move-enabled
     VideoPlayer(VideoPlayer&& other) noexcept {
@@ -54,9 +49,7 @@ public:
     // Load / Close
     // =========================================================================
 
-    // Load video file
-    // Supports: mp4, mov, m4v, etc. (platform-dependent)
-    bool load(const std::string& path) {
+    bool load(const std::string& path) override {
         if (initialized_) {
             close();
         }
@@ -77,11 +70,7 @@ public:
         return true;
     }
 
-    // Check if video is loaded
-    bool isLoaded() const { return initialized_; }
-
-    // Close video and release resources
-    void close() {
+    void close() override {
         if (!initialized_) return;
 
         closePlatform();
@@ -104,52 +93,10 @@ public:
     }
 
     // =========================================================================
-    // Playback control
+    // Update
     // =========================================================================
 
-    // Start playback
-    void play() {
-        if (!initialized_) return;
-
-        // Clear texture to avoid showing old frame
-        clearTexture();
-        firstFrameReceived_ = false;
-        done_ = false;
-
-        playPlatform();
-        playing_ = true;
-        paused_ = false;
-    }
-
-    // Stop playback and reset to beginning
-    void stop() {
-        if (!initialized_) return;
-
-        stopPlatform();
-        playing_ = false;
-        paused_ = false;
-        done_ = false;
-
-        // Clear texture
-        clearTexture();
-        firstFrameReceived_ = false;
-    }
-
-    // Pause/resume playback
-    void setPaused(bool paused) {
-        if (!initialized_) return;
-
-        setPausedPlatform(paused);
-        paused_ = paused;
-    }
-
-    // Toggle pause state
-    void togglePause() {
-        setPaused(!paused_);
-    }
-
-    // Update video state (call every frame in update())
-    void update() {
+    void update() override {
         if (!initialized_) return;
 
         frameNew_ = false;
@@ -163,135 +110,57 @@ public:
             std::lock_guard<std::mutex> lock(mutex_);
             if (pixels_ && width_ > 0 && height_ > 0) {
                 texture_.loadData(pixels_, width_, height_, 4);
-                frameNew_ = true;
-                firstFrameReceived_ = true;
+                markFrameNew();
             }
         }
 
         // Check if playback finished
         if (playing_ && !paused_ && isFinishedPlatform()) {
-            done_ = true;
-            if (!loop_) {
-                playing_ = false;
-            }
+            markDone();
         }
     }
-
-    // =========================================================================
-    // State queries
-    // =========================================================================
-
-    bool isPlaying() const { return playing_ && !paused_; }
-    bool isPaused() const { return paused_; }
-    bool isFrameNew() const { return frameNew_ && firstFrameReceived_; }
-    bool isDone() const { return done_; }
 
     // =========================================================================
     // Properties
     // =========================================================================
 
-    float getWidth() const { return static_cast<float>(width_); }
-    float getHeight() const { return static_cast<float>(height_); }
-
-    // Get duration in seconds
-    float getDuration() const {
+    float getDuration() const override {
         if (!initialized_) return 0.0f;
         return getDurationPlatform();
     }
 
-    // Get current position (0.0 - 1.0)
-    float getPosition() const {
+    float getPosition() const override {
         if (!initialized_) return 0.0f;
         return getPositionPlatform();
     }
-
-    // Set position (0.0 - 1.0)
-    void setPosition(float pct) {
-        if (!initialized_) return;
-        pct = (pct < 0.0f) ? 0.0f : (pct > 1.0f) ? 1.0f : pct;
-        setPositionPlatform(pct);
-    }
-
-    // Get current time in seconds
-    float getCurrentTime() const {
-        return getPosition() * getDuration();
-    }
-
-    // Set current time in seconds
-    void setCurrentTime(float seconds) {
-        float duration = getDuration();
-        if (duration > 0.0f) {
-            setPosition(seconds / duration);
-        }
-    }
-
-    // Volume (0.0 - 1.0)
-    void setVolume(float vol) {
-        volume_ = (vol < 0.0f) ? 0.0f : (vol > 1.0f) ? 1.0f : vol;
-        if (initialized_) {
-            setVolumePlatform(volume_);
-        }
-    }
-
-    float getVolume() const { return volume_; }
-
-    // Playback speed (1.0 = normal)
-    void setSpeed(float speed) {
-        speed_ = (speed < 0.0f) ? 0.0f : (speed > 4.0f) ? 4.0f : speed;
-        if (initialized_) {
-            setSpeedPlatform(speed_);
-        }
-    }
-
-    float getSpeed() const { return speed_; }
-
-    // Loop setting
-    void setLoop(bool loop) {
-        loop_ = loop;
-        if (initialized_) {
-            setLoopPlatform(loop_);
-        }
-    }
-
-    bool isLoop() const { return loop_; }
 
     // =========================================================================
     // Frame control
     // =========================================================================
 
-    // Get current frame number (0-based)
-    int getCurrentFrame() const {
+    int getCurrentFrame() const override {
         if (!initialized_) return 0;
         return getCurrentFramePlatform();
     }
 
-    // Get total number of frames
-    int getTotalFrames() const {
+    int getTotalFrames() const override {
         if (!initialized_) return 0;
         return getTotalFramesPlatform();
     }
 
-    // Set frame by number (0-based)
-    void setFrame(int frame) {
+    void setFrame(int frame) override {
         if (!initialized_) return;
         setFramePlatform(frame);
     }
 
-    // Advance to next frame
-    void nextFrame() {
+    void nextFrame() override {
         if (!initialized_) return;
         nextFramePlatform();
     }
 
-    // Go back to previous frame
-    void previousFrame() {
+    void previousFrame() override {
         if (!initialized_) return;
         previousFramePlatform();
-    }
-
-    // Go to first frame
-    void firstFrame() {
-        setFrame(0);
     }
 
     // =========================================================================
@@ -301,39 +170,44 @@ public:
     unsigned char* getPixels() { return pixels_; }
     const unsigned char* getPixels() const { return pixels_; }
 
-    // =========================================================================
-    // HasTexture implementation
-    // =========================================================================
+protected:
+    // -------------------------------------------------------------------------
+    // Implementation methods
+    // -------------------------------------------------------------------------
 
-    Texture& getTexture() override { return texture_; }
-    const Texture& getTexture() const override { return texture_; }
+    void playImpl() override {
+        clearTexture();
+        playPlatform();
+    }
 
-    // draw() uses HasTexture's default implementation
+    void stopImpl() override {
+        stopPlatform();
+        clearTexture();
+    }
+
+    void setPausedImpl(bool paused) override {
+        setPausedPlatform(paused);
+    }
+
+    void setPositionImpl(float pct) override {
+        setPositionPlatform(pct);
+    }
+
+    void setVolumeImpl(float vol) override {
+        setVolumePlatform(vol);
+    }
+
+    void setSpeedImpl(float speed) override {
+        setSpeedPlatform(speed);
+    }
+
+    void setLoopImpl(bool loop) override {
+        setLoopPlatform(loop);
+    }
 
 private:
-    // -------------------------------------------------------------------------
-    // State
-    // -------------------------------------------------------------------------
-    int width_ = 0;
-    int height_ = 0;
-    bool initialized_ = false;
-    bool playing_ = false;
-    bool paused_ = false;
-    bool frameNew_ = false;
-    bool firstFrameReceived_ = false;  // Prevents showing old frame on play()
-    bool done_ = false;
-    bool loop_ = false;
-    float volume_ = 1.0f;
-    float speed_ = 1.0f;
-
     // Pixel data (RGBA)
     unsigned char* pixels_ = nullptr;
-
-    // Thread synchronization
-    mutable std::mutex mutex_;
-
-    // Texture
-    Texture texture_;
 
     // Platform-specific handle
     void* platformHandle_ = nullptr;
@@ -401,6 +275,30 @@ private:
     void setFramePlatform(int frame);
     void nextFramePlatform();
     void previousFramePlatform();
+
+    // Allow platform implementations to access internals
+    friend class VideoPlayerPlatformAccess;
+};
+
+// Helper class for platform implementations to access protected members
+class VideoPlayerPlatformAccess {
+public:
+    static void setDimensions(VideoPlayer& player, int w, int h) {
+        player.width_ = w;
+        player.height_ = h;
+    }
+    static void setPixelBuffer(VideoPlayer& player, unsigned char* pixels) {
+        player.pixels_ = pixels;
+    }
+    static unsigned char*& getPixelBufferRef(VideoPlayer& player) {
+        return player.pixels_;
+    }
+    static void*& getPlatformHandleRef(VideoPlayer& player) {
+        return player.platformHandle_;
+    }
+    static std::mutex& getMutex(VideoPlayer& player) {
+        return player.mutex_;
+    }
 };
 
 } // namespace trussc
