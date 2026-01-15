@@ -40,6 +40,14 @@ public:
     void setDebug(bool enabled) { debugMode_ = enabled; }
     bool isDebug() const { return debugMode_; }
 
+    // Override setSpeed to allow negative values (reverse playback)
+    void setSpeed(float speed) {
+        speed_ = speed;  // Allow any value including negative
+        if (initialized_) {
+            setSpeedImpl(speed_);
+        }
+    }
+
     // Performance stats
     double getAvgDecodeTimeMs() const {
         return decodeCount_ > 0 ? totalDecodeTimeMs_ / decodeCount_ : 0.0;
@@ -188,15 +196,35 @@ public:
 
         frameNew_ = false;
 
-        // Calculate target frame based on elapsed time
-        float elapsed = tc::getElapsedTimef() - playStartTime_;
-        int targetFrame = static_cast<int>(elapsed * header_.fps);
+        // Advance playback time (can be negative for reverse)
+        playbackTime_ += tc::getDeltaTime() * speed_;
 
+        // Calculate target frame
+        float duration = getDuration();
+        int targetFrame = static_cast<int>((playbackTime_ / duration) * header_.frameCount);
+
+        // Handle forward end (reached last frame)
         if (targetFrame >= static_cast<int>(header_.frameCount)) {
             if (loop_) {
-                playStartTime_ = tc::getElapsedTimef();
-                targetFrame = 0;
+                playbackTime_ = fmod(playbackTime_, duration);
+                targetFrame = static_cast<int>((playbackTime_ / duration) * header_.frameCount);
             } else {
+                targetFrame = header_.frameCount - 1;
+                markDone();
+                return;
+            }
+        }
+        // Handle reverse end (reached first frame)
+        else if (targetFrame < 0) {
+            if (loop_) {
+                playbackTime_ = duration + fmod(playbackTime_, duration);
+                targetFrame = static_cast<int>((playbackTime_ / duration) * header_.frameCount);
+                if (targetFrame >= static_cast<int>(header_.frameCount)) {
+                    targetFrame = header_.frameCount - 1;
+                }
+            } else {
+                targetFrame = 0;
+                playbackTime_ = 0;
                 markDone();
                 return;
             }
@@ -262,7 +290,7 @@ public:
 
 protected:
     void playImpl() override {
-        playStartTime_ = tc::getElapsedTimef();
+        playbackTime_ = 0;
         currentFrame_ = -1;
 
         // Start audio playback
@@ -273,6 +301,7 @@ protected:
     }
 
     void stopImpl() override {
+        playbackTime_ = 0;
         currentFrame_ = -1;
 
         // Stop audio
@@ -285,11 +314,8 @@ protected:
         if (hasAudio_) {
             if (paused) {
                 audio_.pause();
-                pauseTime_ = tc::getElapsedTimef();
             } else {
                 audio_.resume();
-                // Adjust play start time for pause duration
-                playStartTime_ += tc::getElapsedTimef() - pauseTime_;
             }
         }
     }
@@ -297,7 +323,7 @@ protected:
     void setPositionImpl(float pct) override {
         int frame = static_cast<int>(pct * header_.frameCount);
         setFrame(frame);
-        playStartTime_ = tc::getElapsedTimef() - pct * getDuration();
+        playbackTime_ = pct * getDuration();
 
         // Sync audio position
         if (hasAudio_) {
@@ -313,7 +339,13 @@ protected:
 
     void setSpeedImpl(float speed) override {
         if (hasAudio_) {
-            audio_.setSpeed(speed);
+            if (speed < 0) {
+                // Mute audio during reverse playback
+                audio_.setVolume(0);
+            } else {
+                audio_.setVolume(volume_);
+                audio_.setSpeed(speed);
+            }
         }
     }
 
@@ -340,9 +372,7 @@ private:
 
     std::vector<uint8_t> bc7Buffer_;
     int currentFrame_ = -1;
-
-    float playStartTime_ = 0.0f;
-    float pauseTime_ = 0.0f;
+    double playbackTime_ = 0.0;
 
     // Audio playback
     bool hasAudio_ = false;

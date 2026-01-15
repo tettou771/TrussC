@@ -75,14 +75,18 @@ void tcApp::draw() {
     info += "  |  Time: " + to_string(static_cast<int>(player_.getCurrentTime())) + "s / " + to_string(static_cast<int>(player_.getDuration())) + "s";
     info += "  |  " + string(player_.isPlaying() ? "Playing" : (player_.isPaused() ? "Paused" : "Stopped"));
 
-    // Show average decode time
+    // Show speed and average decode time
+    char speedStr[32];
+    snprintf(speedStr, sizeof(speedStr), "  |  Speed: %.2fx", player_.getSpeed());
+    info += speedStr;
+
     char decodeStr[32];
     snprintf(decodeStr, sizeof(decodeStr), "  |  Decode: %.2fms", player_.getAvgDecodeTimeMs());
     info += decodeStr;
 
     drawBitmapString(info, 20, infoY);
 
-    string helpText = "SPACE: Play/Pause  |  LEFT/RIGHT: Prev/Next frame  |  R: Restart  |  D: Debug";
+    string helpText = "SPACE: Play/Pause  |  LEFT/RIGHT: Prev/Next  |  []: Speed  |  R: Restart  |  D: Debug";
     if (player_.isDebug()) {
         helpText += " [ON - Green:Solid, Yellow:Q-BC7, Red:BC7]";
     }
@@ -147,6 +151,16 @@ void tcApp::keyPressed(int key) {
         if (loaded_) {
             player_.setDebug(!player_.isDebug());
             logNotice("TcvPlayer") << "Debug mode: " << (player_.isDebug() ? "ON" : "OFF");
+        }
+    }
+    else if (key == '[') {
+        if (loaded_) {
+            player_.setSpeed(player_.getSpeed() - 0.25f);
+        }
+    }
+    else if (key == ']') {
+        if (loaded_) {
+            player_.setSpeed(player_.getSpeed() + 0.25f);
         }
     }
 }
