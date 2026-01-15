@@ -3,14 +3,22 @@
 bool EncodingSession::begin(const Settings& settings) {
     settings_ = settings;
 
+    // Create appropriate player based on file type
+    if (hap::HapPlayer::isHapFile(settings.inputPath)) {
+        logNotice("EncodingSession") << "Detected HAP file, using HapPlayer";
+        source_ = make_unique<hap::HapPlayer>();
+    } else {
+        source_ = make_unique<VideoPlayer>();
+    }
+
     // Load source video
-    if (!source_.load(settings.inputPath)) {
+    if (!source_->load(settings.inputPath)) {
         logError("EncodingSession") << "Failed to load video: " << settings.inputPath;
         phase_ = Phase::Failed;
         return false;
     }
 
-    totalFrames_ = source_.getTotalFrames();
+    totalFrames_ = source_->getTotalFrames();
     if (totalFrames_ == 0) {
         logError("EncodingSession") << "Video has no frames";
         phase_ = Phase::Failed;
@@ -18,7 +26,7 @@ bool EncodingSession::begin(const Settings& settings) {
     }
 
     // Calculate FPS
-    float duration = source_.getDuration();
+    float duration = source_->getDuration();
     float fps = (duration > 0) ? totalFrames_ / duration : 30.0f;
 
     // Configure encoder
@@ -31,8 +39,8 @@ bool EncodingSession::begin(const Settings& settings) {
 
     // Start encoder
     if (!encoder_.begin(settings.outputPath,
-                        static_cast<int>(source_.getWidth()),
-                        static_cast<int>(source_.getHeight()),
+                        static_cast<int>(source_->getWidth()),
+                        static_cast<int>(source_->getHeight()),
                         fps)) {
         logError("EncodingSession") << "Failed to start encoder";
         phase_ = Phase::Failed;
@@ -43,7 +51,7 @@ bool EncodingSession::begin(const Settings& settings) {
     int threads = settings.jobs > 0 ? settings.jobs : static_cast<int>(std::thread::hardware_concurrency());
     logNotice("EncodingSession") << "Starting encode: " << settings.inputPath;
     logNotice("EncodingSession") << "Output: " << settings.outputPath;
-    logNotice("EncodingSession") << "Size: " << source_.getWidth() << "x" << source_.getHeight();
+    logNotice("EncodingSession") << "Size: " << source_->getWidth() << "x" << source_->getHeight();
     logNotice("EncodingSession") << "Frames: " << totalFrames_ << " @ " << fps << " fps";
     logNotice("EncodingSession") << "Quality: " << qualityNames[settings.quality] << ", Threads: " << threads;
 
@@ -53,7 +61,7 @@ bool EncodingSession::begin(const Settings& settings) {
     waitCounter_ = 0;
     retryCount_ = 0;
 
-    source_.setFrame(0);
+    source_->setFrame(0);
     phase_ = Phase::Encoding;
 
     return true;
@@ -74,9 +82,9 @@ void EncodingSession::encodeNextFrame() {
     // Request frame if not already waiting
     if (!waitingForFrame_) {
         if (currentFrame_ == 0) {
-            source_.setFrame(0);
+            source_->setFrame(0);
         } else {
-            source_.nextFrame();
+            source_->nextFrame();
         }
         waitingForFrame_ = true;
         waitCounter_ = 0;
@@ -101,15 +109,15 @@ void EncodingSession::encodeNextFrame() {
             }
             logNotice("EncodingSession") << "Waiting for frame " << currentFrame_
                                           << "... (attempt " << retryCount_ << ")";
-            source_.setFrame(currentFrame_);
+            source_->setFrame(currentFrame_);
             waitCounter_ = 0;
             return;
         }
     }
 
-    source_.update();
+    source_->update();
 
-    if (!source_.isFrameNew()) {
+    if (!source_->isFrameNew()) {
         return;
     }
 
@@ -117,7 +125,7 @@ void EncodingSession::encodeNextFrame() {
     waitingForFrame_ = false;
     retryCount_ = 0;
 
-    const unsigned char* pixels = source_.getPixels();
+    const unsigned char* pixels = source_->getPixels();
     if (pixels) {
         encoder_.addFrame(pixels);
     }
@@ -134,7 +142,9 @@ void EncodingSession::encodeNextFrame() {
 
 void EncodingSession::finishEncoding() {
     encoder_.end();
-    source_.close();
+    if (source_) {
+        source_->close();
+    }
 
     logNotice("EncodingSession") << "Encoding complete: " << encoder_.getFrameCount() << " frames";
 
@@ -142,11 +152,11 @@ void EncodingSession::finishEncoding() {
 }
 
 void EncodingSession::draw(float x, float y, float maxW, float maxH) {
-    if (phase_ == Phase::Idle) return;
+    if (phase_ == Phase::Idle || !source_) return;
 
     // Calculate preview size maintaining aspect ratio
-    float srcW = source_.getWidth();
-    float srcH = source_.getHeight();
+    float srcW = source_->getWidth();
+    float srcH = source_->getHeight();
     if (srcW == 0 || srcH == 0) return;
 
     float scale = std::min(maxW / srcW, maxH / srcH);
@@ -155,7 +165,7 @@ void EncodingSession::draw(float x, float y, float maxW, float maxH) {
 
     // Draw video preview
     setColor(1.0f);
-    source_.draw(x, y, previewW, previewH);
+    source_->draw(x, y, previewW, previewH);
 
     // Progress bar
     float barY = y + previewH + 10;

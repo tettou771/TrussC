@@ -1,6 +1,6 @@
 # tcxTcv Roadmap
 
-## Current Status: v3 (SKIP + BC7 + LZ4)
+## Current Status: v4 (GPU Layout + ImGui Encoder)
 
 基本的なエンコード/デコード機能は完成。以下は今後の拡張計画。
 
@@ -12,30 +12,40 @@
 - [x] I/P/REFフレーム構造
 - [x] SKIPブロック（フレーム間差分）
 - [x] LZ4圧縮
-- [x] GUIエンコーダ (example-tcvEncoder)
+- [x] GUIエンコーダ
 - [x] プレイヤー (TcvPlayer)
 
 ---
 
-## Phase 2: Application Improvements
+## Phase 2: Application Improvements (DONE)
 
-### Encoder Rename
-- [x] `example-tcvEncoder` → `TrussC_Video_Codec_Encoder`
-- [ ] スタンドアロンアプリとしてリリース
+### Encoder
+- [x] `example-tcvEncoder` → `TrussC_Video_Codec_Encoder` リネーム
+- [x] ImGui GUI (左右ペイン、ログウィンドウ、プレビュー)
+- [x] P/Uスライダーでパラメータ調整
+- [x] ファイル名衝突時の枝番処理 (-1, -2...)
 
-### HAP Input Support
+### Player
+- [x] シークバー追加 (ドラッグでシーク)
+- [x] フレーム番号/タイムコード表示
+- [x] キーボードショートカット (SPACE, LEFT/RIGHT, R, D)
+
+### Format v4
+- [x] GPUレイアウト直接保存 (デコード時の変換不要)
+- [x] デコード時間: ~0.5ms/frame
+
+---
+
+## Phase 3: HAP Support (NEXT)
+
+### HAP Input
 - [ ] tcxHapブランチをマージ
 - [ ] HAPファイルからTCVへの変換対応
 - [ ] HAP → TCV ワークフロー最適化
 
-### Player UI
-- [ ] シークバー追加
-- [ ] フレーム番号/タイムコード表示
-- [ ] キーボードショートカット（矢印キーでフレーム送り等）
-
 ---
 
-## Phase 3: Audio Support
+## Phase 4: Audio Support
 
 ### Audio Embedding
 - [ ] TCV内に音声トラック埋め込み
@@ -49,7 +59,7 @@
 
 ---
 
-## Phase 4: Performance & Flexibility
+## Phase 5: Performance & Flexibility
 
 ### Playback Speed
 - [ ] 再生速度変更 (0.5x - 2.0x)
@@ -63,7 +73,7 @@
 
 ---
 
-## Phase 5: Platform & Distribution
+## Phase 6: Platform & Distribution
 
 ### CLI Encoder
 - [ ] noWindowModeの完全対応
@@ -88,18 +98,19 @@
 
 ## Notes
 
-### Removed Features (v2 → v3)
+### Version History
 
-以下はv3で削除。LZ4圧縮で十分カバーでき、再生パフォーマンスが大幅に向上したため。
+| Version | Changes |
+|---------|---------|
+| v4 | GPU直接レイアウト、デコード高速化 |
+| v3 | SKIP + BC7 + LZ4 (SOLID/Q-BC7削除) |
+| v2 | SOLID, Q-BC7追加 |
+| v1 | 基本BC7エンコード |
 
-- SOLID block (単色ブロック)
-- Quarter-BC7 block (4x4→16x16アップスケール)
+### Performance (v4)
 
-### Performance Comparison
-
-| Version | Encode Speed | Decode Time | File Size |
-|---------|--------------|-------------|-----------|
-| v2 (SOLID+Q-BC7) | Fast | ~5.7ms/frame | Smaller |
-| v3 (BC7 only) | Moderate | ~0.6ms/frame | +18% |
-
-→ 再生パフォーマンス優先でv3を採用
+| Metric | Value |
+|--------|-------|
+| Decode Time | ~0.5ms/frame |
+| Encode (Balanced) | P:16, U:1 |
+| Encode (High) | P:64, U:4 |

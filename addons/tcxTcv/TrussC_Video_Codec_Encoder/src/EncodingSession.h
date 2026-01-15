@@ -2,7 +2,9 @@
 
 #include <TrussC.h>
 #include <tcxTcv.h>
+#include <tcxHapPlayer.h>
 #include <thread>
+#include <memory>
 
 using namespace std;
 using namespace tc;
@@ -47,10 +49,11 @@ public:
     const string& getOutputPath() const { return settings_.outputPath; }
 
     // Video info (available after begin())
-    int getVideoWidth() const { return static_cast<int>(source_.getWidth()); }
-    int getVideoHeight() const { return static_cast<int>(source_.getHeight()); }
+    int getVideoWidth() const { return source_ ? static_cast<int>(source_->getWidth()) : 0; }
+    int getVideoHeight() const { return source_ ? static_cast<int>(source_->getHeight()) : 0; }
     float getVideoFps() const {
-        float duration = source_.getDuration();
+        if (!source_) return 30.0f;
+        float duration = source_->getDuration();
         return (duration > 0 && totalFrames_ > 0) ? totalFrames_ / duration : 30.0f;
     }
 
@@ -58,8 +61,8 @@ public:
     string getPhaseString() const;
 
     // Get source video texture for preview (only valid while encoding)
-    const Texture& getSourceTexture() const { return source_.getTexture(); }
-    bool hasSourceTexture() const { return source_.isLoaded(); }
+    const Texture& getSourceTexture() const { return source_->getTexture(); }
+    bool hasSourceTexture() const { return source_ && source_->isLoaded(); }
 
 private:
     enum class Phase {
@@ -72,7 +75,7 @@ private:
     Phase phase_ = Phase::Idle;
     Settings settings_;
 
-    VideoPlayer source_;
+    unique_ptr<VideoPlayerBase> source_;
     TcvEncoder encoder_;
 
     int currentFrame_ = 0;
