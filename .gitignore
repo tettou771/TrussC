@@ -136,3 +136,4 @@ addons/**/build-web.bat
 addons/**/build-web.sh
 examples/CMakeLists.txt
 addons/CMakeLists.txt
+addons/tcxTcv/libs/

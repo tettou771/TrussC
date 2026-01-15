@@ -16,6 +16,9 @@
 #include "impl/bc7enc.h"
 #include "impl/bcdec.h"
 
+// LZ4 compression
+#include <lz4.h>
+
 namespace tcx {
 
 // TCVC File Format Constants
@@ -25,10 +28,14 @@ constexpr uint16_t TCV_VERSION = 2;             // v2: I/P frame with block opti
 constexpr uint16_t TCV_HEADER_SIZE = 64;
 constexpr uint16_t TCV_BLOCK_SIZE = 16;         // 16x16 pixel blocks
 
-// Packet types
+// Packet types (uncompressed)
 constexpr uint8_t TCV_PACKET_I_FRAME   = 0x01;  // I-frame: full BC7 data
 constexpr uint8_t TCV_PACKET_P_FRAME   = 0x02;  // P-frame: reference + block commands
 constexpr uint8_t TCV_PACKET_REF_FRAME = 0x03;  // REF-frame: exact duplicate, reference only
+
+// Packet types (LZ4 compressed)
+constexpr uint8_t TCV_PACKET_I_FRAME_LZ4 = 0x11;  // I-frame with LZ4 compression
+constexpr uint8_t TCV_PACKET_P_FRAME_LZ4 = 0x12;  // P-frame with LZ4 compression
 
 // Block command types (bits 7-6 of command byte)
 constexpr uint8_t TCV_BLOCK_SKIP    = 0x00;     // Same as reference frame (00xxxxxx)
@@ -166,6 +173,9 @@ public:
         // Initialize QuarterBC7 cache
         quarterBC7Cache_.resize(totalBlocks_);
 
+        // Initialize LZ4 buffer (worst case: slightly larger than input)
+        lz4Buffer_.resize(LZ4_compressBound(static_cast<int>(bc7BufferSize + 1024)));
+
         isEncoding_ = true;
 
         int actualThreads = (numThreads_ > 0) ? numThreads_ : std::thread::hardware_concurrency();
@@ -180,7 +190,8 @@ public:
             tc::logNotice("TcvEncoder") << "Mode: I/P frames, SKIP="
                                         << (enableSkip_ ? "on" : "off")
                                         << ", SOLID=" << (enableSolid_ ? "on" : "off")
-                                        << ", Q-BC7=" << (enableQuarterBC7_ ? "on" : "off");
+                                        << ", Q-BC7=" << (enableQuarterBC7_ ? "on" : "off")
+                                        << ", LZ4=" << (enableLZ4_ ? "on" : "off");
         }
 
         return true;
@@ -376,6 +387,9 @@ public:
     // Enable/disable QUARTER_BC7 blocks (4x4 BC7 upscaled to 16x16)
     void setEnableQuarterBC7(bool enable) { enableQuarterBC7_ = enable; }
 
+    // Enable/disable LZ4 compression
+    void setEnableLZ4(bool enable) { enableLZ4_ = enable; }
+
 private:
     // File output
     std::ofstream file_;
@@ -392,6 +406,10 @@ private:
     bool enableSkip_ = true;
     bool enableSolid_ = true;
     bool enableQuarterBC7_ = true;
+    bool enableLZ4_ = true;  // LZ4 compression enabled by default
+
+    // LZ4 compression buffer
+    std::vector<char> lz4Buffer_;
 
     // QuarterBC7 cache: block index -> 16 bytes BC7 data
     std::vector<std::array<uint8_t, 16>> quarterBC7Cache_;
@@ -799,13 +817,38 @@ private:
             blockIdx += runLength;
         }
 
-        // Write I-frame packet
-        uint8_t packetType = TCV_PACKET_I_FRAME;
-        uint32_t dataSize = static_cast<uint32_t>(framePacketBuffer_.size());
+        // Write I-frame packet (with optional LZ4 compression)
+        if (enableLZ4_) {
+            uint32_t uncompressedSize = static_cast<uint32_t>(framePacketBuffer_.size());
+            int compressedSize = LZ4_compress_default(
+                reinterpret_cast<const char*>(framePacketBuffer_.data()),
+                lz4Buffer_.data(),
+                static_cast<int>(uncompressedSize),
+                static_cast<int>(lz4Buffer_.size())
+            );
 
-        file_.write(reinterpret_cast<const char*>(&packetType), 1);
-        file_.write(reinterpret_cast<const char*>(&dataSize), 4);
-        file_.write(reinterpret_cast<const char*>(framePacketBuffer_.data()), dataSize);
+            if (compressedSize > 0 && static_cast<uint32_t>(compressedSize) < uncompressedSize) {
+                // Use compressed data
+                uint8_t packetType = TCV_PACKET_I_FRAME_LZ4;
+                uint32_t compSize = static_cast<uint32_t>(compressedSize);
+                file_.write(reinterpret_cast<const char*>(&packetType), 1);
+                file_.write(reinterpret_cast<const char*>(&uncompressedSize), 4);
+                file_.write(reinterpret_cast<const char*>(&compSize), 4);
+                file_.write(lz4Buffer_.data(), compressedSize);
+            } else {
+                // Compression didn't help, write uncompressed
+                uint8_t packetType = TCV_PACKET_I_FRAME;
+                file_.write(reinterpret_cast<const char*>(&packetType), 1);
+                file_.write(reinterpret_cast<const char*>(&uncompressedSize), 4);
+                file_.write(reinterpret_cast<const char*>(framePacketBuffer_.data()), uncompressedSize);
+            }
+        } else {
+            uint8_t packetType = TCV_PACKET_I_FRAME;
+            uint32_t dataSize = static_cast<uint32_t>(framePacketBuffer_.size());
+            file_.write(reinterpret_cast<const char*>(&packetType), 1);
+            file_.write(reinterpret_cast<const char*>(&dataSize), 4);
+            file_.write(reinterpret_cast<const char*>(framePacketBuffer_.data()), dataSize);
+        }
 
         // Build full BC7 buffer for I-frame cache (needed for P-frame references)
         buildFullBC7Buffer(blockTypes);
@@ -1040,15 +1083,43 @@ private:
             blockIdx += runLength;
         }
 
-        // Write P-frame packet
-        uint8_t packetType = TCV_PACKET_P_FRAME;
+        // Write P-frame packet (with optional LZ4 compression)
         uint32_t refFrame = static_cast<uint32_t>(refFrameNum);
-        uint32_t dataSize = static_cast<uint32_t>(framePacketBuffer_.size());
 
-        file_.write(reinterpret_cast<const char*>(&packetType), 1);
-        file_.write(reinterpret_cast<const char*>(&refFrame), 4);
-        file_.write(reinterpret_cast<const char*>(&dataSize), 4);
-        file_.write(reinterpret_cast<const char*>(framePacketBuffer_.data()), dataSize);
+        if (enableLZ4_) {
+            uint32_t uncompressedSize = static_cast<uint32_t>(framePacketBuffer_.size());
+            int compressedSize = LZ4_compress_default(
+                reinterpret_cast<const char*>(framePacketBuffer_.data()),
+                lz4Buffer_.data(),
+                static_cast<int>(uncompressedSize),
+                static_cast<int>(lz4Buffer_.size())
+            );
+
+            if (compressedSize > 0 && static_cast<uint32_t>(compressedSize) < uncompressedSize) {
+                // Use compressed data
+                uint8_t packetType = TCV_PACKET_P_FRAME_LZ4;
+                uint32_t compSize = static_cast<uint32_t>(compressedSize);
+                file_.write(reinterpret_cast<const char*>(&packetType), 1);
+                file_.write(reinterpret_cast<const char*>(&refFrame), 4);
+                file_.write(reinterpret_cast<const char*>(&uncompressedSize), 4);
+                file_.write(reinterpret_cast<const char*>(&compSize), 4);
+                file_.write(lz4Buffer_.data(), compressedSize);
+            } else {
+                // Compression didn't help, write uncompressed
+                uint8_t packetType = TCV_PACKET_P_FRAME;
+                file_.write(reinterpret_cast<const char*>(&packetType), 1);
+                file_.write(reinterpret_cast<const char*>(&refFrame), 4);
+                file_.write(reinterpret_cast<const char*>(&uncompressedSize), 4);
+                file_.write(reinterpret_cast<const char*>(framePacketBuffer_.data()), uncompressedSize);
+            }
+        } else {
+            uint8_t packetType = TCV_PACKET_P_FRAME;
+            uint32_t dataSize = static_cast<uint32_t>(framePacketBuffer_.size());
+            file_.write(reinterpret_cast<const char*>(&packetType), 1);
+            file_.write(reinterpret_cast<const char*>(&refFrame), 4);
+            file_.write(reinterpret_cast<const char*>(&dataSize), 4);
+            file_.write(reinterpret_cast<const char*>(framePacketBuffer_.data()), dataSize);
+        }
 
         statPFrames_++;
     }
