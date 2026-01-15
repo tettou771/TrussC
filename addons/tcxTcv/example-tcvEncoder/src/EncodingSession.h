@@ -22,6 +22,7 @@ public:
         bool forceAllIFrames = false;
         bool enableSkip = true;
         bool enableSolid = true;
+        bool enableQuarterBC7 = true;
     };
 
     // Begin encoding with given settings

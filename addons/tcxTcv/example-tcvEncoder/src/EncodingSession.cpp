@@ -29,6 +29,7 @@ bool EncodingSession::begin(const Settings& settings) {
     encoder_.setForceAllIFrames(settings.forceAllIFrames);
     encoder_.setEnableSkip(settings.enableSkip);
     encoder_.setEnableSolid(settings.enableSolid);
+    encoder_.setEnableQuarterBC7(settings.enableQuarterBC7);
 
     // Start encoder
     if (!encoder_.begin(settings.outputPath,

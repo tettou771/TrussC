@@ -47,6 +47,8 @@ void tcApp::parseCommandLine() {
             settings_.enableSkip = false;
         } else if (arg == "--no-solid") {
             settings_.enableSolid = false;
+        } else if (arg == "--no-qbc7") {
+            settings_.enableQuarterBC7 = false;
         } else if (arg == "-h" || arg == "--help") {
             showHelp();
             exitApp();
@@ -81,6 +83,11 @@ void tcApp::showHelp() {
     logNotice("TcvEncoder") << "  -j, --jobs N     Number of threads (0=auto, default)";
     logNotice("TcvEncoder") << "  --partitions N   BC7 max partitions (0-64, overrides -q)";
     logNotice("TcvEncoder") << "  --uber N         BC7 uber level (0-4, overrides -q)";
+    logNotice("TcvEncoder") << "Compression options:";
+    logNotice("TcvEncoder") << "  --all-i          Force all I-frames (no P-frames)";
+    logNotice("TcvEncoder") << "  --no-skip        Disable SKIP block optimization";
+    logNotice("TcvEncoder") << "  --no-solid       Disable SOLID block optimization";
+    logNotice("TcvEncoder") << "  --no-qbc7        Disable Quarter-BC7 block optimization";
 }
 
 void tcApp::update() {

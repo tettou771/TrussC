@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "tcTcvEncoder.h"  // For TcvHeader and constants
+#include "impl/bcdec.h"    // For BC7 decompression
 
 namespace tcx {
 
@@ -19,12 +20,71 @@ namespace tcx {
 // ---------------------------------------------------------------------------
 class TcvPlayer : public tc::VideoPlayerBase {
 public:
-    TcvPlayer() = default;
+    // Debug block types for visualization
+    enum class DebugBlockType : uint8_t {
+        None,    // I-frame or no debug
+        Skip,    // Copy from reference
+        Solid,   // Solid color
+        QuarterBC7,  // Quarter BC7
+        BC7      // Full BC7
+    };
+
+    TcvPlayer() {
+        bc7enc_compress_block_init();
+    }
     ~TcvPlayer() { close(); }
 
     // Non-copyable
     TcvPlayer(const TcvPlayer&) = delete;
     TcvPlayer& operator=(const TcvPlayer&) = delete;
+
+    // Debug mode
+    void setDebug(bool enabled) { debugMode_ = enabled; }
+    bool isDebug() const { return debugMode_; }
+
+    // Draw debug overlay (call after drawing video)
+    void drawDebugOverlay(float x, float y, float scale = 1.0f) {
+        if (!debugMode_ || debugBlockTypes_.empty()) return;
+
+        float blockSize = TCV_BLOCK_SIZE * scale;
+
+        tc::noFill();
+
+        for (int by = 0; by < blocksY_; by++) {
+            for (int bx = 0; bx < blocksX_; bx++) {
+                int idx = by * blocksX_ + bx;
+                DebugBlockType type = debugBlockTypes_[idx];
+
+                // Skip None and Skip types (Skip is obvious from context)
+                if (type == DebugBlockType::None || type == DebugBlockType::Skip) continue;
+
+                float rx = x + bx * blockSize;
+                float ry = y + by * blockSize;
+
+                // Set color based on block type
+                switch (type) {
+                    case DebugBlockType::Solid:
+                        tc::setColor(0.0f, 1.0f, 0.0f, 0.8f);  // Green for solid
+                        break;
+                    case DebugBlockType::QuarterBC7:
+                        tc::setColor(1.0f, 1.0f, 0.0f, 0.8f);  // Yellow for Q-BC7
+                        break;
+                    case DebugBlockType::BC7:
+                        tc::setColor(1.0f, 0.0f, 0.0f, 0.8f);  // Red for BC7
+                        break;
+                    default:
+                        continue;
+                }
+
+                // Draw 1px rectangle outline
+                tc::drawRect(rx + 0.5f, ry + 0.5f, blockSize - 1, blockSize - 1);
+            }
+        }
+
+        // Reset drawing state
+        tc::fill();
+        tc::setColor(1.0f);
+    }
 
     // =========================================================================
     // Load / Close
@@ -73,6 +133,9 @@ public:
         // Allocate BC7 buffer
         bc7Buffer_.resize(bc7FrameSize_);
 
+        // Allocate debug block types buffer
+        debugBlockTypes_.resize(totalBlocks_, DebugBlockType::None);
+
         // Build frame index for seeking
         buildFrameIndex();
 
@@ -100,6 +163,7 @@ public:
         frameIndex_.clear();
         iFrameCache_.clear();
         bc7Buffer_.clear();
+        debugBlockTypes_.clear();
 
         initialized_ = false;
         playing_ = false;
@@ -242,6 +306,10 @@ private:
     // I-frame cache: frameNumber -> BC7 data
     std::unordered_map<int, std::vector<uint8_t>> iFrameCache_;
 
+    // Debug mode
+    bool debugMode_ = false;
+    std::vector<DebugBlockType> debugBlockTypes_;
+
     // Build index of frame offsets for seeking
     void buildFrameIndex() {
         frameIndex_.clear();
@@ -278,7 +346,7 @@ private:
         tc::logNotice("TcvPlayer") << "Indexed " << frameIndex_.size() << " frames";
     }
 
-    // Get or decode I-frame BC7 data
+    // Get or decode I-frame BC7 data (returns GPU layout BC7 buffer)
     const std::vector<uint8_t>& getIFrameData(int frameNum) {
         // Check cache
         auto it = iFrameCache_.find(frameNum);
@@ -294,23 +362,182 @@ private:
             return empty;
         }
 
+        // Allocate result buffer (full GPU layout BC7 data)
+        std::vector<uint8_t> bc7Result(bc7FrameSize_);
+
+        // Seek to frame data
         file_.seekg(entry.offset);
         uint8_t packetType;
         uint32_t dataSize;
         file_.read(reinterpret_cast<char*>(&packetType), 1);
         file_.read(reinterpret_cast<char*>(&dataSize), 4);
 
-        std::vector<uint8_t> data(dataSize);
-        file_.read(reinterpret_cast<char*>(data.data()), dataSize);
+        // Parse block commands (same format as P-frame but no SKIP)
+        int blockIdx = 0;
+        while (blockIdx < totalBlocks_) {
+            uint8_t cmd;
+            file_.read(reinterpret_cast<char*>(&cmd), 1);
+
+            uint8_t blockType = cmd & TCV_BLOCK_TYPE_MASK;
+            int runLength = (cmd & TCV_BLOCK_RUN_MASK) + 1;
+
+            // Read SOLID color once for entire run
+            uint32_t solidColor = 0;
+            if (blockType == TCV_BLOCK_SOLID) {
+                file_.read(reinterpret_cast<char*>(&solidColor), 4);
+            }
+
+            for (int i = 0; i < runLength && blockIdx < totalBlocks_; i++, blockIdx++) {
+                int bx16 = blockIdx % blocksX_;
+                int by16 = blockIdx / blocksX_;
+
+                if (blockType == TCV_BLOCK_SOLID) {
+                    writeIFrameSolidBlock(bc7Result.data(), bx16, by16, solidColor);
+                } else if (blockType == TCV_BLOCK_BC7_Q) {
+                    uint8_t bc7Block[16];
+                    file_.read(reinterpret_cast<char*>(bc7Block), 16);
+                    writeIFrameQuarterBC7(bc7Result.data(), bx16, by16, bc7Block);
+                } else if (blockType == TCV_BLOCK_BC7) {
+                    uint8_t blockData[256];
+                    file_.read(reinterpret_cast<char*>(blockData), 256);
+                    writeIFrameBC7Block(bc7Result.data(), bx16, by16, blockData);
+                }
+            }
+        }
 
         // Cache it (limit cache size to avoid memory issues)
         if (iFrameCache_.size() >= TCV_IFRAME_BUFFER_SIZE) {
-            // Remove oldest entry (simple strategy)
             iFrameCache_.erase(iFrameCache_.begin());
         }
-        iFrameCache_[frameNum] = std::move(data);
+        iFrameCache_[frameNum] = std::move(bc7Result);
 
         return iFrameCache_[frameNum];
+    }
+
+    // Decode I-frame with block commands (for display + debug)
+    void decodeIFrameWithBlocks(int frameNum, const FrameIndexEntry& entry) {
+        // Check if already cached
+        auto it = iFrameCache_.find(frameNum);
+        if (it != iFrameCache_.end()) {
+            // Use cached data
+            std::memcpy(bc7Buffer_.data(), it->second.data(), bc7FrameSize_);
+            // Still need to parse for debug info
+            if (!debugMode_) return;
+        }
+
+        // Need to decode from file
+        file_.seekg(entry.offset);
+        uint8_t packetType;
+        uint32_t dataSize;
+        file_.read(reinterpret_cast<char*>(&packetType), 1);
+        file_.read(reinterpret_cast<char*>(&dataSize), 4);
+
+        // If not cached, we'll build the BC7 buffer while parsing
+        bool needBuild = (it == iFrameCache_.end());
+
+        int blockIdx = 0;
+        while (blockIdx < totalBlocks_) {
+            uint8_t cmd;
+            file_.read(reinterpret_cast<char*>(&cmd), 1);
+
+            uint8_t blockType = cmd & TCV_BLOCK_TYPE_MASK;
+            int runLength = (cmd & TCV_BLOCK_RUN_MASK) + 1;
+
+            // Read SOLID color once for entire run
+            uint32_t solidColor = 0;
+            if (blockType == TCV_BLOCK_SOLID) {
+                file_.read(reinterpret_cast<char*>(&solidColor), 4);
+            }
+
+            for (int i = 0; i < runLength && blockIdx < totalBlocks_; i++, blockIdx++) {
+                int bx16 = blockIdx % blocksX_;
+                int by16 = blockIdx / blocksX_;
+
+                if (blockType == TCV_BLOCK_SOLID) {
+                    if (needBuild) writeSolidBlockToGpuLayout(bx16, by16, solidColor);
+                    if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::Solid;
+                } else if (blockType == TCV_BLOCK_BC7_Q) {
+                    uint8_t bc7Block[16];
+                    file_.read(reinterpret_cast<char*>(bc7Block), 16);
+                    if (needBuild) writeQuarterBC7ToGpuLayout(bx16, by16, bc7Block);
+                    if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::QuarterBC7;
+                } else if (blockType == TCV_BLOCK_BC7) {
+                    uint8_t blockData[256];
+                    file_.read(reinterpret_cast<char*>(blockData), 256);
+                    if (needBuild) writeBlockToGpuLayout(bx16, by16, blockData);
+                    if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::BC7;
+                }
+            }
+        }
+
+        // Cache the result if not already cached
+        if (needBuild) {
+            if (iFrameCache_.size() >= TCV_IFRAME_BUFFER_SIZE) {
+                iFrameCache_.erase(iFrameCache_.begin());
+            }
+            iFrameCache_[frameNum] = std::vector<uint8_t>(bc7Buffer_.begin(), bc7Buffer_.end());
+        }
+    }
+
+    // Helper functions for I-frame decoding (write to arbitrary buffer)
+    void writeIFrameBC7Block(uint8_t* buffer, int bx16, int by16, const uint8_t* bc7Data) {
+        int bc7BlocksX = blocksX_ * 4;
+        for (int by4 = 0; by4 < 4; by4++) {
+            for (int bx4 = 0; bx4 < 4; bx4++) {
+                int gpuX = bx16 * 4 + bx4;
+                int gpuY = by16 * 4 + by4;
+                int gpuIdx = gpuY * bc7BlocksX + gpuX;
+                std::memcpy(buffer + gpuIdx * 16, bc7Data + (by4 * 4 + bx4) * 16, 16);
+            }
+        }
+    }
+
+    void writeIFrameSolidBlock(uint8_t* buffer, int bx16, int by16, uint32_t color) {
+        uint8_t block4x4[64];
+        for (int i = 0; i < 16; i++) {
+            std::memcpy(block4x4 + i * 4, &color, 4);
+        }
+
+        bc7enc_compress_block_params params;
+        bc7enc_compress_block_params_init(&params);
+        params.m_max_partitions = 0;
+        params.m_uber_level = 0;
+
+        int bc7BlocksX = blocksX_ * 4;
+        for (int by4 = 0; by4 < 4; by4++) {
+            for (int bx4 = 0; bx4 < 4; bx4++) {
+                int gpuX = bx16 * 4 + bx4;
+                int gpuY = by16 * 4 + by4;
+                int gpuIdx = gpuY * bc7BlocksX + gpuX;
+                bc7enc_compress_block(buffer + gpuIdx * 16, block4x4, &params);
+            }
+        }
+    }
+
+    void writeIFrameQuarterBC7(uint8_t* buffer, int bx16, int by16, const uint8_t* bc7Data) {
+        uint8_t decoded4x4[64];
+        bcdec_bc7(bc7Data, decoded4x4, 4 * 4);
+
+        bc7enc_compress_block_params params;
+        bc7enc_compress_block_params_init(&params);
+        params.m_max_partitions = 0;
+        params.m_uber_level = 0;
+
+        int bc7BlocksX = blocksX_ * 4;
+        for (int dy = 0; dy < 4; dy++) {
+            for (int dx = 0; dx < 4; dx++) {
+                const uint8_t* pixel = decoded4x4 + (dy * 4 + dx) * 4;
+                uint8_t block4x4[64];
+                for (int i = 0; i < 16; i++) {
+                    std::memcpy(block4x4 + i * 4, pixel, 4);
+                }
+
+                int gpuX = bx16 * 4 + dx;
+                int gpuY = by16 * 4 + dy;
+                int gpuIdx = gpuY * bc7BlocksX + gpuX;
+                bc7enc_compress_block(buffer + gpuIdx * 16, block4x4, &params);
+            }
+        }
     }
 
     // Write a 16x16 block (16 4x4 blocks) to GPU layout buffer
@@ -329,6 +556,41 @@ private:
                 std::memcpy(bc7Buffer_.data() + gpuIdx * 16,
                            bc7Data + (by4 * 4 + bx4) * 16,
                            16);
+            }
+        }
+    }
+
+    // Upscale quarter BC7 (4x4 BC7 block) to 16x16 and write to GPU layout
+    void writeQuarterBC7ToGpuLayout(int bx16, int by16, const uint8_t* bc7Data) {
+        // Decode the single BC7 block to 4x4 pixels (pitch = 4 pixels * 4 bytes)
+        uint8_t decoded4x4[64];
+        bcdec_bc7(bc7Data, decoded4x4, 4 * 4);
+
+        bc7enc_compress_block_params params;
+        bc7enc_compress_block_params_init(&params);
+        params.m_max_partitions = 0;  // Fast for solid blocks
+        params.m_uber_level = 0;
+
+        int bc7BlocksX = blocksX_ * 4;
+
+        // Each pixel in 4x4 becomes a 4x4 region of solid color
+        for (int dy = 0; dy < 4; dy++) {
+            for (int dx = 0; dx < 4; dx++) {
+                // Get the color from decoded pixel
+                const uint8_t* pixel = decoded4x4 + (dy * 4 + dx) * 4;
+
+                // Create solid 4x4 block
+                uint8_t block4x4[64];
+                for (int i = 0; i < 16; i++) {
+                    std::memcpy(block4x4 + i * 4, pixel, 4);
+                }
+
+                // Encode and write to GPU position
+                int gpuX = bx16 * 4 + dx;
+                int gpuY = by16 * 4 + dy;
+                int gpuIdx = gpuY * bc7BlocksX + gpuX;
+
+                bc7enc_compress_block(bc7Buffer_.data() + gpuIdx * 16, block4x4, &params);
             }
         }
     }
@@ -368,17 +630,23 @@ private:
 
         const auto& entry = frameIndex_[frameNum];
 
+        // Clear debug block types (None = no overlay for I-frames)
+        if (debugMode_) {
+            std::fill(debugBlockTypes_.begin(), debugBlockTypes_.end(), DebugBlockType::None);
+        }
+
         if (entry.packetType == TCV_PACKET_I_FRAME) {
-            // I-frame: load BC7 data directly (already in GPU layout)
-            const auto& data = getIFrameData(frameNum);
-            if (data.size() == bc7FrameSize_) {
-                std::memcpy(bc7Buffer_.data(), data.data(), bc7FrameSize_);
-            }
+            // Decode I-frame with block commands (same format as P-frame but no SKIP)
+            decodeIFrameWithBlocks(frameNum, entry);
         } else if (entry.packetType == TCV_PACKET_REF_FRAME) {
             // REF-frame: copy from referenced I-frame
             const auto& refData = getIFrameData(entry.refFrame);
             if (refData.size() == bc7FrameSize_) {
                 std::memcpy(bc7Buffer_.data(), refData.data(), bc7FrameSize_);
+            }
+            // For debug: REF-frame = all Skip (copy from I-frame)
+            if (debugMode_) {
+                std::fill(debugBlockTypes_.begin(), debugBlockTypes_.end(), DebugBlockType::Skip);
             }
         } else if (entry.packetType == TCV_PACKET_P_FRAME) {
             // P-frame: start with reference (GPU layout), apply deltas
@@ -403,21 +671,34 @@ private:
                 uint8_t blockType = cmd & TCV_BLOCK_TYPE_MASK;
                 int runLength = (cmd & TCV_BLOCK_RUN_MASK) + 1;
 
+                // Read SOLID color once for entire run
+                uint32_t solidColor = 0;
+                if (blockType == TCV_BLOCK_SOLID) {
+                    file_.read(reinterpret_cast<char*>(&solidColor), 4);
+                }
+
                 for (int i = 0; i < runLength && blockIdx < totalBlocks_; i++, blockIdx++) {
                     int bx16 = blockIdx % blocksX_;
                     int by16 = blockIdx / blocksX_;
 
                     if (blockType == TCV_BLOCK_SKIP) {
                         // Keep reference data (already copied in GPU layout)
+                        if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::Skip;
                     } else if (blockType == TCV_BLOCK_SOLID) {
-                        uint32_t color;
-                        file_.read(reinterpret_cast<char*>(&color), 4);
-                        writeSolidBlockToGpuLayout(bx16, by16, color);
+                        writeSolidBlockToGpuLayout(bx16, by16, solidColor);
+                        if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::Solid;
+                    } else if (blockType == TCV_BLOCK_BC7_Q) {
+                        // Read quarter BC7 (single 4x4 BC7 block = 16 bytes)
+                        uint8_t bc7Block[16];
+                        file_.read(reinterpret_cast<char*>(bc7Block), 16);
+                        writeQuarterBC7ToGpuLayout(bx16, by16, bc7Block);
+                        if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::QuarterBC7;
                     } else if (blockType == TCV_BLOCK_BC7) {
                         // Read 16x16 block data (256 bytes = 16 BC7 4x4 blocks)
                         uint8_t blockData[256];
                         file_.read(reinterpret_cast<char*>(blockData), 256);
                         writeBlockToGpuLayout(bx16, by16, blockData);
+                        if (debugMode_) debugBlockTypes_[blockIdx] = DebugBlockType::BC7;
                     }
                 }
             }

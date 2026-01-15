@@ -50,6 +50,11 @@ void tcApp::draw() {
     setColor(1.0f);
     player_.draw(x, y, drawW, drawH);
 
+    // Draw debug overlay if enabled
+    if (player_.isDebug()) {
+        player_.drawDebugOverlay(x, y, scale);
+    }
+
     // Draw playback info
     float infoY = y + drawH + 10;
 
@@ -63,7 +68,11 @@ void tcApp::draw() {
     info += "  |  " + string(player_.isPlaying() ? "Playing" : (player_.isPaused() ? "Paused" : "Stopped"));
     drawBitmapString(info, 20, infoY);
 
-    drawBitmapString("SPACE: Play/Pause  |  LEFT/RIGHT: Prev/Next frame  |  R: Restart", 20, infoY + 15);
+    string helpText = "SPACE: Play/Pause  |  LEFT/RIGHT: Prev/Next frame  |  R: Restart  |  D: Debug";
+    if (player_.isDebug()) {
+        helpText += " [ON - Green:Solid, Yellow:Q-BC7, Red:BC7]";
+    }
+    drawBitmapString(helpText, 20, infoY + 15);
 }
 
 void tcApp::keyPressed(int key) {
@@ -96,6 +105,12 @@ void tcApp::keyPressed(int key) {
         if (loaded_) {
             player_.firstFrame();
             player_.play();
+        }
+    }
+    else if (key == 'd' || key == 'D') {
+        if (loaded_) {
+            player_.setDebug(!player_.isDebug());
+            logNotice("TcvPlayer") << "Debug mode: " << (player_.isDebug() ? "ON" : "OFF");
         }
     }
 }
