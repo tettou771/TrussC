@@ -32,6 +32,12 @@
 @property (nonatomic, assign) unsigned char* pixelBuffer;
 @property (nonatomic, assign) size_t pixelBufferSize;
 
+// Audio track info
+@property (nonatomic, assign) BOOL hasAudioTrack;
+@property (nonatomic, assign) uint32_t audioCodecFourCC;
+@property (nonatomic, assign) int audioSampleRate;
+@property (nonatomic, assign) int audioChannels;
+
 - (BOOL)loadWithPath:(NSString*)path;
 - (void)close;
 - (void)update;
@@ -49,6 +55,9 @@
 - (void)setFrame:(int)frame;
 - (void)nextFrame;
 - (void)previousFrame;
+
+// Audio extraction
+- (NSData*)extractAudioData;
 
 @end
 
@@ -74,6 +83,11 @@
 
         _pixelBuffer = nullptr;
         _pixelBufferSize = 0;
+
+        _hasAudioTrack = NO;
+        _audioCodecFourCC = 0;
+        _audioSampleRate = 0;
+        _audioChannels = 0;
     }
     return self;
 }
@@ -161,6 +175,33 @@
 
     NSLog(@"TCVideoPlayer: Loaded %ldx%ld @ %.2f fps, duration: %.2f sec",
           (long)_videoWidth, (long)_videoHeight, _frameRate, _duration);
+
+    // Get audio track info
+    NSArray* audioTracks = [self.asset tracksWithMediaType:AVMediaTypeAudio];
+    if (audioTracks.count > 0) {
+        AVAssetTrack* audioTrack = audioTracks[0];
+        _hasAudioTrack = YES;
+
+        // Get audio format descriptions
+        NSArray* formatDescriptions = audioTrack.formatDescriptions;
+        if (formatDescriptions.count > 0) {
+            CMAudioFormatDescriptionRef desc = (__bridge CMAudioFormatDescriptionRef)formatDescriptions[0];
+            const AudioStreamBasicDescription* asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc);
+            if (asbd) {
+                _audioSampleRate = (int)asbd->mSampleRate;
+                _audioChannels = (int)asbd->mChannelsPerFrame;
+            }
+
+            // Get codec FourCC
+            FourCharCode mediaSubType = CMFormatDescriptionGetMediaSubType(desc);
+            _audioCodecFourCC = mediaSubType;
+
+            NSLog(@"TCVideoPlayer: Audio track found - codec: %c%c%c%c, %d Hz, %d ch",
+                  (char)(mediaSubType >> 24), (char)(mediaSubType >> 16),
+                  (char)(mediaSubType >> 8), (char)mediaSubType,
+                  _audioSampleRate, _audioChannels);
+        }
+    }
 
     // Create player item
     self.playerItem = [AVPlayerItem playerItemWithAsset:self.asset];
@@ -411,6 +452,71 @@
     [self.playerItem stepByCount:-1];
 }
 
+- (NSData*)extractAudioData {
+    if (!_hasAudioTrack || !self.asset) {
+        return nil;
+    }
+
+    NSArray* audioTracks = [self.asset tracksWithMediaType:AVMediaTypeAudio];
+    if (audioTracks.count == 0) {
+        return nil;
+    }
+
+    AVAssetTrack* audioTrack = audioTracks[0];
+
+    // Create asset reader
+    NSError* error = nil;
+    AVAssetReader* reader = [[AVAssetReader alloc] initWithAsset:self.asset error:&error];
+    if (!reader) {
+        NSLog(@"TCVideoPlayer: Failed to create asset reader: %@", error);
+        return nil;
+    }
+
+    // Create track output (passthrough - no decoding)
+    AVAssetReaderTrackOutput* trackOutput = [[AVAssetReaderTrackOutput alloc]
+                                              initWithTrack:audioTrack
+                                              outputSettings:nil];  // nil = passthrough
+    trackOutput.alwaysCopiesSampleData = NO;
+
+    if (![reader canAddOutput:trackOutput]) {
+        NSLog(@"TCVideoPlayer: Cannot add audio track output");
+        return nil;
+    }
+    [reader addOutput:trackOutput];
+
+    // Start reading
+    if (![reader startReading]) {
+        NSLog(@"TCVideoPlayer: Failed to start reading audio: %@", reader.error);
+        return nil;
+    }
+
+    // Read all samples
+    NSMutableData* audioData = [[NSMutableData alloc] init];
+    CMSampleBufferRef sampleBuffer;
+
+    while ((sampleBuffer = [trackOutput copyNextSampleBuffer])) {
+        CMBlockBufferRef blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
+        if (blockBuffer) {
+            size_t length = CMBlockBufferGetDataLength(blockBuffer);
+            char* data = (char*)malloc(length);
+            if (data) {
+                CMBlockBufferCopyDataBytes(blockBuffer, 0, length, data);
+                [audioData appendBytes:data length:length];
+                free(data);
+            }
+        }
+        CFRelease(sampleBuffer);
+    }
+
+    if (reader.status == AVAssetReaderStatusFailed) {
+        NSLog(@"TCVideoPlayer: Audio extraction failed: %@", reader.error);
+        return nil;
+    }
+
+    NSLog(@"TCVideoPlayer: Extracted %lu bytes of audio data", (unsigned long)audioData.length);
+    return audioData;
+}
+
 @end
 
 
@@ -559,6 +665,43 @@ void VideoPlayer::previousFramePlatform() {
     if (!platformHandle_) return;
     TCVideoPlayerImpl* impl = (__bridge TCVideoPlayerImpl*)platformHandle_;
     [impl previousFrame];
+}
+
+// Audio access platform methods
+bool VideoPlayer::hasAudioPlatform() const {
+    if (!platformHandle_) return false;
+    TCVideoPlayerImpl* impl = (__bridge TCVideoPlayerImpl*)platformHandle_;
+    return impl.hasAudioTrack;
+}
+
+uint32_t VideoPlayer::getAudioCodecPlatform() const {
+    if (!platformHandle_) return 0;
+    TCVideoPlayerImpl* impl = (__bridge TCVideoPlayerImpl*)platformHandle_;
+    return impl.audioCodecFourCC;
+}
+
+int VideoPlayer::getAudioSampleRatePlatform() const {
+    if (!platformHandle_) return 0;
+    TCVideoPlayerImpl* impl = (__bridge TCVideoPlayerImpl*)platformHandle_;
+    return impl.audioSampleRate;
+}
+
+int VideoPlayer::getAudioChannelsPlatform() const {
+    if (!platformHandle_) return 0;
+    TCVideoPlayerImpl* impl = (__bridge TCVideoPlayerImpl*)platformHandle_;
+    return impl.audioChannels;
+}
+
+std::vector<uint8_t> VideoPlayer::getAudioDataPlatform() const {
+    if (!platformHandle_) return {};
+    TCVideoPlayerImpl* impl = (__bridge TCVideoPlayerImpl*)platformHandle_;
+
+    NSData* audioData = [impl extractAudioData];
+    if (!audioData) return {};
+
+    std::vector<uint8_t> result(audioData.length);
+    memcpy(result.data(), audioData.bytes, audioData.length);
+    return result;
 }
 
 } // namespace trussc

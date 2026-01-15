@@ -170,6 +170,16 @@ public:
     unsigned char* getPixels() override { return pixels_; }
     const unsigned char* getPixels() const override { return pixels_; }
 
+    // =========================================================================
+    // Audio access
+    // =========================================================================
+
+    bool hasAudio() const override { return hasAudioPlatform(); }
+    uint32_t getAudioCodec() const override { return getAudioCodecPlatform(); }
+    std::vector<uint8_t> getAudioData() const override { return getAudioDataPlatform(); }
+    int getAudioSampleRate() const override { return getAudioSampleRatePlatform(); }
+    int getAudioChannels() const override { return getAudioChannelsPlatform(); }
+
 protected:
     // -------------------------------------------------------------------------
     // Implementation methods
@@ -274,6 +284,13 @@ private:
     void setFramePlatform(int frame);
     void nextFramePlatform();
     void previousFramePlatform();
+
+    // Audio access
+    bool hasAudioPlatform() const;
+    uint32_t getAudioCodecPlatform() const;
+    std::vector<uint8_t> getAudioDataPlatform() const;
+    int getAudioSampleRatePlatform() const;
+    int getAudioChannelsPlatform() const;
 
     // Allow platform implementations to access internals
     friend class VideoPlayerPlatformAccess;

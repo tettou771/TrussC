@@ -154,6 +154,25 @@ public:
     virtual const unsigned char* getPixels() const = 0;
 
     // =========================================================================
+    // Audio access (for encoding workflows)
+    // =========================================================================
+
+    // Check if video has audio track
+    virtual bool hasAudio() const { return false; }
+
+    // Get audio codec as FourCC ('aac ', 'mp3 ', 'opus', etc.)
+    // Returns 0 if no audio
+    virtual uint32_t getAudioCodec() const { return 0; }
+
+    // Get raw audio data (original codec, not decoded)
+    // Returns empty vector if no audio
+    virtual std::vector<uint8_t> getAudioData() const { return {}; }
+
+    // Get audio properties
+    virtual int getAudioSampleRate() const { return 0; }
+    virtual int getAudioChannels() const { return 0; }
+
+    // =========================================================================
     // HasTexture implementation
     // =========================================================================
 
