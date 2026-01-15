@@ -403,6 +403,13 @@ private:
     double totalDecodeTimeMs_ = 0.0;
     int decodeCount_ = 0;
 
+    // Profiling (last frame)
+    double profileFileIoMs_ = 0.0;
+    double profileLz4Ms_ = 0.0;
+    double profileCopyMs_ = 0.0;
+    double profileGpuMs_ = 0.0;
+    bool profileCacheHit_ = false;
+
     // Build index of frame offsets for seeking
     void buildFrameIndex() {
         frameIndex_.clear();
@@ -449,8 +456,10 @@ private:
         // Check cache
         auto it = iFrameCache_.find(frameNum);
         if (it != iFrameCache_.end()) {
+            profileCacheHit_ = true;
             return it->second;
         }
+        profileCacheHit_ = false;
 
         // Load from file
         const auto& entry = frameIndex_[frameNum];
@@ -463,6 +472,9 @@ private:
         // Allocate result buffer (full GPU layout BC7 data)
         std::vector<uint8_t> bc7Result(bc7FrameSize_);
 
+        // Profile: File I/O
+        auto ioStart = std::chrono::high_resolution_clock::now();
+
         // Seek to frame data and skip header
         file_.seekg(entry.offset);
         uint8_t packetType;
@@ -474,6 +486,13 @@ private:
         file_.read(reinterpret_cast<char*>(&compressedSize), 4);
 
         file_.read(lz4CompressedBuffer_.data(), compressedSize);
+
+        auto ioEnd = std::chrono::high_resolution_clock::now();
+        profileFileIoMs_ = std::chrono::duration<double, std::milli>(ioEnd - ioStart).count();
+
+        // Profile: LZ4 decompression
+        auto lz4Start = std::chrono::high_resolution_clock::now();
+
         int decompressed = LZ4_decompress_safe(
             lz4CompressedBuffer_.data(),
             lz4DecompressedBuffer_.data(),
@@ -486,9 +505,18 @@ private:
             return empty;
         }
 
+        auto lz4End = std::chrono::high_resolution_clock::now();
+        profileLz4Ms_ = std::chrono::duration<double, std::milli>(lz4End - lz4Start).count();
+
+        // Profile: memcpy
+        auto copyStart = std::chrono::high_resolution_clock::now();
+
         // Parse BC7 block data from buffer
         const uint8_t* blockData = reinterpret_cast<const uint8_t*>(lz4DecompressedBuffer_.data());
         decodeIFrameFromBuffer(blockData, bc7Result.data());
+
+        auto copyEnd = std::chrono::high_resolution_clock::now();
+        profileCopyMs_ = std::chrono::duration<double, std::milli>(copyEnd - copyStart).count();
 
         // Cache it (limit cache size to avoid memory issues)
         if (iFrameCache_.size() >= TCV_IFRAME_BUFFER_SIZE) {
@@ -506,21 +534,19 @@ private:
     }
 
     // Copy a 16x16 block (256 bytes) directly to GPU buffer position
-    // v4: Data is already in GPU layout order within the 256-byte block
+    // Optimized: copy 4 BC7 blocks (64 bytes) per row instead of 16 individual copies
     void copyBlockToGpuPosition(int bx16, int by16, const uint8_t* bc7Data) {
         int bc7BlocksX = blocksX_ * 4;  // 4x4 blocks per row
 
         for (int by4 = 0; by4 < 4; by4++) {
-            for (int bx4 = 0; bx4 < 4; bx4++) {
-                int gpuX = bx16 * 4 + bx4;
-                int gpuY = by16 * 4 + by4;
-                int gpuIdx = gpuY * bc7BlocksX + gpuX;
+            int gpuY = by16 * 4 + by4;
+            int gpuX = bx16 * 4;
+            int gpuIdx = gpuY * bc7BlocksX + gpuX;
 
-                // Copy 16 bytes (one BC7 block)
-                std::memcpy(bc7Buffer_.data() + gpuIdx * 16,
-                           bc7Data + (by4 * 4 + bx4) * 16,
-                           16);
-            }
+            // Copy 4 BC7 blocks (64 bytes) at once - they're contiguous in both src and dst
+            std::memcpy(bc7Buffer_.data() + gpuIdx * 16,
+                       bc7Data + by4 * 64,
+                       64);
         }
     }
 
@@ -543,12 +569,26 @@ private:
             // I-frame: upload directly from cache (no intermediate copy)
             const auto& iData = getIFrameData(frameNum);
             if (iData.size() == bc7FrameSize_) {
+                // Profile: GPU upload
+                auto gpuStart = std::chrono::high_resolution_clock::now();
                 texture_.updateCompressed(iData.data(), bc7FrameSize_);
+                auto gpuEnd = std::chrono::high_resolution_clock::now();
+                profileGpuMs_ = std::chrono::duration<double, std::milli>(gpuEnd - gpuStart).count();
+
                 // Record decode time and return early
                 auto endTime = std::chrono::high_resolution_clock::now();
                 double ms = std::chrono::duration<double, std::milli>(endTime - startTime).count();
                 totalDecodeTimeMs_ += ms;
                 decodeCount_++;
+
+                // Log profile every 30 frames
+                if (decodeCount_ % 30 == 0) {
+                    tc::logNotice("TcvPlayer") << "Profile: IO=" << profileFileIoMs_
+                        << "ms, LZ4=" << profileLz4Ms_
+                        << "ms, Copy=" << profileCopyMs_
+                        << "ms, GPU=" << profileGpuMs_
+                        << "ms, Cache=" << (profileCacheHit_ ? "HIT" : "MISS");
+                }
                 return;
             }
         } else if (entry.packetType == TCV_PACKET_REF_FRAME) {
