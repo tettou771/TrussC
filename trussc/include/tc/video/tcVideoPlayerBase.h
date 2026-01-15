@@ -145,6 +145,15 @@ public:
     }
 
     // =========================================================================
+    // Pixel access
+    // =========================================================================
+
+    // Get raw RGBA pixel data (for encoding workflows)
+    // Returns nullptr if no frame has been decoded yet
+    virtual unsigned char* getPixels() = 0;
+    virtual const unsigned char* getPixels() const = 0;
+
+    // =========================================================================
     // HasTexture implementation
     // =========================================================================
 
