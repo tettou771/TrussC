@@ -47,6 +47,26 @@ bool EncodingSession::begin(const Settings& settings) {
         return false;
     }
 
+    // Extract audio from source (do this early, before video processing)
+    audioData_.clear();
+    audioCodec_ = 0;
+    audioSampleRate_ = 0;
+    audioChannels_ = 0;
+
+    if (source_->hasAudio()) {
+        audioCodec_ = source_->getAudioCodec();
+        audioData_ = source_->getAudioData();
+        audioSampleRate_ = source_->getAudioSampleRate();
+        audioChannels_ = source_->getAudioChannels();
+
+        if (!audioData_.empty()) {
+            logNotice("EncodingSession") << "Audio detected: "
+                                          << audioData_.size() << " bytes, "
+                                          << audioSampleRate_ << " Hz, "
+                                          << audioChannels_ << " ch";
+        }
+    }
+
     const char* qualityNames[] = {"fast", "balanced", "high"};
     int threads = settings.jobs > 0 ? settings.jobs : static_cast<int>(std::thread::hardware_concurrency());
     logNotice("EncodingSession") << "Starting encode: " << settings.inputPath;
@@ -54,6 +74,9 @@ bool EncodingSession::begin(const Settings& settings) {
     logNotice("EncodingSession") << "Size: " << source_->getWidth() << "x" << source_->getHeight();
     logNotice("EncodingSession") << "Frames: " << totalFrames_ << " @ " << fps << " fps";
     logNotice("EncodingSession") << "Quality: " << qualityNames[settings.quality] << ", Threads: " << threads;
+    if (!audioData_.empty()) {
+        logNotice("EncodingSession") << "Audio: will be embedded";
+    }
 
     currentFrame_ = 0;
     progress_ = 0.0f;
@@ -141,6 +164,11 @@ void EncodingSession::encodeNextFrame() {
 }
 
 void EncodingSession::finishEncoding() {
+    // Pass audio data to encoder (if any)
+    if (!audioData_.empty() && audioCodec_ != 0) {
+        encoder_.setAudio(std::move(audioData_), audioCodec_, audioSampleRate_, audioChannels_);
+    }
+
     encoder_.end();
     if (source_) {
         source_->close();

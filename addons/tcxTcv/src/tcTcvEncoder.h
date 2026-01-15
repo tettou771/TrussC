@@ -305,17 +305,60 @@ public:
         return true;
     }
 
+    // Set audio data to embed (call before end())
+    void setAudio(const std::vector<uint8_t>& data, uint32_t codec, int sampleRate = 0, int channels = 0) {
+        audioData_ = data;
+        audioCodec_ = codec;
+        audioSampleRate_ = sampleRate;
+        audioChannels_ = channels;
+    }
+
+    void setAudio(std::vector<uint8_t>&& data, uint32_t codec, int sampleRate = 0, int channels = 0) {
+        audioData_ = std::move(data);
+        audioCodec_ = codec;
+        audioSampleRate_ = sampleRate;
+        audioChannels_ = channels;
+    }
+
     bool end() {
         if (!isEncoding_) {
             return false;
         }
 
-        // Update header with actual frame count
+        // Write audio data if present
+        uint64_t audioOffset = 0;
+        uint64_t audioSize = 0;
+        if (!audioData_.empty() && audioCodec_ != 0) {
+            audioOffset = static_cast<uint64_t>(file_.tellp());
+            audioSize = audioData_.size();
+            file_.write(reinterpret_cast<const char*>(audioData_.data()), audioSize);
+
+            tc::logNotice("TcvEncoder") << "Audio embedded: " << audioSize << " bytes"
+                                        << " (codec: " << codecToString(audioCodec_) << ")";
+        }
+
+        // Update header with actual frame count and audio info
         file_.seekp(0x10);
         file_.write(reinterpret_cast<const char*>(&frameCount_), 4);
 
+        // Audio codec at 0x28
+        file_.seekp(0x28);
+        file_.write(reinterpret_cast<const char*>(&audioCodec_), 4);
+
+        // Audio offset at 0x30
+        file_.seekp(0x30);
+        file_.write(reinterpret_cast<const char*>(&audioOffset), 8);
+
+        // Audio size at 0x38
+        file_.seekp(0x38);
+        file_.write(reinterpret_cast<const char*>(&audioSize), 8);
+
         file_.close();
         isEncoding_ = false;
+
+        // Clear audio buffer
+        audioData_.clear();
+        audioCodec_ = 0;
 
         // Print stats
         tc::logNotice("TcvEncoder") << "=== Encoding Complete ===";
@@ -377,6 +420,12 @@ private:
     bool forceAllIFrames_ = false;
     bool enableSkip_ = true;
 
+    // Audio data to embed
+    std::vector<uint8_t> audioData_;
+    uint32_t audioCodec_ = 0;
+    int audioSampleRate_ = 0;
+    int audioChannels_ = 0;
+
     // LZ4 compression buffer
     std::vector<char> lz4Buffer_;
 
@@ -425,6 +474,17 @@ private:
     // =========================================================================
     // Helper functions
     // =========================================================================
+
+    static std::string codecToString(uint32_t fourcc) {
+        if (fourcc == 0) return "none";
+        char str[5] = {0};
+        // FourCC is big-endian: most significant byte is first character
+        str[0] = static_cast<char>((fourcc >> 24) & 0xFF);
+        str[1] = static_cast<char>((fourcc >> 16) & 0xFF);
+        str[2] = static_cast<char>((fourcc >> 8) & 0xFF);
+        str[3] = static_cast<char>(fourcc & 0xFF);
+        return str;
+    }
 
     void copyToPadded(const unsigned char* src) {
         std::fill(paddedPixels_.begin(), paddedPixels_.end(), 0);

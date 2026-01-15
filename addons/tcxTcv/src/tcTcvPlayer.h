@@ -13,6 +13,7 @@
 
 #include "tcTcvEncoder.h"  // For TcvHeader and constants
 #include <lz4.h>           // For LZ4 decompression
+#include <tc/sound/tcSound.h>  // For audio playback
 
 namespace tcx {
 
@@ -140,14 +141,26 @@ public:
         initialized_ = true;
         currentFrame_ = -1;
 
+        // Load audio if present
+        hasAudio_ = false;
+        if (header_.audioCodec != 0 && header_.audioSize > 0) {
+            loadAudio();
+        }
+
         tc::logNotice("TcvPlayer") << "Loaded: " << width_ << "x" << height_
                                    << " @ " << header_.fps << " fps, "
-                                   << header_.frameCount << " frames";
+                                   << header_.frameCount << " frames"
+                                   << (hasAudio_ ? " (with audio)" : "");
         return true;
     }
 
     void close() override {
         if (!initialized_) return;
+
+        // Stop audio
+        if (hasAudio_) {
+            audio_.stop();
+        }
 
         file_.close();
         texture_.clear();
@@ -163,6 +176,7 @@ public:
         firstFrameReceived_ = false;
         done_ = false;
         currentFrame_ = -1;
+        hasAudio_ = false;
     }
 
     // =========================================================================
@@ -239,36 +253,74 @@ public:
         setFrame(currentFrame_ - 1);
     }
 
+    // =========================================================================
+    // Pixel access (not available - TCV uses GPU-compressed textures)
+    // =========================================================================
+
+    unsigned char* getPixels() override { return nullptr; }
+    const unsigned char* getPixels() const override { return nullptr; }
+
 protected:
     void playImpl() override {
         playStartTime_ = tc::getElapsedTimef();
         currentFrame_ = -1;
+
+        // Start audio playback
+        if (hasAudio_) {
+            audio_.setPosition(0);
+            audio_.play();
+        }
     }
 
     void stopImpl() override {
         currentFrame_ = -1;
+
+        // Stop audio
+        if (hasAudio_) {
+            audio_.stop();
+        }
     }
 
     void setPausedImpl(bool paused) override {
-        // TODO: Handle pause timer properly
+        if (hasAudio_) {
+            if (paused) {
+                audio_.pause();
+                pauseTime_ = tc::getElapsedTimef();
+            } else {
+                audio_.resume();
+                // Adjust play start time for pause duration
+                playStartTime_ += tc::getElapsedTimef() - pauseTime_;
+            }
+        }
     }
 
     void setPositionImpl(float pct) override {
         int frame = static_cast<int>(pct * header_.frameCount);
         setFrame(frame);
         playStartTime_ = tc::getElapsedTimef() - pct * getDuration();
+
+        // Sync audio position
+        if (hasAudio_) {
+            audio_.setPosition(pct * audio_.getDuration());
+        }
     }
 
     void setVolumeImpl(float vol) override {
-        // TODO: Audio support
+        if (hasAudio_) {
+            audio_.setVolume(vol);
+        }
     }
 
     void setSpeedImpl(float speed) override {
-        // TODO: Playback speed support
+        if (hasAudio_) {
+            audio_.setSpeed(speed);
+        }
     }
 
     void setLoopImpl(bool loop) override {
-        // Already handled by base class
+        if (hasAudio_) {
+            audio_.setLoop(loop);
+        }
     }
 
 private:
@@ -284,6 +336,11 @@ private:
     int currentFrame_ = -1;
 
     float playStartTime_ = 0.0f;
+    float pauseTime_ = 0.0f;
+
+    // Audio playback
+    bool hasAudio_ = false;
+    tc::Sound audio_;
 
     // Frame index entry
     struct FrameIndexEntry {
@@ -538,6 +595,68 @@ private:
         double ms = std::chrono::duration<double, std::milli>(endTime - startTime).count();
         totalDecodeTimeMs_ += ms;
         decodeCount_++;
+    }
+
+    // Load audio from TCV file
+    void loadAudio() {
+        if (header_.audioOffset == 0 || header_.audioSize == 0) {
+            return;
+        }
+
+        // Read audio data from file
+        std::vector<uint8_t> audioData(header_.audioSize);
+        file_.seekg(static_cast<std::streamoff>(header_.audioOffset));
+        file_.read(reinterpret_cast<char*>(audioData.data()), header_.audioSize);
+
+        // Create SoundBuffer and decode based on codec
+        auto soundBuffer = std::make_shared<tc::SoundBuffer>();
+        bool loaded = false;
+
+        // Check codec FourCC (big-endian: MSB is first character)
+        uint32_t codec = header_.audioCodec;
+        char codecStr[5] = {0};
+        codecStr[0] = static_cast<char>((codec >> 24) & 0xFF);
+        codecStr[1] = static_cast<char>((codec >> 16) & 0xFF);
+        codecStr[2] = static_cast<char>((codec >> 8) & 0xFF);
+        codecStr[3] = static_cast<char>(codec & 0xFF);
+
+        // FourCC values (big-endian)
+        // kAudioFormatMPEGLayer3 = '.mp3' = 0x2E6D7033
+        constexpr uint32_t FOURCC_MP3_DOT = 0x2E6D7033;  // '.mp3' (kAudioFormatMPEGLayer3)
+        constexpr uint32_t FOURCC_MP3_SPC = 0x6D703320;  // 'mp3 '
+        constexpr uint32_t FOURCC_AAC     = 0x61616320;  // 'aac ' (kAudioFormatMPEG4AAC)
+        constexpr uint32_t FOURCC_MP4A    = 0x6D703461;  // 'mp4a'
+
+        // Debug: show codec value
+        tc::logNotice("TcvPlayer") << "Audio codec: " << codecStr
+                                   << " (0x" << std::hex << codec << std::dec << ")"
+                                   << ", data size: " << audioData.size() << " bytes";
+
+        if (codec == FOURCC_MP3_DOT || codec == FOURCC_MP3_SPC) {
+            // MP3: decode from memory
+            tc::logNotice("TcvPlayer") << "Attempting MP3 decode...";
+            loaded = soundBuffer->loadMp3FromMemory(audioData.data(), audioData.size());
+            if (loaded) {
+                tc::logNotice("TcvPlayer") << "MP3 decode successful: "
+                                           << soundBuffer->channels << " ch, "
+                                           << soundBuffer->sampleRate << " Hz, "
+                                           << soundBuffer->numSamples << " samples";
+            } else {
+                tc::logError("TcvPlayer") << "MP3 decode failed!";
+            }
+        } else if (codec == FOURCC_AAC || codec == FOURCC_MP4A) {
+            // AAC: not directly supported, would need decoder
+            tc::logWarning("TcvPlayer") << "AAC audio codec not yet supported for playback";
+        } else {
+            tc::logWarning("TcvPlayer") << "Unknown audio codec - cannot decode";
+        }
+
+        if (loaded) {
+            audio_.loadFromBuffer(soundBuffer);
+            hasAudio_ = true;
+            tc::logNotice("TcvPlayer") << "Audio loaded: " << audioData.size() << " bytes, "
+                                       << soundBuffer->getDuration() << "s duration";
+        }
     }
 };
 

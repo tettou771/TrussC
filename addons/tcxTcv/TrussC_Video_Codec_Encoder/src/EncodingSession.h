@@ -87,6 +87,12 @@ private:
     int waitCounter_ = 0;
     int retryCount_ = 0;
 
+    // Audio data extracted from source
+    vector<uint8_t> audioData_;
+    uint32_t audioCodec_ = 0;
+    int audioSampleRate_ = 0;
+    int audioChannels_ = 0;
+
     static constexpr int WAIT_TIMEOUT = 100;
     static constexpr int MAX_RETRIES = 3;
     static constexpr float END_THRESHOLD = 0.98f;
