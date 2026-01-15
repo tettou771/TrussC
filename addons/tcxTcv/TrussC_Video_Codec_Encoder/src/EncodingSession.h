@@ -46,8 +46,20 @@ public:
     const string& getInputPath() const { return settings_.inputPath; }
     const string& getOutputPath() const { return settings_.outputPath; }
 
+    // Video info (available after begin())
+    int getVideoWidth() const { return static_cast<int>(source_.getWidth()); }
+    int getVideoHeight() const { return static_cast<int>(source_.getHeight()); }
+    float getVideoFps() const {
+        float duration = source_.getDuration();
+        return (duration > 0 && totalFrames_ > 0) ? totalFrames_ / duration : 30.0f;
+    }
+
     // Get current phase as string (for display)
     string getPhaseString() const;
+
+    // Get source video texture for preview (only valid while encoding)
+    const Texture& getSourceTexture() const { return source_.getTexture(); }
+    bool hasSourceTexture() const { return source_.isLoaded(); }
 
 private:
     enum class Phase {

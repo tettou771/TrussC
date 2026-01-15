@@ -17,14 +17,14 @@ public:
     void draw() override;
     void keyPressed(int key) override;
     void filesDropped(const vector<string>& files) override;
+    void exit() override;
 
 private:
     // Application state
     enum class State {
         Idle,
         Encoding,
-        Done,
-        Exiting
+        Done
     };
     State state_ = State::Idle;
 
@@ -36,12 +36,42 @@ private:
     vector<string> filesToEncode_;
     int currentFileIndex_ = 0;
 
-    // Settings (from CLI or defaults)
+    // Settings
     EncodingSession::Settings settings_;
+
+    // GUI state
+    struct FileInfo {
+        string name;
+        string path;
+        int width = 0;
+        int height = 0;
+        float fps = 0;
+        int totalFrames = 0;
+        size_t inputSize = 0;
+        size_t outputSize = 0;
+    };
+    FileInfo fileInfo_;
+
+    // Log buffer
+    struct LogEntry {
+        LogLevel level;
+        string timestamp;
+        string message;
+    };
+    vector<LogEntry> logBuffer_;
+    EventListener logListener_;
+    bool autoScrollLog_ = true;
+    static constexpr size_t MAX_LOG_ENTRIES = 1000;
 
     // Methods
     void startEncoding(const string& inputPath);
     string getOutputPath(const string& inputPath);
     void parseCommandLine();
     void showHelp();
+
+    // GUI
+    void drawGui();
+    void drawLeftPane(float width);
+    void drawRightPane();
+    void setupLogListener();
 };
