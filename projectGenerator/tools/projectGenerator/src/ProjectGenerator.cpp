@@ -423,6 +423,11 @@ string ProjectGenerator::generate() {
                 fs::copy(entry.path(), destPath + "/" + name,
                          fs::copy_options::recursive);
             }
+
+            // Create bin/data/.gitkeep (bin is skipped above, but data folder is needed)
+            fs::create_directories(destPath + "/bin/data");
+            ofstream gitkeep(destPath + "/bin/data/.gitkeep");
+            gitkeep.close();
         }
 
         log("Writing addons.make...");

@@ -85,6 +85,9 @@
 #include "tc/utils/tcJson.h"
 #include "tc/utils/tcXml.h"
 
+// TrussC file utilities
+#include "tc/utils/tcFile.h"
+
 // TrussC console input (accept commands from stdin)
 #include "tc/utils/tcConsole.h"
 
