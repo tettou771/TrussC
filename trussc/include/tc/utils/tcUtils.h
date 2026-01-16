@@ -28,8 +28,13 @@ namespace internal {
 // ---------------------------------------------------------------------------
 
 namespace internal {
-    // Default is "data/" (relative to executable directory)
+    // Default is "data/" relative to executable directory
+    // On macOS, executable is in xxx.app/Contents/MacOS/, so "../../../data/" points to bin/data/
+    #ifdef __APPLE__
+    inline std::string dataPathRoot = "../../../data/";
+    #else
     inline std::string dataPathRoot = "data/";
+    #endif
     inline bool dataPathRootIsAbsolute = false;
 }
 
@@ -52,10 +57,16 @@ inline std::string getDataPathRoot() {
 }
 
 // Get data path for a filename
-// Resolved relative to executable directory
+// - If filename is absolute (starts with /), return as-is
+// - Otherwise, resolved relative to executable directory + dataPathRoot
 inline std::string getDataPath(const std::string& filename) {
+    // If filename is absolute, return as-is (like oF)
+    if (!filename.empty() && filename[0] == '/') {
+        return filename;
+    }
+
     if (internal::dataPathRootIsAbsolute) {
-        // Absolute path: use as-is
+        // Absolute dataPathRoot: use as-is
         return internal::dataPathRoot + filename;
     } else {
         // Relative path: resolve relative to executable directory

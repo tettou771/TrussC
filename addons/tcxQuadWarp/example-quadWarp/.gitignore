@@ -1,0 +1,11 @@
+# Ignore local settings
+warp-settings.json
+
+# Ignore build artifacts
+bin/
+build/
+build-*/
+CMakePresets.json
+*.dSYM/
+.vscode/
+.DS_Store

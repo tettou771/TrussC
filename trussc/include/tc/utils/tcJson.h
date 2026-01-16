@@ -9,6 +9,7 @@
 #include <string>
 #include "nlohmann/json.hpp"
 #include "tcLog.h"
+#include "tcUtils.h"
 
 namespace trussc {
 
@@ -17,9 +18,11 @@ using Json = nlohmann::json;
 
 // ---------------------------------------------------------------------------
 // JSON file loading
+// Relative paths are resolved via getDataPath (like oF)
 // ---------------------------------------------------------------------------
 inline Json loadJson(const std::string& path) {
-    std::ifstream file(path);
+    std::string fullPath = getDataPath(path);
+    std::ifstream file(fullPath);
     if (!file.is_open()) {
         logError() << "Cannot open JSON file: " << path;
         return Json();
@@ -27,7 +30,7 @@ inline Json loadJson(const std::string& path) {
 
     try {
         Json j = Json::parse(file);
-        logVerbose() << "JSON loaded: " << path;
+        logVerbose() << "JSON loaded: " << fullPath;
         return j;
     } catch (const Json::parse_error& e) {
         logError() << "JSON parse error: " << path << " - " << e.what();
@@ -37,9 +40,11 @@ inline Json loadJson(const std::string& path) {
 
 // ---------------------------------------------------------------------------
 // JSON file writing
+// Relative paths are resolved via getDataPath (like oF)
 // ---------------------------------------------------------------------------
 inline bool saveJson(const Json& j, const std::string& path, int indent = 2) {
-    std::ofstream file(path);
+    std::string fullPath = getDataPath(path);
+    std::ofstream file(fullPath);
     if (!file.is_open()) {
         logError() << "Cannot create JSON file: " << path;
         return false;
@@ -51,7 +56,7 @@ inline bool saveJson(const Json& j, const std::string& path, int indent = 2) {
         } else {
             file << j.dump();  // Compact format
         }
-        logVerbose() << "JSON saved: " << path;
+        logVerbose() << "JSON saved: " << fullPath;
         return true;
     } catch (const std::exception& e) {
         logError() << "JSON write error: " << path << " - " << e.what();

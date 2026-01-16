@@ -254,9 +254,19 @@ public:
         sgl_load_identity();
     }
 
+    // Apply transformation matrix (multiplies with current matrix, like translate/rotate)
     void setMatrix(const Mat4& mat) {
+        currentMatrix_ = currentMatrix_ * mat;
+        // sokol_gl expects column-major, but Mat4 is row-major
+        Mat4 t = mat.transposed();
+        sgl_mult_matrix(t.m);
+    }
+
+    // Load matrix directly (replaces current matrix - use with caution, may break camera setup)
+    void loadMatrix(const Mat4& mat) {
         currentMatrix_ = mat;
-        sgl_load_matrix(currentMatrix_.m);
+        Mat4 t = mat.transposed();
+        sgl_load_matrix(t.m);
     }
 
     // -----------------------------------------------------------------------
