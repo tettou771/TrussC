@@ -39,6 +39,21 @@ winget install Kitware.CMake
 sudo apt install cmake
 ```
 
+### Linux の依存パッケージ
+
+Linux では追加の開発パッケージが必要です:
+
+```bash
+# 必須: コアビルド依存
+sudo apt install build-essential libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev libgtk-3-0-dev
+
+# 必須: 動画再生 (FFmpeg)
+sudo apt install libavcodec-dev libavformat-dev libswscale-dev libavutil-dev
+
+# 必須: AAC 音声デコード (GStreamer)
+sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+```
+
 ### エディタのセットアップ
 
 #### VSCode

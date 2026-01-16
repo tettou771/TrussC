@@ -721,6 +721,27 @@ void VideoPlayer::previousFramePlatform() {
     }
 }
 
+// Audio access (not yet implemented for Linux FFmpeg)
+bool VideoPlayer::hasAudioPlatform() const {
+    return false;
+}
+
+uint32_t VideoPlayer::getAudioCodecPlatform() const {
+    return 0;
+}
+
+std::vector<uint8_t> VideoPlayer::getAudioDataPlatform() const {
+    return {};
+}
+
+int VideoPlayer::getAudioSampleRatePlatform() const {
+    return 0;
+}
+
+int VideoPlayer::getAudioChannelsPlatform() const {
+    return 0;
+}
+
 } // namespace trussc
 
 #endif // __linux__

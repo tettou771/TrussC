@@ -39,6 +39,21 @@ winget install Kitware.CMake
 sudo apt install cmake
 ```
 
+### Linux Dependencies
+
+Linux requires additional development packages:
+
+```bash
+# Required: Core build dependencies
+sudo apt install build-essential libx11-dev libxi-dev libxcursor-dev libgl1-mesa-dev libgtk-3-0-dev
+
+# Required: Video playback (FFmpeg)
+sudo apt install libavcodec-dev libavformat-dev libswscale-dev libavutil-dev
+
+# Required: AAC audio decoding (GStreamer)
+sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
+```
+
 ### Editor Setup
 
 #### VSCode
