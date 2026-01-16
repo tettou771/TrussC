@@ -202,6 +202,17 @@ public:
     // Returns false on unsupported platforms
     bool loadAacFromMemory(const void* data, size_t dataSize);
 
+#ifdef __EMSCRIPTEN__
+    // Web platform: complete deferred AAC loading (blocking)
+    // Called from Sound::play() if loading was deferred during setup
+    void ensureAacLoaded();
+
+    // Check if this buffer has deferred AAC loading
+    bool hasDeferredAac() const { return !deferredAacPath_.empty(); }
+
+    std::string deferredAacPath_;  // Path for deferred AAC loading (Web only)
+#endif
+
     // Load raw PCM data (16-bit signed, little-endian)
     bool loadPcmFromMemory(const void* data, size_t dataSize,
                            int numChannels, int rate, int bitsPerSample = 16,
@@ -706,6 +717,13 @@ public:
     // -------------------------------------------------------------------------
     void play() {
         if (!buffer_) return;
+
+#ifdef __EMSCRIPTEN__
+        // Web platform: complete deferred AAC loading if needed
+        if (buffer_->hasDeferredAac()) {
+            buffer_->ensureAacLoaded();
+        }
+#endif
 
         // Stop if already playing
         stop();

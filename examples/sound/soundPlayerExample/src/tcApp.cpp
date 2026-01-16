@@ -15,17 +15,16 @@ void tcApp::setup() {
     setFps(VSYNC);
 
     // Audio file path (CC0 sample audio in data folder)
-    musicPath = getDataPath("beat_loop.wav");
-    logNotice("tcApp") << "Trying to load: " << musicPath;
+    musicPath = getDataPath("beat_loop.aac");
 
-    // Load music
+    logNotice("tcApp") << "Trying to load: " << musicPath;
     if (music.load(musicPath)) {
         musicLoaded = true;
         music.setLoop(true);
         logNotice("tcApp") << "Music loaded: " << musicPath << " (" << music.getDuration() << " sec)";
     } else {
         logNotice("tcApp") << "Music not found: " << musicPath << " - using test tone";
-        music.loadTestTone(440.0f, 3.0f);  // A4 (440Hz), 3 seconds
+        music.loadTestTone(440.0f, 3.0f);
         music.setLoop(true);
         musicLoaded = true;
     }
@@ -102,8 +101,10 @@ void tcApp::draw() {
         y += 30;
 
         // Progress bar
-        float progress = music.getDuration() > 0 ?
-                        music.getPosition() / music.getDuration() : 0;
+        float pos = music.getPosition();
+        float dur = music.getDuration();
+        float progress = dur > 0 ? pos / dur : 0;
+
         setColor(0.24f);
         drawRect(50, y, 300, 20);
         setColor(colors::dodgerBlue);

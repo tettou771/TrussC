@@ -1,24 +1,6 @@
 #include "TrussC.h"
 #include "tcApp.h"
 #include <sstream>
-#include <algorithm>
-
-// Get file name (last part of path)
-static string getFileName(const string& path) {
-    size_t pos = path.find_last_of("/\\");
-    if (pos == string::npos) return path;
-    return path.substr(pos + 1);
-}
-
-// Get extension
-static string getExtension(const string& path) {
-    size_t pos = path.find_last_of('.');
-    if (pos == string::npos) return "";
-    string ext = path.substr(pos + 1);
-    // Convert to lowercase
-    transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    return ext;
-}
 
 // Check if image extension
 static bool isImageExtension(const string& ext) {
@@ -122,7 +104,7 @@ void tcApp::filesDropped(const vector<string>& files) {
         DroppedFile df;
         df.path = path;
         df.name = getFileName(path);
-        df.extension = getExtension(path);
+        df.extension = toLower(getFileExtension(path));
         df.isImage = isImageExtension(df.extension);
 
         droppedFiles.push_back(df);

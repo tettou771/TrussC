@@ -351,6 +351,35 @@ void VideoPlayer::previousFramePlatform() {
     )JS");
 }
 
+// ---------------------------------------------------------------------------
+// Audio-related stubs (not yet implemented for Web)
+// ---------------------------------------------------------------------------
+
+bool VideoPlayer::hasAudioPlatform() const {
+    // Could check video.audioTracks but not widely supported
+    return false;
+}
+
+uint32_t VideoPlayer::getAudioCodecPlatform() const {
+    logWarning("VideoPlayer") << "getAudioCodec() is not supported on Web platform";
+    return 0;
+}
+
+std::vector<uint8_t> VideoPlayer::getAudioDataPlatform() const {
+    logWarning("VideoPlayer") << "getAudioData() is not supported on Web platform";
+    return {};
+}
+
+int VideoPlayer::getAudioSampleRatePlatform() const {
+    logWarning("VideoPlayer") << "getAudioSampleRate() is not supported on Web platform";
+    return 0;
+}
+
+int VideoPlayer::getAudioChannelsPlatform() const {
+    logWarning("VideoPlayer") << "getAudioChannels() is not supported on Web platform";
+    return 0;
+}
+
 } // namespace trussc
 
 #endif // __EMSCRIPTEN__

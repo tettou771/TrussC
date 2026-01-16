@@ -15,13 +15,60 @@ void tcApp::setup() {
     // TLS
     // Just instantiation to check linking
     tc::TlsClient tls;
-    
+
     // WebSocket
     tc::WebSocketClient ws;
 
     // LUT (3D color grading)
     lut = tcx::lut::createVintage(16);
     tc::logNotice("AllFeaturesExample") << "LUT initialized: " << lut.getSize() << "x" << lut.getSize() << "x" << lut.getSize();
+
+    // Test SoundBuffer AAC loading (will log warning on Web)
+    tc::SoundBuffer soundTest;
+    soundTest.loadAac("nonexistent.aac");
+    soundTest.loadAacFromMemory(nullptr, 0);
+    tc::logNotice("AllFeaturesExample") << "SoundBuffer AAC test completed";
+
+    // Test VideoPlayer audio methods (will log warning on Web)
+    tc::VideoPlayer videoTest;
+    videoTest.hasAudio();
+    videoTest.getAudioCodec();
+    videoTest.getAudioData();
+    videoTest.getAudioSampleRate();
+    videoTest.getAudioChannels();
+    tc::logNotice("AllFeaturesExample") << "VideoPlayer audio methods test completed";
+
+    // Test file/directory utilities (tcFile.h)
+    tc::logNotice("AllFeaturesExample") << "Testing file utilities...";
+
+    // Path utilities
+    string testPath = "path/to/file.txt";
+    tc::getFileName(testPath);
+    tc::getBaseName(testPath);
+    tc::getFileExtension(testPath);
+    tc::getParentDirectory(testPath);
+    tc::joinPath("path", "file.txt");
+
+    // File system operations
+    tc::fileExists("nonexistent.txt");
+    tc::directoryExists(".");
+    tc::listDirectory(".");
+
+    // FileWriter test
+    {
+        tc::FileWriter writer;
+        // Don't actually write to test
+        tc::logNotice("AllFeaturesExample") << "FileWriter instantiation OK";
+    }
+
+    // FileReader test
+    {
+        tc::FileReader reader;
+        // Don't actually read to test
+        tc::logNotice("AllFeaturesExample") << "FileReader instantiation OK";
+    }
+
+    tc::logNotice("AllFeaturesExample") << "File utilities test completed";
 
     tc::logNotice("AllFeaturesExample") << "All features linked successfully";
 }
