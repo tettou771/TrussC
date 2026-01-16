@@ -1648,6 +1648,179 @@ categories:
         snippet: "beep()"
 
   # ==========================================================================
+  # File
+  # ==========================================================================
+  - id: file
+    name: "File"
+    name_ja: "ファイル"
+    functions:
+      # Path utilities
+      - name: getFileName
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get filename from path"
+        description_ja: "パスからファイル名を取得"
+        of_equivalent: "ofFilePath::getFileName"
+        sketch: false
+        snippet: "getFileName(${1:path})"
+
+      - name: getBaseName
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get filename without extension"
+        description_ja: "拡張子なしのファイル名を取得"
+        of_equivalent: "ofFilePath::getBaseName"
+        sketch: false
+        snippet: "getBaseName(${1:path})"
+
+      - name: getFileExtension
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get file extension without dot"
+        description_ja: "拡張子を取得（ドットなし）"
+        of_equivalent: "ofFilePath::getFileExt"
+        sketch: false
+        snippet: "getFileExtension(${1:path})"
+
+      - name: getParentDirectory
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get parent directory"
+        description_ja: "親ディレクトリを取得"
+        of_equivalent: "ofFilePath::getEnclosingDirectory"
+        sketch: false
+        snippet: "getParentDirectory(${1:path})"
+
+      - name: joinPath
+        return: "string"
+        signatures:
+          - params: "const string& dir, const string& file"
+            params_simple: "dir, file"
+        description: "Join directory and filename"
+        description_ja: "ディレクトリとファイル名を結合"
+        of_equivalent: "ofFilePath::join"
+        sketch: false
+        snippet: "joinPath(${1:dir}, ${2:file})"
+
+      - name: getAbsolutePath
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get absolute path"
+        description_ja: "絶対パスを取得"
+        of_equivalent: "ofFilePath::getAbsolutePath"
+        sketch: false
+        snippet: "getAbsolutePath(${1:path})"
+
+      # File system operations
+      - name: fileExists
+        return: "bool"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Check if file exists"
+        description_ja: "ファイルが存在するか確認"
+        of_equivalent: "ofFile::doesFileExist"
+        sketch: false
+        snippet: "fileExists(${1:path})"
+
+      - name: directoryExists
+        return: "bool"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Check if directory exists"
+        description_ja: "ディレクトリが存在するか確認"
+        of_equivalent: "ofDirectory::doesDirectoryExist"
+        sketch: false
+        snippet: "directoryExists(${1:path})"
+
+      - name: createDirectory
+        return: "bool"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Create directory (and parents)"
+        description_ja: "ディレクトリを作成（親も含む）"
+        of_equivalent: "ofDirectory::createDirectory"
+        sketch: false
+        snippet: "createDirectory(${1:path})"
+
+      - name: listDirectory
+        return: "vector<string>"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "List files in directory"
+        description_ja: "ディレクトリ内のファイル一覧"
+        of_equivalent: "ofDirectory::listDir"
+        sketch: false
+        snippet: "listDirectory(${1:path})"
+
+      - name: removeFile
+        return: "bool"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Remove file"
+        description_ja: "ファイルを削除"
+        of_equivalent: "ofFile::removeFile"
+        sketch: false
+        snippet: "removeFile(${1:path})"
+
+      - name: getFileSize
+        return: "int64_t"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get file size in bytes"
+        description_ja: "ファイルサイズを取得（バイト）"
+        sketch: false
+        snippet: "getFileSize(${1:path})"
+
+      # Simple file I/O
+      - name: loadTextFile
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Load entire text file"
+        description_ja: "テキストファイルを読み込む"
+        of_equivalent: "ofBufferFromFile"
+        sketch: false
+        snippet: "loadTextFile(${1:path})"
+
+      - name: saveTextFile
+        return: "bool"
+        signatures:
+          - params: "const string& path, const string& content"
+            params_simple: "path, content"
+        description: "Save string to text file"
+        description_ja: "文字列をファイルに保存"
+        of_equivalent: "ofBufferToFile"
+        sketch: false
+        snippet: "saveTextFile(${1:path}, ${2:content})"
+
+      - name: appendToFile
+        return: "bool"
+        signatures:
+          - params: "const string& path, const string& content"
+            params_simple: "path, content"
+        description: "Append string to file"
+        description_ja: "ファイルに追記"
+        sketch: false
+        snippet: "appendToFile(${1:path}, ${2:content})"
+
+  # ==========================================================================
   # Sound
   # ==========================================================================
   - id: sound
@@ -5992,3 +6165,139 @@ types:
         description: "Get font size"
         description_ja: "フォントサイズを取得"
         snippet: "getSize()"
+
+  - name: FileWriter
+    description: "Streaming file writer with immediate flush"
+    description_ja: "即時フラッシュ付きストリーミングファイルライター"
+    sketch: false
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "FileWriter()"
+    methods:
+      - name: open
+        return: bool
+        signatures:
+          - params: "string path"
+          - params: "string path, bool append"
+        description: "Open file for writing"
+        description_ja: "書き込み用にファイルを開く"
+        snippet: "open(${1:\"path\"})"
+      - name: close
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Close file"
+        description_ja: "ファイルを閉じる"
+        snippet: "close()"
+      - name: isOpen
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if file is open"
+        description_ja: "ファイルが開いているか確認"
+        snippet: "isOpen()"
+      - name: write
+        return: "FileWriter&"
+        signatures:
+          - params: "string text"
+          - params: "char c"
+          - params: "void* data, size_t size"
+        description: "Write data to file"
+        description_ja: "データを書き込む"
+        snippet: "write(${1:text})"
+      - name: writeLine
+        return: "FileWriter&"
+        signatures:
+          - params: ""
+          - params: "string text"
+        description: "Write line with newline"
+        description_ja: "改行付きで書き込む"
+        snippet: "writeLine(${1:text})"
+      - name: flush
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Flush buffer to disk"
+        description_ja: "バッファをディスクに書き出す"
+        snippet: "flush()"
+
+  - name: FileReader
+    description: "Streaming file reader for large files"
+    description_ja: "大きなファイル用ストリーミングファイルリーダー"
+    sketch: false
+    constructor:
+      signatures:
+        - params: ""
+      snippet: "FileReader()"
+    methods:
+      - name: open
+        return: bool
+        signatures:
+          - params: "string path"
+        description: "Open file for reading"
+        description_ja: "読み込み用にファイルを開く"
+        snippet: "open(${1:\"path\"})"
+      - name: close
+        return: "void"
+        signatures:
+          - params: ""
+        description: "Close file"
+        description_ja: "ファイルを閉じる"
+        snippet: "close()"
+      - name: isOpen
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if file is open"
+        description_ja: "ファイルが開いているか確認"
+        snippet: "isOpen()"
+      - name: eof
+        return: bool
+        signatures:
+          - params: ""
+        description: "Check if at end of file"
+        description_ja: "ファイル末尾か確認"
+        snippet: "eof()"
+      - name: readLine
+        return: "string"
+        signatures:
+          - params: ""
+        description: "Read one line"
+        description_ja: "1行読み込む"
+        snippet: "readLine()"
+      - name: readChar
+        return: int
+        signatures:
+          - params: ""
+        description: "Read one character (-1 at EOF)"
+        description_ja: "1文字読み込む（EOF時-1）"
+        snippet: "readChar()"
+      - name: read
+        return: size_t
+        signatures:
+          - params: "void* buffer, size_t size"
+        description: "Read binary data"
+        description_ja: "バイナリデータを読み込む"
+        snippet: "read(${1:buffer}, ${2:size})"
+      - name: seek
+        return: "void"
+        signatures:
+          - params: "size_t pos"
+        description: "Seek to position"
+        description_ja: "位置に移動"
+        snippet: "seek(${1:pos})"
+      - name: tell
+        return: size_t
+        signatures:
+          - params: ""
+        description: "Get current position"
+        description_ja: "現在位置を取得"
+        snippet: "tell()"
+      - name: remaining
+        return: size_t
+        signatures:
+          - params: ""
+        description: "Get remaining bytes"
+        description_ja: "残りバイト数を取得"
+        snippet: "remaining()"
