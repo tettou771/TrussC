@@ -597,6 +597,51 @@ struct Mat3 {
             (m[0] * m[4] - m[1] * m[3]) * invDet
         );
     }
+
+    // Calculate homography matrix from 4 pairs of points
+    // Solves H * src = dst
+    static Mat3 getHomography(const Vec2 src[4], const Vec2 dst[4]) {
+        float a[8][9] = {0};
+        for (int i = 0; i < 4; i++) {
+            a[i][0] = a[i+4][3] = src[i].x;
+            a[i][1] = a[i+4][4] = src[i].y;
+            a[i][2] = a[i+4][5] = 1.0f;
+            a[i][3] = a[i][4] = a[i][5] = 0.0f;
+            a[i+4][0] = a[i+4][1] = a[i+4][2] = 0.0f;
+            a[i][6] = -src[i].x * dst[i].x;
+            a[i][7] = -src[i].y * dst[i].x;
+            a[i][8] = dst[i].x;
+            a[i+4][6] = -src[i].x * dst[i].y;
+            a[i+4][7] = -src[i].y * dst[i].y;
+            a[i+4][8] = dst[i].y;
+        }
+
+        // Gaussian elimination
+        for (int i = 0; i < 8; i++) {
+            int pivot = i;
+            for (int j = i + 1; j < 8; j++) {
+                if (std::abs(a[j][i]) > std::abs(a[pivot][i])) pivot = j;
+            }
+            for (int j = 0; j < 9; j++) std::swap(a[i][j], a[pivot][j]);
+            
+            float d = a[i][i];
+            if (std::abs(d) < 1e-10f) return Mat3::identity();
+            
+            for (int j = 0; j < 9; j++) a[i][j] /= d;
+            for (int j = 0; j < 8; j++) {
+                if (i != j) {
+                    float factor = a[j][i];
+                    for (int k = 0; k < 9; k++) a[j][k] -= factor * a[i][k];
+                }
+            }
+        }
+
+        return Mat3(
+            a[0][8], a[1][8], a[2][8],
+            a[3][8], a[4][8], a[5][8],
+            a[6][8], a[7][8], 1.0f
+        );
+    }
 };
 
 // =============================================================================
@@ -631,6 +676,16 @@ struct Mat4 {
 
     // Identity matrix
     static Mat4 identity() { return Mat4(); }
+
+    // Convert from 3x3 Homography matrix (for 2D projection)
+    static Mat4 fromHomography(const Mat3& h) {
+        return Mat4(
+            h.m[0], h.m[1], 0.0f, h.m[2],
+            h.m[3], h.m[4], 0.0f, h.m[5],
+            0.0f,   0.0f,   1.0f, 0.0f,
+            h.m[6], h.m[7], 0.0f, h.m[8]
+        );
+    }
 
     // Translation
     static Mat4 translate(float tx, float ty, float tz) {

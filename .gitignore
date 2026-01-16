@@ -103,6 +103,7 @@ addons/*
 !addons/tcxHap
 !addons/tcxLut
 !addons/tcxOsc
+!addons/tcxQuadWarp
 !addons/tcxTcv
 !addons/tcxTls
 !addons/tcxWebSocket
