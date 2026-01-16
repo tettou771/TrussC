@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <cmath>
 #include <memory>
+#include <filesystem>
 #include "../sound/tcSound.h"
 
 // Forward declaration for tcPlatform.h (avoid circular include)
@@ -57,11 +58,12 @@ inline std::string getDataPathRoot() {
 }
 
 // Get data path for a filename
-// - If filename is absolute (starts with /), return as-is
+// - If filename is absolute, return as-is
 // - Otherwise, resolved relative to executable directory + dataPathRoot
 inline std::string getDataPath(const std::string& filename) {
     // If filename is absolute, return as-is (like oF)
-    if (!filename.empty() && filename[0] == '/') {
+    // Uses std::filesystem for cross-platform support (Unix: /path, Windows: C:\path)
+    if (!filename.empty() && std::filesystem::path(filename).is_absolute()) {
         return filename;
     }
 
