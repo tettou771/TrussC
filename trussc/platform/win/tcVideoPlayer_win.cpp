@@ -494,30 +494,34 @@ std::vector<uint8_t> TCVideoPlayerImpl::getAudioData() const {
         return {};
     }
 
-    // Use IMFSourceReader to decode audio to PCM
+    // Use IMFSourceReader to read raw audio data (passthrough, no decoding)
     int wideLen = MultiByteToWideChar(CP_UTF8, 0, mediaPath_.c_str(), -1, nullptr, 0);
     std::wstring widePath(wideLen, 0);
     MultiByteToWideChar(CP_UTF8, 0, mediaPath_.c_str(), -1, &widePath[0], wideLen);
 
+    // Create attributes to disable format conversion (passthrough mode)
+    ComPtr<IMFAttributes> attrs;
+    HRESULT hr = MFCreateAttributes(&attrs, 1);
+    if (FAILED(hr)) {
+        return {};
+    }
+    // MF_READWRITE_DISABLE_CONVERTERS = TRUE means no decoding, raw compressed data
+    attrs->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE);
+
     ComPtr<IMFSourceReader> reader;
-    HRESULT hr = MFCreateSourceReaderFromURL(widePath.c_str(), nullptr, &reader);
+    hr = MFCreateSourceReaderFromURL(widePath.c_str(), attrs.Get(), &reader);
     if (FAILED(hr)) {
         return {};
     }
 
-    // Configure to output PCM
-    ComPtr<IMFMediaType> pcmType;
-    hr = MFCreateMediaType(&pcmType);
-    if (FAILED(hr)) return {};
+    // Check if AAC (MFAudioFormat_AAC Data1 = 0x1610)
+    // Also check for 'mp4a' FourCC which we store
+    bool isAAC = (audioCodec_ == 0x1610 ||      // WAVE_FORMAT_MPEG_HEAAC
+                  audioCodec_ == 0x6D703461 ||  // 'mp4a'
+                  audioCodec_ == 0x61616320);   // 'aac '
 
-    pcmType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-    pcmType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-    pcmType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-    pcmType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, audioSampleRate_);
-    pcmType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, audioChannels_);
-
-    hr = reader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, pcmType.Get());
-    if (FAILED(hr)) return {};
+    logNotice("VideoPlayer") << "Extracting audio: codec=0x" << std::hex << audioCodec_
+                             << " isAAC=" << isAAC << std::dec;
 
     // Read all audio samples
     std::vector<uint8_t> audioData;
@@ -542,11 +546,19 @@ std::vector<uint8_t> TCVideoPlayerImpl::getAudioData() const {
         DWORD length = 0;
         hr = buffer->Lock(&data, nullptr, &length);
         if (SUCCEEDED(hr)) {
+            if (isAAC) {
+                // AAC: add ADTS header for each frame
+                uint8_t adtsHeader[7];
+                SoundBuffer::createAdtsHeader(adtsHeader, static_cast<int>(length),
+                                               audioSampleRate_, audioChannels_);
+                audioData.insert(audioData.end(), adtsHeader, adtsHeader + 7);
+            }
             audioData.insert(audioData.end(), data, data + length);
             buffer->Unlock();
         }
     }
 
+    logNotice("VideoPlayer") << "Extracted " << audioData.size() << " bytes of audio data";
     return audioData;
 }
 

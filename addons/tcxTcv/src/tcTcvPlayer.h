@@ -810,6 +810,7 @@ private:
         constexpr uint32_t FOURCC_MP3_SPC = 0x6D703320;  // 'mp3 '
         constexpr uint32_t FOURCC_AAC     = 0x61616320;  // 'aac ' (kAudioFormatMPEG4AAC)
         constexpr uint32_t FOURCC_MP4A    = 0x6D703461;  // 'mp4a'
+        constexpr uint32_t FOURCC_AAC_MF  = 0x1610;      // WAVE_FORMAT_MPEG_HEAAC (Windows Media Foundation)
         constexpr uint32_t FOURCC_LPCM    = 0x6C70636D;  // 'lpcm'
         constexpr uint32_t FOURCC_SOWT    = 0x736F7774;  // 'sowt' (16-bit little-endian PCM)
         constexpr uint32_t FOURCC_TWOS    = 0x74776F73;  // 'twos' (16-bit big-endian PCM)
@@ -831,7 +832,7 @@ private:
             } else {
                 tc::logError("TcvPlayer") << "MP3 decode failed!";
             }
-        } else if (codec == FOURCC_AAC || codec == FOURCC_MP4A) {
+        } else if (codec == FOURCC_AAC || codec == FOURCC_MP4A || codec == FOURCC_AAC_MF) {
             // AAC: decode using platform-specific decoder
             tc::logNotice("TcvPlayer") << "Attempting AAC decode...";
             loaded = soundBuffer->loadAacFromMemory(audioData.data(), audioData.size());
