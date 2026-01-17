@@ -81,7 +81,7 @@ void tcApp::draw() {
     info += speedStr;
 
     char decodeStr[32];
-    snprintf(decodeStr, sizeof(decodeStr), "  |  Decode: %.2fms", player_.getAvgDecodeTimeMs());
+    snprintf(decodeStr, sizeof(decodeStr), "  |  Decode: %.2fms", player_.getDecodeTimeMs());
     info += decodeStr;
 
     drawBitmapString(info, 20, infoY);

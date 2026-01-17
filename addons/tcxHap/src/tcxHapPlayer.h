@@ -55,6 +55,18 @@ public:
     }
 
     // =========================================================================
+    // Performance stats
+    // =========================================================================
+
+    double getDecodeTimeMs() const {
+        return decodeTimeMs_;
+    }
+
+    void resetStats() {
+        decodeTimeMs_ = 0.0;
+    }
+
+    // =========================================================================
     // Load / Close
     // =========================================================================
 
@@ -62,6 +74,7 @@ public:
         if (initialized_) {
             close();
         }
+        resetStats();
 
         // Parse MOV file
         if (!movParser_.open(path)) {
@@ -460,6 +473,9 @@ private:
     std::vector<uint8_t> pixels_;
     bool pixelsValid_ = false;
 
+    // Performance stats (low-pass filtered)
+    double decodeTimeMs_ = 0.0;
+
     // -------------------------------------------------------------------------
     // Internal methods
     // -------------------------------------------------------------------------
@@ -494,6 +510,7 @@ private:
         playbackTime_ = other.playbackTime_;
         audioPlayer_ = std::move(other.audioPlayer_);
         hasAudio_ = other.hasAudio_;
+        decodeTimeMs_ = other.decodeTimeMs_;
 
         // Invalidate source
         other.initialized_ = false;
@@ -503,6 +520,7 @@ private:
         other.pixelsValid_ = false;
         other.width_ = 0;
         other.height_ = 0;
+        other.decodeTimeMs_ = 0.0;
     }
 
     bool loadAudio() {
@@ -673,6 +691,8 @@ private:
     }
 
     bool decodeFrame(int frameIndex) {
+        auto startTime = std::chrono::high_resolution_clock::now();
+
         if (!videoTrack_ || frameIndex < 0 ||
             frameIndex >= static_cast<int>(videoTrack_->samples.size())) {
             return false;
@@ -695,6 +715,12 @@ private:
 
         // Invalidate RGBA cache - will be decoded on demand
         pixelsValid_ = false;
+
+        // Record decode time (low-pass filter)
+        auto endTime = std::chrono::high_resolution_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+        constexpr double kAlpha = 0.05;
+        decodeTimeMs_ = decodeTimeMs_ * (1.0 - kAlpha) + ms * kAlpha;
 
         return true;
     }

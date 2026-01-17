@@ -49,12 +49,13 @@ void tcApp::draw() {
 
         // Info bar
         setColor(0.8f, 0.8f, 0.85f);
-        string info = format("{}x{} | Frame {}/{} | {:.1f}s / {:.1f}s | {} | Speed: {:.2f}x",
+        string info = format("{}x{} | Frame {}/{} | {:.1f}s / {:.1f}s | {} | Speed: {:.2f}x | Decode: {:.2f}ms",
             (int)vw, (int)vh,
             player_.getCurrentFrame(), player_.getTotalFrames(),
             player_.getCurrentTime(), player_.getDuration(),
             player_.isPlaying() ? "Playing" : (player_.isPaused() ? "Paused" : "Stopped"),
-            player_.getSpeed());
+            player_.getSpeed(),
+            player_.getDecodeTimeMs());
         drawBitmapString(info, 20, getWindowHeight() - 50);
 
         string controls = "Space: Play/Pause | R: Restart | L: Loop | []: Speed | 0-9: Seek | Left/Right: Step";

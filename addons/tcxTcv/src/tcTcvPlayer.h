@@ -49,12 +49,11 @@ public:
     }
 
     // Performance stats
-    double getAvgDecodeTimeMs() const {
-        return decodeCount_ > 0 ? totalDecodeTimeMs_ / decodeCount_ : 0.0;
+    double getDecodeTimeMs() const {
+        return decodeTimeMs_;
     }
     void resetStats() {
-        totalDecodeTimeMs_ = 0.0;
-        decodeCount_ = 0;
+        decodeTimeMs_ = 0.0;
     }
 
     // Draw debug overlay (call after drawing video)
@@ -162,6 +161,7 @@ public:
 
         initialized_ = true;
         currentFrame_ = 0;  // 最初のフレームは既にデコード済み
+        resetStats();
 
         // Load audio if present
         hasAudio_ = false;
@@ -413,9 +413,8 @@ private:
     bool debugMode_ = false;
     std::vector<DebugBlockType> debugBlockTypes_;
 
-    // Performance stats
-    double totalDecodeTimeMs_ = 0.0;
-    int decodeCount_ = 0;
+    // Performance stats (low-pass filtered)
+    double decodeTimeMs_ = 0.0;
 
 #ifdef TCV_PROFILE
     // Profiling (last frame)
@@ -424,6 +423,7 @@ private:
     double profileCopyMs_ = 0.0;
     double profileGpuMs_ = 0.0;
     bool profileCacheHit_ = false;
+    int profileFrameCount_ = 0;
 #endif
 
     // Build index of frame offsets for seeking
@@ -605,15 +605,16 @@ private:
                     std::fill(debugBlockTypes_.begin(), debugBlockTypes_.end(), DebugBlockType::BC7);
                 }
 
-                // Record decode time and return early
+                // Record decode time (low-pass filter) and return early
                 auto endTime = std::chrono::high_resolution_clock::now();
                 double ms = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-                totalDecodeTimeMs_ += ms;
-                decodeCount_++;
+                constexpr double kAlpha = 0.05;
+                decodeTimeMs_ = decodeTimeMs_ * (1.0 - kAlpha) + ms * kAlpha;
 
 #ifdef TCV_PROFILE
                 // Log profile every 30 frames
-                if (decodeCount_ % 30 == 0) {
+                profileFrameCount_++;
+                if (profileFrameCount_ % 30 == 0) {
                     tc::logNotice("TcvPlayer") << "Profile: IO=" << profileFileIoMs_
                         << "ms, LZ4=" << profileLz4Ms_
                         << "ms, Copy=" << profileCopyMs_
@@ -632,11 +633,11 @@ private:
                 if (debugMode_) {
                     std::fill(debugBlockTypes_.begin(), debugBlockTypes_.end(), DebugBlockType::Skip);
                 }
-                // Record decode time and return early
+                // Record decode time (low-pass filter) and return early
                 auto endTime = std::chrono::high_resolution_clock::now();
                 double ms = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-                totalDecodeTimeMs_ += ms;
-                decodeCount_++;
+                constexpr double kAlpha = 0.05;
+                decodeTimeMs_ = decodeTimeMs_ * (1.0 - kAlpha) + ms * kAlpha;
                 return;
             }
         } else if (entry.packetType == TCV_PACKET_P_FRAME) {
@@ -698,11 +699,11 @@ private:
         // Upload to GPU texture
         texture_.updateCompressed(bc7Buffer_.data(), bc7FrameSize_);
 
-        // Record decode time
+        // Record decode time (low-pass filter)
         auto endTime = std::chrono::high_resolution_clock::now();
         double ms = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-        totalDecodeTimeMs_ += ms;
-        decodeCount_++;
+        constexpr double kAlpha = 0.05;
+        decodeTimeMs_ = decodeTimeMs_ * (1.0 - kAlpha) + ms * kAlpha;
     }
 
     // Load audio from TCV file
