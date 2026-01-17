@@ -300,6 +300,48 @@ public:
     }
 
     // =========================================================================
+    // Audio access (for encoding to other formats)
+    // =========================================================================
+
+    bool hasAudio() const override {
+        return audioTrack_ != nullptr;
+    }
+
+    uint32_t getAudioCodec() const override {
+        if (!audioTrack_) return 0;
+        return audioTrack_->codecFourCC;
+    }
+
+    int getAudioSampleRate() const override {
+        if (!audioTrack_) return 0;
+        return audioTrack_->sampleRate;
+    }
+
+    int getAudioChannels() const override {
+        if (!audioTrack_) return 0;
+        return audioTrack_->channels;
+    }
+
+    std::vector<uint8_t> getAudioData() const override {
+        if (!audioTrack_) return {};
+
+        // For AAC, we need to add ADTS headers to each frame
+        if (audioTrack_->isAac()) {
+            return getAacDataWithAdts();
+        }
+        // For MP3, return raw data (it's already self-framing)
+        else if (audioTrack_->isMp3()) {
+            return getRawAudioData();
+        }
+        // For PCM, return raw data (not typical for embedding)
+        else if (audioTrack_->isPcm()) {
+            return getRawAudioData();
+        }
+
+        return {};
+    }
+
+    // =========================================================================
     // Draw (overridden for YCoCg shader support)
     // =========================================================================
 
@@ -762,19 +804,26 @@ private:
     }
 
     // Convert YCoCg color space to RGB (for HAP-Q)
+    // Must match the GPU shader in ycocg.glsl
     void convertYCoCgToRgb() {
         size_t pixelCount = static_cast<size_t>(width_) * height_;
         for (size_t i = 0; i < pixelCount; i++) {
             uint8_t* pixel = pixels_.data() + i * 4;
-            // YCoCg is stored as: R=Co, G=Cg, B=scale, A=Y
-            float co = (pixel[0] - 128) / 128.0f;
-            float cg = (pixel[1] - 128) / 128.0f;
-            float scale = (pixel[2] + 1) / 4.0f;
+            // DXT5 texture channels: R=Co, G=Cg, B=Scale, A=Y
+            // Convert to 0-1 range
+            float coRaw = pixel[0] / 255.0f;
+            float cgRaw = pixel[1] / 255.0f;
+            float scaleRaw = pixel[2] / 255.0f;
             float y = pixel[3] / 255.0f;
 
-            co *= scale;
-            cg *= scale;
+            // Scale factor: (B * 255 / 8) + 1 = (B * 31.875) + 1
+            float scale = (scaleRaw * (255.0f / 8.0f)) + 1.0f;
 
+            // Chrominance values (centered at 0.5, divided by scale)
+            float co = (coRaw - 0.5f) / scale;
+            float cg = (cgRaw - 0.5f) / scale;
+
+            // YCoCg to RGB conversion
             float r = y + co - cg;
             float g = y + cg;
             float b = y - co - cg;
@@ -885,6 +934,62 @@ private:
         ycocgShader_.submitVertices(verts, 4, tc::PrimitiveType::Quads);
 
         tc::popShader();
+    }
+
+    // -------------------------------------------------------------------------
+    // Audio data extraction helpers (for getAudioData())
+    // -------------------------------------------------------------------------
+
+    std::vector<uint8_t> getRawAudioData() const {
+        if (!audioTrack_) return {};
+
+        // Calculate total size
+        size_t totalSize = 0;
+        for (const auto& sample : audioTrack_->samples) {
+            totalSize += sample.size;
+        }
+
+        std::vector<uint8_t> audioData;
+        audioData.reserve(totalSize);
+
+        for (size_t i = 0; i < audioTrack_->samples.size(); i++) {
+            std::vector<uint8_t> sampleData;
+            if (const_cast<MovParser&>(movParser_).readSample(*audioTrack_, i, sampleData)) {
+                audioData.insert(audioData.end(), sampleData.begin(), sampleData.end());
+            }
+        }
+
+        return audioData;
+    }
+
+    std::vector<uint8_t> getAacDataWithAdts() const {
+        if (!audioTrack_) return {};
+
+        // Calculate total size including ADTS headers (7 bytes per frame)
+        size_t totalSize = 0;
+        for (const auto& sample : audioTrack_->samples) {
+            totalSize += sample.size + 7;
+        }
+
+        std::vector<uint8_t> aacData;
+        aacData.reserve(totalSize);
+
+        int sampleRate = audioTrack_->sampleRate;
+        int channels = audioTrack_->channels;
+
+        for (size_t i = 0; i < audioTrack_->samples.size(); i++) {
+            std::vector<uint8_t> sampleData;
+            if (const_cast<MovParser&>(movParser_).readSample(*audioTrack_, i, sampleData)) {
+                // Add ADTS header for this frame
+                uint8_t adtsHeader[7];
+                tc::SoundBuffer::createAdtsHeader(adtsHeader, static_cast<int>(sampleData.size()),
+                                                   sampleRate, channels);
+                aacData.insert(aacData.end(), adtsHeader, adtsHeader + 7);
+                aacData.insert(aacData.end(), sampleData.begin(), sampleData.end());
+            }
+        }
+
+        return aacData;
     }
 };
 

@@ -734,6 +734,9 @@ private:
         constexpr uint32_t FOURCC_MP3_SPC = 0x6D703320;  // 'mp3 '
         constexpr uint32_t FOURCC_AAC     = 0x61616320;  // 'aac ' (kAudioFormatMPEG4AAC)
         constexpr uint32_t FOURCC_MP4A    = 0x6D703461;  // 'mp4a'
+        constexpr uint32_t FOURCC_LPCM    = 0x6C70636D;  // 'lpcm'
+        constexpr uint32_t FOURCC_SOWT    = 0x736F7774;  // 'sowt' (16-bit little-endian PCM)
+        constexpr uint32_t FOURCC_TWOS    = 0x74776F73;  // 'twos' (16-bit big-endian PCM)
 
         // Debug: show codec value
         tc::logNotice("TcvPlayer") << "Audio codec: " << codecStr
@@ -763,6 +766,43 @@ private:
                                            << soundBuffer->numSamples << " samples";
             } else {
                 tc::logWarning("TcvPlayer") << "AAC decode failed (may not be supported on this platform)";
+            }
+        } else if (codec == FOURCC_LPCM || codec == FOURCC_SOWT || codec == FOURCC_TWOS) {
+            // PCM: load raw audio data directly
+            tc::logNotice("TcvPlayer") << "Loading PCM audio...";
+
+            int sampleRate = static_cast<int>(header_.audioSampleRate);
+            int channels = static_cast<int>(header_.audioChannels);
+
+            if (sampleRate > 0 && channels > 0) {
+                // Assume 16-bit PCM (2 bytes per sample per channel)
+                size_t bytesPerSample = 2 * channels;
+                size_t numSamples = audioData.size() / bytesPerSample;
+
+                soundBuffer->sampleRate = sampleRate;
+                soundBuffer->channels = channels;
+                soundBuffer->numSamples = static_cast<int>(numSamples);
+                soundBuffer->samples.resize(numSamples * channels);
+
+                const int16_t* src = reinterpret_cast<const int16_t*>(audioData.data());
+                bool bigEndian = (codec == FOURCC_TWOS);
+
+                for (size_t i = 0; i < numSamples * channels; i++) {
+                    int16_t sample = src[i];
+                    if (bigEndian) {
+                        // Swap bytes for big-endian
+                        sample = static_cast<int16_t>(((sample & 0xFF) << 8) | ((sample >> 8) & 0xFF));
+                    }
+                    soundBuffer->samples[i] = sample / 32768.0f;
+                }
+
+                loaded = true;
+                tc::logNotice("TcvPlayer") << "PCM load successful: "
+                                           << channels << " ch, "
+                                           << sampleRate << " Hz, "
+                                           << numSamples << " samples";
+            } else {
+                tc::logWarning("TcvPlayer") << "PCM audio missing sample rate or channel info in header";
             }
         } else {
             tc::logWarning("TcvPlayer") << "Unknown audio codec - cannot decode";

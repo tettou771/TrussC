@@ -58,9 +58,9 @@ struct TcvHeader {
     uint16_t reserved1;       // 0x1A
     uint32_t reserved2;       // 0x1C
     uint32_t reserved3;       // 0x20
-    uint32_t reserved4;       // 0x24
-    uint32_t audioCodec;      // 0x28: FourCC (0=none)
-    uint32_t reserved5;       // 0x2C
+    uint32_t audioCodec;      // 0x24: FourCC (0=none)
+    uint32_t audioSampleRate; // 0x28: Sample rate (Hz)
+    uint32_t audioChannels;   // 0x2C: Channel count
     uint64_t audioOffset;     // 0x30
     uint64_t audioSize;       // 0x38
 };
@@ -129,6 +129,8 @@ public:
         header.fps = fps;
         header.blockSize = TCV_BLOCK_SIZE;
         header.audioCodec = 0;
+        header.audioSampleRate = 0;
+        header.audioChannels = 0;
         header.audioOffset = 0;
         header.audioSize = 0;
 
@@ -341,9 +343,19 @@ public:
         file_.seekp(0x10);
         file_.write(reinterpret_cast<const char*>(&frameCount_), 4);
 
-        // Audio codec at 0x28
-        file_.seekp(0x28);
+        // Audio codec at 0x24
+        file_.seekp(0x24);
         file_.write(reinterpret_cast<const char*>(&audioCodec_), 4);
+
+        // Audio sample rate at 0x28
+        uint32_t sampleRate = static_cast<uint32_t>(audioSampleRate_);
+        file_.seekp(0x28);
+        file_.write(reinterpret_cast<const char*>(&sampleRate), 4);
+
+        // Audio channels at 0x2C
+        uint32_t channels = static_cast<uint32_t>(audioChannels_);
+        file_.seekp(0x2C);
+        file_.write(reinterpret_cast<const char*>(&channels), 4);
 
         // Audio offset at 0x30
         file_.seekp(0x30);
