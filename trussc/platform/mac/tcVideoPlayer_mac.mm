@@ -676,7 +676,31 @@ void VideoPlayer::updatePlatform() {
     // Copy pixels from Objective-C side
     if (impl.hasNewFrame && impl.pixelBuffer && pixels_) {
         std::lock_guard<std::mutex> lock(mutex_);
-        memcpy(pixels_, impl.pixelBuffer, width_ * height_ * 4);
+        
+        size_t numPixels = width_ * height_;
+        
+        if (std::abs(gammaCorrection_ - 1.0f) > 0.001f) {
+            // Apply gamma correction using LUT
+            uint8_t lut[256];
+            for (int i = 0; i < 256; i++) {
+                float v = i / 255.0f;
+                // Apply power function: pixel' = pow(pixel, gamma)
+                float corrected = std::pow(v, gammaCorrection_);
+                lut[i] = static_cast<uint8_t>(std::min(255.0f, std::max(0.0f, corrected * 255.0f)));
+            }
+            
+            unsigned char* src = impl.pixelBuffer;
+            unsigned char* dst = pixels_;
+            
+            for (size_t i = 0; i < numPixels; i++) {
+                dst[i*4 + 0] = lut[src[i*4 + 0]]; // R
+                dst[i*4 + 1] = lut[src[i*4 + 1]]; // G
+                dst[i*4 + 2] = lut[src[i*4 + 2]]; // B
+                dst[i*4 + 3] = src[i*4 + 3];      // A
+            }
+        } else {
+            memcpy(pixels_, impl.pixelBuffer, numPixels * 4);
+        }
     }
 }
 

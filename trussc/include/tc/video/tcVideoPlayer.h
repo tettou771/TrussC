@@ -164,6 +164,22 @@ public:
     }
 
     // =========================================================================
+    // Gamma Correction
+    // =========================================================================
+
+    /// Set gamma correction value (1.0 = no correction)
+    /// Used to fix color issues on some platforms (e.g. macOS AVFoundation returning dark colors)
+    /// Typical values: 0.45 (1.0/2.2) to brighten, 2.2 to darken
+    void setGammaCorrection(float gamma) {
+        gammaCorrection_ = gamma;
+    }
+
+    /// Get current gamma correction value
+    float getGammaCorrection() const {
+        return gammaCorrection_;
+    }
+
+    // =========================================================================
     // Pixel access
     // =========================================================================
 
@@ -223,6 +239,9 @@ protected:
 private:
     // Pixel data (RGBA)
     unsigned char* pixels_ = nullptr;
+    
+    // Gamma correction (1.0 = none)
+    float gammaCorrection_ = 1.0f;
 
     // Platform-specific handle
     void* platformHandle_ = nullptr;
