@@ -106,7 +106,7 @@ myProject/
 ├── build-web/           # Build artifacts (do not touch)
 ├── CMakeLists.txt       # AUTO-GENERATED (Do not edit)
 ├── CMakePresets.json    # AUTO-GENERATED (Do not edit)
-├── icon/                # App icon (512x512 png)
+├── icon/                # App icon (.icns, .icon, .ico, .png)
 └── src/                 # Source code
     ├── main.cpp
     └── tcApp.cpp
@@ -117,9 +117,15 @@ Place assets (images, fonts, sounds) in `bin/data/`.
 This path is automatically resolved at runtime via `tc::getDataPath()`.
 
 ### App Icon
-Place a 512x512+ PNG file in the `icon/` folder.
-- **macOS:** Converted to `.icns` automatically (requires Xcode tools).
-- **Windows:** Converted to `.ico` automatically (requires ImageMagick).
+Place icon files in the `icon/` folder:
+
+- **macOS:**
+  - `.icns` - Traditional icon format (required for older macOS)
+  - `.icon` - New format for macOS 26 Tahoe+ (created with Icon Composer, requires Xcode)
+  - Both can coexist for compatibility across macOS versions
+- **Windows:**
+  - `.ico` - Windows icon format
+  - `.png` - Converted to `.ico` automatically (requires ImageMagick)
 
 ---
 

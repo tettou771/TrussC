@@ -235,17 +235,24 @@ void tcApp::mousePressed(Vec2 pos, int button) {
 
 ## 8. App Icon
 
-Place a **512x512+ PNG** in the `icon/` folder:
+Place icon files in the `icon/` folder:
 
 ```
 myProject/
 ├── icon/
-│   └── myicon.png    ← Just put a PNG here!
+│   ├── AppIcon.icns      ← macOS
+│   ├── AppIcon.icon/     ← macOS 26 Tahoe (created with Icon Composer)
+│   └── AppIcon.ico       ← Windows
 ├── src/
 └── CMakeLists.txt
 ```
 
-The PNG is automatically converted to `.icns` (macOS) or `.ico` (Windows) at build time.
+**macOS:**
+- `.icns` - Traditional icon format (required for older macOS)
+- `.icon` - New format for macOS 26 Tahoe+ (created with Xcode's Icon Composer, requires actool)
+- Both can coexist for compatibility across macOS versions
 
-**Windows:** Requires [ImageMagick](https://imagemagick.org/) for PNG → ICO conversion. Alternatively, prepare an `.ico` file directly.
+**Windows:**
+- `.ico` - Windows icon format
+- `.png` - Automatically converted to `.ico` if ImageMagick is available
 

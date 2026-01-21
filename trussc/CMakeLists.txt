@@ -187,11 +187,10 @@ endif()
 # trussc_setup_icon(<target>)
 # - プロジェクトの icon/ フォルダを探す
 # - プラットフォーム用のフォーマットがあればそれを使用
-# - なければ PNG から変換を試みる
-# - 失敗したらデフォルトアイコンを使用
+# - なければデフォルトアイコンを使用
 #
 # 対応フォーマット:
-#   macOS: .icns (または .png から自動変換)
+#   macOS: .icns, .icon (macOS 26 Tahoe+, actool 必要)
 #   Windows: .ico (または .png から自動変換)
 # =============================================================================
 
@@ -210,101 +209,122 @@ endfunction()
 # macOS アイコン設定
 # -----------------------------------------------------------------------------
 function(_trussc_setup_icon_macos TARGET_NAME ICON_DIR DEFAULT_DIR)
-    # 1. .icns を探す
+    set(FOUND_ANY FALSE)
+
+    # 1. .icns を探す（複数あっても最初の1つを使用）
     file(GLOB ICNS_FILES "${ICON_DIR}/*.icns")
     if(ICNS_FILES)
-        list(GET ICNS_FILES 0 ICON_FILE)
-        get_filename_component(ICON_NAME "${ICON_FILE}" NAME)
-        message(STATUS "[${TARGET_NAME}] Using icon: ${ICON_NAME}")
-        _trussc_apply_macos_icon(${TARGET_NAME} "${ICON_FILE}")
-        return()
+        list(GET ICNS_FILES 0 ICNS_FILE)
+        get_filename_component(ICNS_NAME "${ICNS_FILE}" NAME)
+        message(STATUS "[${TARGET_NAME}] Using icon: ${ICNS_NAME}")
+        _trussc_apply_macos_icns(${TARGET_NAME} "${ICNS_FILE}")
+        set(FOUND_ANY TRUE)
     endif()
 
-    # 2. .png から変換を試みる
-    file(GLOB PNG_FILES "${ICON_DIR}/*.png")
-    if(PNG_FILES)
-        list(GET PNG_FILES 0 PNG_FILE)
-        get_filename_component(PNG_NAME "${PNG_FILE}" NAME_WE)
-        set(OUTPUT_ICNS "${ICON_DIR}/${PNG_NAME}.icns")
-
-        _trussc_convert_png_to_icns("${PNG_FILE}" "${OUTPUT_ICNS}" SUCCESS)
+    # 2. .icon フォルダを探す（macOS 26 Tahoe 用）
+    file(GLOB ICON_FOLDERS "${ICON_DIR}/*.icon")
+    if(ICON_FOLDERS)
+        list(GET ICON_FOLDERS 0 ICON_FOLDER)
+        get_filename_component(ICON_FOLDER_NAME "${ICON_FOLDER}" NAME)
+        _trussc_apply_macos_icon_folder(${TARGET_NAME} "${ICON_FOLDER}" SUCCESS)
         if(SUCCESS)
-            message(STATUS "[${TARGET_NAME}] Converted PNG to ICNS: ${PNG_NAME}.icns")
-            _trussc_apply_macos_icon(${TARGET_NAME} "${OUTPUT_ICNS}")
-            return()
+            message(STATUS "[${TARGET_NAME}] Using Tahoe icon: ${ICON_FOLDER_NAME}")
+            set(FOUND_ANY TRUE)
         endif()
     endif()
 
-    # 3. デフォルトを使用
-    message(STATUS "[${TARGET_NAME}] Using default TrussC icon")
-    _trussc_apply_macos_icon(${TARGET_NAME} "${DEFAULT_DIR}/default.icns")
-endfunction()
+    # 3. 何も見つからなければデフォルトを使用
+    if(NOT FOUND_ANY)
+        message(STATUS "[${TARGET_NAME}] Using default TrussC icon")
+        # デフォルト .icns
+        if(EXISTS "${DEFAULT_DIR}/default.icns")
+            _trussc_apply_macos_icns(${TARGET_NAME} "${DEFAULT_DIR}/default.icns")
+        endif()
+        # デフォルト .icon (Tahoe 用)
+        if(EXISTS "${DEFAULT_DIR}/default.icon")
+            _trussc_apply_macos_icon_folder(${TARGET_NAME} "${DEFAULT_DIR}/default.icon" _DEFAULT_ICON_SUCCESS)
+            if(_DEFAULT_ICON_SUCCESS)
+                message(STATUS "[${TARGET_NAME}] Using default Tahoe icon")
+            endif()
+        endif()
+    endif()
 
-# macOS アイコン適用
-function(_trussc_apply_macos_icon TARGET_NAME ICON_FILE)
-    get_filename_component(ICON_FILENAME "${ICON_FILE}" NAME)
-
-    set_target_properties(${TARGET_NAME} PROPERTIES
-        MACOSX_BUNDLE_ICON_FILE "${ICON_FILENAME}"
-    )
-
-    set_source_files_properties("${ICON_FILE}" PROPERTIES
-        MACOSX_PACKAGE_LOCATION "Resources"
-    )
-    target_sources(${TARGET_NAME} PRIVATE "${ICON_FILE}")
-
-    # quarantine 属性を削除
+    # quarantine 属性を削除（最後に1回だけ）
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
         COMMAND xattr -cr "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>"
         COMMENT "Removing quarantine attribute from ${TARGET_NAME}.app"
     )
 endfunction()
 
-# PNG → ICNS 変換 (macOS 標準ツール使用)
-function(_trussc_convert_png_to_icns PNG_FILE OUTPUT_ICNS OUT_SUCCESS)
+# macOS .icns アイコン適用
+function(_trussc_apply_macos_icns TARGET_NAME ICNS_FILE)
+    get_filename_component(ICNS_FILENAME "${ICNS_FILE}" NAME)
+
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE "${ICNS_FILENAME}"
+    )
+
+    set_source_files_properties("${ICNS_FILE}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+    target_sources(${TARGET_NAME} PRIVATE "${ICNS_FILE}")
+endfunction()
+
+# macOS .icon フォルダ適用 (macOS 26 Tahoe+, actool でコンパイル)
+function(_trussc_apply_macos_icon_folder TARGET_NAME ICON_FOLDER OUT_SUCCESS)
     set(${OUT_SUCCESS} FALSE PARENT_SCOPE)
 
-    # sips と iconutil が必要
-    find_program(SIPS_EXECUTABLE sips)
-    find_program(ICONUTIL_EXECUTABLE iconutil)
-    if(NOT SIPS_EXECUTABLE OR NOT ICONUTIL_EXECUTABLE)
+    # actool (Xcode に含まれる) を探す
+    find_program(ACTOOL_EXECUTABLE actool
+        HINTS /Applications/Xcode.app/Contents/Developer/usr/bin
+              /Applications/Xcode-beta.app/Contents/Developer/usr/bin
+    )
+    if(NOT ACTOOL_EXECUTABLE)
+        message(WARNING "[${TARGET_NAME}] actool not found - skipping .icon folder (install Xcode for macOS 26 Tahoe icon support)")
         return()
     endif()
 
-    # 一時ディレクトリ
-    get_filename_component(ICON_DIR "${OUTPUT_ICNS}" DIRECTORY)
-    set(ICONSET_DIR "${ICON_DIR}/_icon.iconset")
+    get_filename_component(ICON_NAME "${ICON_FOLDER}" NAME_WE)
+    set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/icon_assets")
+    set(ASSETS_CAR "${OUTPUT_DIR}/Assets.car")
 
-    # iconset を作成
-    file(MAKE_DIRECTORY "${ICONSET_DIR}")
-
-    # 各サイズを生成
-    set(SIZES 16 32 128 256 512)
-    foreach(SIZE ${SIZES})
-        math(EXPR SIZE2 "${SIZE} * 2")
-        execute_process(
-            COMMAND ${SIPS_EXECUTABLE} -z ${SIZE} ${SIZE} "${PNG_FILE}" --out "${ICONSET_DIR}/icon_${SIZE}x${SIZE}.png"
-            OUTPUT_QUIET ERROR_QUIET
-        )
-        execute_process(
-            COMMAND ${SIPS_EXECUTABLE} -z ${SIZE2} ${SIZE2} "${PNG_FILE}" --out "${ICONSET_DIR}/icon_${SIZE}x${SIZE}@2x.png"
-            OUTPUT_QUIET ERROR_QUIET
-        )
-    endforeach()
-
-    # icns に変換
+    # actool で Assets.car にコンパイル
+    file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+    set(PARTIAL_PLIST "${OUTPUT_DIR}/partial-info.plist")
     execute_process(
-        COMMAND ${ICONUTIL_EXECUTABLE} -c icns "${ICONSET_DIR}" -o "${OUTPUT_ICNS}"
+        COMMAND ${ACTOOL_EXECUTABLE} "${ICON_FOLDER}"
+            --compile "${OUTPUT_DIR}"
+            --output-format human-readable-text
+            --app-icon "${ICON_NAME}"
+            --include-all-app-icons
+            --target-device mac
+            --platform macosx
+            --minimum-deployment-target 14.0
+            --output-partial-info-plist "${PARTIAL_PLIST}"
         RESULT_VARIABLE RESULT
-        OUTPUT_QUIET ERROR_QUIET
+        OUTPUT_QUIET
+        ERROR_QUIET
     )
 
-    # 一時ディレクトリ削除
-    file(REMOVE_RECURSE "${ICONSET_DIR}")
-
-    if(RESULT EQUAL 0 AND EXISTS "${OUTPUT_ICNS}")
-        set(${OUT_SUCCESS} TRUE PARENT_SCOPE)
+    if(NOT RESULT EQUAL 0 OR NOT EXISTS "${ASSETS_CAR}")
+        message(WARNING "[${TARGET_NAME}] Failed to compile .icon folder with actool")
+        return()
     endif()
+
+    # Assets.car を Resources に追加
+    set_source_files_properties("${ASSETS_CAR}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+    target_sources(${TARGET_NAME} PRIVATE "${ASSETS_CAR}")
+
+    # Info.plist に CFBundleIconName を追加 (PlistBuddy で post-build)
+    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+        COMMAND /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Info.plist" 2>/dev/null || true
+        COMMAND /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string ${ICON_NAME}" "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/Info.plist"
+        COMMENT "Adding CFBundleIconName to Info.plist for Tahoe icon"
+    )
+
+    set(${OUT_SUCCESS} TRUE PARENT_SCOPE)
 endfunction()
 
 # -----------------------------------------------------------------------------

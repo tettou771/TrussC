@@ -235,17 +235,24 @@ void tcApp::mousePressed(Vec2 pos, int button) {
 
 ## 8. アプリアイコン
 
-`icon/` フォルダに **512x512 以上の PNG** を配置します:
+`icon/` フォルダにアイコンファイルを配置します:
 
 ```
 myProject/
 ├── icon/
-│   └── myicon.png    ← PNG を置くだけ！
+│   ├── AppIcon.icns      ← macOS 用
+│   ├── AppIcon.icon/     ← macOS 26 Tahoe 用 (Icon Composer で作成)
+│   └── AppIcon.ico       ← Windows 用
 ├── src/
 └── CMakeLists.txt
 ```
 
-PNG はビルド時に自動的に `.icns` (macOS) または `.ico` (Windows) に変換されます。
+**macOS:**
+- `.icns` - 従来のアイコン形式（古い macOS に必要）
+- `.icon` - macOS 26 Tahoe 以降の新形式（Xcode の Icon Composer で作成、actool が必要）
+- 両方配置すると、両方のバージョンに対応できます
 
-**Windows:** PNG → ICO 変換には [ImageMagick](https://imagemagick.org/) が必要です。または、`.ico` ファイルを直接用意してください。
+**Windows:**
+- `.ico` - Windows アイコン形式
+- `.png` - ImageMagick があれば `.ico` に自動変換されます
 
