@@ -51,6 +51,21 @@
 
 ---
 
+## oF Compatibility Gap
+
+Features available in openFrameworks but missing in TrussC.
+
+| Category | Method | Description | Priority |
+|:---------|:-------|:------------|:---------|
+| Graphics | `drawRoundedRect` | Rounded rectangles for UI | **High** |
+| 3D | `worldToScreen` / `screenToWorld` | Coordinate conversion for 3D picking | **High** |
+| Image | `crop` / `resize` / `mirror` | Basic image manipulation | Medium |
+| System | `launchBrowser` | Open URL in default browser | Medium |
+| 3D | `drawPlane` / `drawCylinder` | Additional basic 3D primitives | Medium |
+| Math | `ofWrap` / `ofAngleDifference` | Floating point wrapping and angle helpers | Low |
+
+---
+
 ## Future Samples
 
 | Category | Sample | Description |

@@ -213,6 +213,31 @@ categories:
         sketch: true
         snippet: "drawRect(${1:x}, ${2:y}, ${3:w}, ${4:h})"
 
+      - name: drawRectRounded
+        return: "void"
+        signatures:
+          - params: "float x, float y, float w, float h, float radius"
+            params_simple: "x, y, w, h, radius"
+          - params: "Vec3 pos, Vec2 size, float radius"
+            params_simple: "pos, size, radius"
+        description: "Draw rounded rectangle (circular arc corners)"
+        description_ja: "角丸矩形を描画（円弧コーナー）"
+        of_equivalent: "ofDrawRectRounded"
+        sketch: true
+        snippet: "drawRectRounded(${1:x}, ${2:y}, ${3:w}, ${4:h}, ${5:radius})"
+
+      - name: drawRectSquircle
+        return: "void"
+        signatures:
+          - params: "float x, float y, float w, float h, float radius"
+            params_simple: "x, y, w, h, radius"
+          - params: "Vec3 pos, Vec2 size, float radius"
+            params_simple: "pos, size, radius"
+        description: "Draw squircle rectangle (curvature-continuous corners, iOS-style)"
+        description_ja: "スクワークル矩形を描画（曲率連続コーナー、iOS風）"
+        sketch: true
+        snippet: "drawRectSquircle(${1:x}, ${2:y}, ${3:w}, ${4:h}, ${5:radius})"
+
       - name: drawCircle
         return: "void"
         signatures:
@@ -483,6 +508,17 @@ categories:
         description_ja: "テキストのバウンディングボックスを取得"
         sketch: true
         snippet: "getBitmapStringBBox(${1:\"text\"}, ${2:x}, ${3:y})"
+
+      - name: setFps
+        return: "void"
+        signatures:
+          - params: "float fps"
+            params_simple: "fps"
+        description: "Set target frame rate (VSYNC = -1.0)"
+        description_ja: "ターゲットフレームレートを設定 (VSYNC = -1.0)"
+        of_equivalent: "ofSetFrameRate"
+        sketch: true
+        snippet: "setFps(${1:60.0})"
 
   # ==========================================================================
   # Graphics - Style
@@ -1057,6 +1093,16 @@ categories:
         sketch: true
         snippet: "getSystemTimeMicros()"
 
+      - name: getUnixTime
+        return: "uint64_t"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Current Unix timestamp in seconds"
+        description_ja: "現在のUnixタイムスタンプ（秒）"
+        sketch: true
+        snippet: "getUnixTime()"
+
       - name: getTimestampString
         return: "string"
         signatures:
@@ -1530,6 +1576,39 @@ categories:
         sketch: true
         snippet: "fract(${1:x})"
 
+      - name: wrap
+        return: "float"
+        signatures:
+          - params: "float value, float min, float max"
+            params_simple: "value, min, max"
+        description: "Wrap value within range [min, max)"
+        description_ja: "値を範囲内にラップ [min, max)"
+        of_equivalent: "ofWrap"
+        sketch: true
+        snippet: "wrap(${1:value}, ${2:min}, ${3:max})"
+
+      - name: angleDifference
+        return: "float"
+        signatures:
+          - params: "float angle1, float angle2"
+            params_simple: "angle1, angle2"
+        description: "Shortest angle difference in radians [-TAU/2, TAU/2]"
+        description_ja: "最短角度差（ラジアン）[-TAU/2, TAU/2]"
+        of_equivalent: "ofAngleDifferenceRadians"
+        sketch: true
+        snippet: "angleDifference(${1:angle1}, ${2:angle2})"
+
+      - name: angleDifferenceDeg
+        return: "float"
+        signatures:
+          - params: "float deg1, float deg2"
+            params_simple: "deg1, deg2"
+        description: "Shortest angle difference in degrees [-180, 180]"
+        description_ja: "最短角度差（度）[-180, 180]"
+        of_equivalent: "ofAngleDifferenceDegrees"
+        sketch: true
+        snippet: "angleDifferenceDeg(${1:deg1}, ${2:deg2})"
+
   # ==========================================================================
   # Math - Geometry
   # ==========================================================================
@@ -1657,6 +1736,83 @@ categories:
         sketch: true
         snippet: "beep()"
 
+      - name: toInt
+        return: "int"
+        signatures:
+          - params: "const string& str"
+            params_simple: "str"
+        description: "Convert string to int"
+        description_ja: "文字列を整数に変換"
+        of_equivalent: "ofToInt"
+        sketch: true
+        snippet: "toInt(${1:str})"
+
+      - name: toFloat
+        return: "float"
+        signatures:
+          - params: "const string& str"
+            params_simple: "str"
+        description: "Convert string to float"
+        description_ja: "文字列を浮動小数点数に変換"
+        of_equivalent: "ofToFloat"
+        sketch: true
+        snippet: "toFloat(${1:str})"
+
+      - name: splitString
+        return: "vector<string>"
+        signatures:
+          - params: "const string& source, const string& delimiter"
+            params_simple: "source, delimiter"
+        description: "Split string by delimiter"
+        description_ja: "文字列をデリミタで分割"
+        of_equivalent: "ofSplitString"
+        sketch: true
+        snippet: "splitString(${1:str}, ${2:delimiter})"
+
+      - name: joinString
+        return: "string"
+        signatures:
+          - params: "const vector<string>& elements, const string& delimiter"
+            params_simple: "elements, delimiter"
+        description: "Join strings with delimiter"
+        description_ja: "文字列配列をデリミタで結合"
+        of_equivalent: "ofJoinString"
+        sketch: true
+        snippet: "joinString(${1:elements}, ${2:delimiter})"
+
+      - name: stringReplace
+        return: "void"
+        signatures:
+          - params: "string& input, const string& searchStr, const string& replaceStr"
+            params_simple: "input, search, replace"
+        description: "Replace substring in place"
+        description_ja: "部分文字列を置換（直接変更）"
+        of_equivalent: "ofStringReplace"
+        sketch: true
+        snippet: "stringReplace(${1:str}, ${2:search}, ${3:replace})"
+
+      - name: toLower
+        return: "string"
+        signatures:
+          - params: "const string& src"
+            params_simple: "src"
+        description: "Convert to lower case"
+        description_ja: "小文字に変換"
+        of_equivalent: "ofToLower"
+        sketch: true
+        snippet: "toLower(${1:str})"
+
+      - name: toUpper
+        return: "string"
+        signatures:
+          - params: "const string& src"
+            params_simple: "src"
+        description: "Convert to upper case"
+        description_ja: "大文字に変換"
+        of_equivalent: "ofToUpper"
+        sketch: true
+        snippet: "toUpper(${1:str})"
+
   # ==========================================================================
   # File
   # ==========================================================================
@@ -1664,6 +1820,28 @@ categories:
     name: "File"
     name_ja: "ファイル"
     functions:
+      - name: getDataPath
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get full path relative to data directory"
+        description_ja: "データディレクトリからの相対パスを取得"
+        of_equivalent: "ofToDataPath"
+        sketch: true
+        snippet: "getDataPath(${1:path})"
+
+      - name: getAbsolutePath
+        return: "string"
+        signatures:
+          - params: "const string& path"
+            params_simple: "path"
+        description: "Get absolute path"
+        description_ja: "絶対パスを取得"
+        of_equivalent: "ofFilePath::getAbsolutePath"
+        sketch: true
+        snippet: "getAbsolutePath(${1:path})"
+
       # Path utilities
       - name: getFileName
         return: "string"
@@ -1673,7 +1851,7 @@ categories:
         description: "Get filename from path"
         description_ja: "パスからファイル名を取得"
         of_equivalent: "ofFilePath::getFileName"
-        sketch: false
+        sketch: true
         snippet: "getFileName(${1:path})"
 
       - name: getBaseName
@@ -1684,7 +1862,7 @@ categories:
         description: "Get filename without extension"
         description_ja: "拡張子なしのファイル名を取得"
         of_equivalent: "ofFilePath::getBaseName"
-        sketch: false
+        sketch: true
         snippet: "getBaseName(${1:path})"
 
       - name: getFileExtension
@@ -1695,7 +1873,7 @@ categories:
         description: "Get file extension without dot"
         description_ja: "拡張子を取得（ドットなし）"
         of_equivalent: "ofFilePath::getFileExt"
-        sketch: false
+        sketch: true
         snippet: "getFileExtension(${1:path})"
 
       - name: getParentDirectory
@@ -1706,7 +1884,7 @@ categories:
         description: "Get parent directory"
         description_ja: "親ディレクトリを取得"
         of_equivalent: "ofFilePath::getEnclosingDirectory"
-        sketch: false
+        sketch: true
         snippet: "getParentDirectory(${1:path})"
 
       - name: joinPath
@@ -1717,7 +1895,7 @@ categories:
         description: "Join directory and filename"
         description_ja: "ディレクトリとファイル名を結合"
         of_equivalent: "ofFilePath::join"
-        sketch: false
+        sketch: true
         snippet: "joinPath(${1:dir}, ${2:file})"
 
       - name: getAbsolutePath
@@ -1740,7 +1918,7 @@ categories:
         description: "Check if file exists"
         description_ja: "ファイルが存在するか確認"
         of_equivalent: "ofFile::doesFileExist"
-        sketch: false
+        sketch: true
         snippet: "fileExists(${1:path})"
 
       - name: directoryExists
@@ -1751,7 +1929,7 @@ categories:
         description: "Check if directory exists"
         description_ja: "ディレクトリが存在するか確認"
         of_equivalent: "ofDirectory::doesDirectoryExist"
-        sketch: false
+        sketch: true
         snippet: "directoryExists(${1:path})"
 
       - name: createDirectory
@@ -1773,7 +1951,7 @@ categories:
         description: "List files in directory"
         description_ja: "ディレクトリ内のファイル一覧"
         of_equivalent: "ofDirectory::listDir"
-        sketch: false
+        sketch: true
         snippet: "listDirectory(${1:path})"
 
       - name: removeFile
@@ -1829,6 +2007,26 @@ categories:
         description_ja: "ファイルに追記"
         sketch: false
         snippet: "appendToFile(${1:path}, ${2:content})"
+
+      - name: createFileWriter
+        return: "FileWriter@"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Create a file writer (TrussSketch factory)"
+        description_ja: "ファイルライターを作成（TrussSketch用ファクトリ）"
+        sketch: true
+        snippet: "FileWriter@ writer = createFileWriter();"
+
+      - name: createFileReader
+        return: "FileReader@"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Create a file reader (TrussSketch factory)"
+        description_ja: "ファイルリーダーを作成（TrussSketch用ファクトリ）"
+        sketch: true
+        snippet: "FileReader@ reader = createFileReader();"
 
   # ==========================================================================
   # Sound
@@ -2913,6 +3111,28 @@ categories:
         description_ja: "現在のデフォルトスクリーンFOVを取得"
         sketch: true
         snippet: "getDefaultScreenFov()"
+
+      - name: worldToScreen
+        return: "Vec3"
+        signatures:
+          - params: "const Vec3& worldPos"
+            params_simple: "worldPos"
+        description: "Convert world coordinate to screen coordinate (x, y = screen pos, z = depth 0-1)"
+        description_ja: "ワールド座標をスクリーン座標に変換（x, y = 画面位置, z = 深度 0-1）"
+        sketch: false
+        snippet: "worldToScreen(${1:worldPos})"
+
+      - name: screenToWorld
+        return: "Vec3"
+        signatures:
+          - params: "const Vec2& screenPos"
+            params_simple: "screenPos"
+          - params: "const Vec2& screenPos, float worldZ"
+            params_simple: "screenPos, worldZ"
+        description: "Convert screen coordinate to world coordinate on Z plane"
+        description_ja: "スクリーン座標をワールド座標に変換（Z平面上）"
+        sketch: false
+        snippet: "screenToWorld(${1:screenPos}, ${2:0.0f})"
 
   # ==========================================================================
   # 3D Camera
@@ -6179,7 +6399,7 @@ types:
   - name: FileWriter
     description: "Streaming file writer with immediate flush"
     description_ja: "即時フラッシュ付きストリーミングファイルライター"
-    sketch: false
+    sketch: true
     constructor:
       signatures:
         - params: ""
@@ -6235,7 +6455,7 @@ types:
   - name: FileReader
     description: "Streaming file reader for large files"
     description_ja: "大きなファイル用ストリーミングファイルリーダー"
-    sketch: false
+    sketch: true
     constructor:
       signatures:
         - params: ""
@@ -6290,6 +6510,7 @@ types:
         description: "Read binary data"
         description_ja: "バイナリデータを読み込む"
         snippet: "read(${1:buffer}, ${2:size})"
+        sketch: false
       - name: seek
         return: "void"
         signatures:

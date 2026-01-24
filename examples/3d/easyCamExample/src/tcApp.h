@@ -14,10 +14,6 @@ public:
     void draw() override;
 
     void keyPressed(int key) override;
-    void mousePressed(Vec2 pos, int button) override;
-    void mouseReleased(Vec2 pos, int button) override;
-    void mouseDragged(Vec2 pos, int button) override;
-    void mouseScrolled(Vec2 delta) override;
 
 private:
     EasyCam cam;

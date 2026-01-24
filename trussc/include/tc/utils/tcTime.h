@@ -125,6 +125,12 @@ inline uint64_t getSystemTimeMicros() {
         std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
+/// Get Unix time in seconds (since 1970-01-01 00:00:00 UTC)
+inline uint64_t getUnixTime() {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 // ---------------------------------------------------------------------------
 // Sleep
 // ---------------------------------------------------------------------------

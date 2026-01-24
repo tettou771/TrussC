@@ -152,6 +152,10 @@ namespace internal {
     inline float currentViewH = 0.0f;
     inline float currentCameraDist = 0.0f;  // Distance from camera to Z=0 plane
 
+    // View/Projection matrix tracking (for worldToScreen/screenToWorld)
+    inline Mat4 currentViewMatrix = Mat4::identity();
+    inline Mat4 currentProjectionMatrix = Mat4::identity();
+
     // Forward declaration of setupScreenFov functions (defined later, after TAU is available)
     inline void setupScreenFovWithSize(float fovDeg, float viewW, float viewH, float nearDist = 0.0f, float farDist = 0.0f);
     inline void setupScreenFov(float fovDeg, float nearDist = 0.0f, float farDist = 0.0f);
@@ -958,6 +962,14 @@ namespace internal {
                 eyeX, eyeY, 0.0f,
                 0.0f, 1.0f, 0.0f
             );
+
+            // Save matrices for worldToScreen/screenToWorld
+            currentProjectionMatrix = Mat4::ortho(0.0f, viewW, viewH, 0.0f, -farDist, farDist);
+            currentViewMatrix = Mat4::lookAt(
+                Vec3(eyeX, eyeY, dist),
+                Vec3(eyeX, eyeY, 0.0f),
+                Vec3(0.0f, 1.0f, 0.0f)
+            );
         } else {
             // Perspective projection (3D mode)
             if (pipeline3dInitialized) {
@@ -984,6 +996,14 @@ namespace internal {
                 eyeX, eyeY, dist,    // eye position
                 eyeX, eyeY, 0.0f,    // look at center
                 0.0f, 1.0f, 0.0f     // up vector
+            );
+
+            // Save matrices for worldToScreen/screenToWorld
+            currentProjectionMatrix = Mat4::frustum(left, right, top, bottom, nearDist, farDist);
+            currentViewMatrix = Mat4::lookAt(
+                Vec3(eyeX, eyeY, dist),
+                Vec3(eyeX, eyeY, 0.0f),
+                Vec3(0.0f, 1.0f, 0.0f)
             );
         }
     }
@@ -1042,6 +1062,84 @@ inline float getFarClip() {
     return internal::farClipOverride;
 }
 
+// ---------------------------------------------------------------------------
+// Coordinate conversion (world <-> screen)
+// ---------------------------------------------------------------------------
+
+/// Convert world coordinate to screen coordinate
+/// Returns Vec3: x, y = screen position (pixels from top-left), z = normalized depth [0, 1]
+inline Vec3 worldToScreen(const Vec3& worldPos) {
+    // Get current viewport dimensions
+    float viewW = internal::currentViewW;
+    float viewH = internal::currentViewH;
+    if (viewW == 0) viewW = (float)sapp_width() / sapp_dpi_scale();
+    if (viewH == 0) viewH = (float)sapp_height() / sapp_dpi_scale();
+
+    // Transform world -> clip space
+    Mat4 mvp = internal::currentProjectionMatrix * internal::currentViewMatrix;
+    Vec4 clip = mvp * Vec4(worldPos.x, worldPos.y, worldPos.z, 1.0f);
+
+    // Perspective division
+    if (std::abs(clip.w) < 0.0001f) {
+        return Vec3(0, 0, 0);  // Behind camera or at camera
+    }
+    Vec3 ndc(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w);
+
+    // NDC [-1, 1] to screen coordinates
+    // Note: NDC Y is up (+1=top), screen Y is down (+Y=bottom), so flip Y
+    float screenX = (ndc.x + 1.0f) * 0.5f * viewW;
+    float screenY = (1.0f - ndc.y) * 0.5f * viewH;  // Flip Y for screen coordinates
+    float depth = (ndc.z + 1.0f) * 0.5f;  // Normalize depth to [0, 1]
+
+    return Vec3(screenX, screenY, depth);
+}
+
+/// Convert screen coordinate to world coordinate on a specific Z plane
+/// screenPos: screen position in pixels (from top-left)
+/// worldZ: target Z plane (default = 0)
+inline Vec3 screenToWorld(const Vec2& screenPos, float worldZ = 0.0f) {
+    // Get current viewport dimensions
+    float viewW = internal::currentViewW;
+    float viewH = internal::currentViewH;
+    if (viewW == 0) viewW = (float)sapp_width() / sapp_dpi_scale();
+    if (viewH == 0) viewH = (float)sapp_height() / sapp_dpi_scale();
+
+    // Screen to NDC (flip Y: screen Y is down, NDC Y is up)
+    float ndcX = (screenPos.x / viewW) * 2.0f - 1.0f;
+    float ndcY = 1.0f - (screenPos.y / viewH) * 2.0f;  // Flip Y
+
+    // Create inverse MVP matrix
+    Mat4 mvp = internal::currentProjectionMatrix * internal::currentViewMatrix;
+    Mat4 invMvp = mvp.inverted();
+
+    // Unproject two points: near plane (z=-1) and a middle point (z=0)
+    // Using z=0 instead of z=1 (far) to avoid precision issues with large far clip
+    Vec4 nearClip = invMvp * Vec4(ndcX, ndcY, -1.0f, 1.0f);
+    Vec4 midClip = invMvp * Vec4(ndcX, ndcY, 0.0f, 1.0f);
+
+    // Perspective division (use smaller threshold for numerical stability)
+    if (std::abs(nearClip.w) < 1e-7f || std::abs(midClip.w) < 1e-7f) {
+        return Vec3(screenPos.x, screenPos.y, worldZ);
+    }
+
+    Vec3 nearPoint(nearClip.x / nearClip.w, nearClip.y / nearClip.w, nearClip.z / nearClip.w);
+    Vec3 midPoint(midClip.x / midClip.w, midClip.y / midClip.w, midClip.z / midClip.w);
+
+    // Find intersection with Z=worldZ plane
+    Vec3 rayDir = midPoint - nearPoint;
+    if (std::abs(rayDir.z) < 0.0001f) {
+        // Ray is parallel to Z plane
+        return Vec3(nearPoint.x, nearPoint.y, worldZ);
+    }
+
+    float t = (worldZ - nearPoint.z) / rayDir.z;
+    return Vec3(
+        nearPoint.x + rayDir.x * t,
+        nearPoint.y + rayDir.y * t,
+        worldZ
+    );
+}
+
 // Disable 3D drawing mode (return to 2D ortho)
 // Deprecated: use setupScreenOrtho() instead
 [[deprecated("Use setupScreenOrtho() instead")]]
@@ -1064,6 +1162,24 @@ inline void drawRect(Vec3 pos, float w, float h) {
 
 inline void drawRect(float x, float y, float w, float h) {
     getDefaultContext().drawRect(x, y, w, h);
+}
+
+// Rounded rectangle (circular arc corners)
+inline void drawRectRounded(Vec3 pos, Vec2 size, float radius) {
+    getDefaultContext().drawRectRounded(pos, size, radius);
+}
+
+inline void drawRectRounded(float x, float y, float w, float h, float radius) {
+    getDefaultContext().drawRectRounded(x, y, w, h, radius);
+}
+
+// Squircle rectangle (curvature-continuous corners, iOS-style)
+inline void drawRectSquircle(Vec3 pos, Vec2 size, float radius) {
+    getDefaultContext().drawRectSquircle(pos, size, radius);
+}
+
+inline void drawRectSquircle(float x, float y, float w, float h, float radius) {
+    getDefaultContext().drawRectSquircle(x, y, w, h, radius);
 }
 
 // Circle

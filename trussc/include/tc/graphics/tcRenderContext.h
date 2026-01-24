@@ -56,6 +56,10 @@ namespace internal {
     extern float currentViewW;
     extern float currentViewH;
     extern float currentCameraDist;
+
+    // View/Projection matrix tracking (for worldToScreen/screenToWorld)
+    extern Mat4 currentViewMatrix;
+    extern Mat4 currentProjectionMatrix;
 }
 
 // ---------------------------------------------------------------------------
@@ -311,6 +315,201 @@ public:
 
     void drawRect(float x, float y, float w, float h) {
         drawRect(Vec3(x, y, 0), Vec2(w, h));
+    }
+
+    // -------------------------------------------------------------------------
+    // Rounded Rectangle (circular arc corners)
+    // -------------------------------------------------------------------------
+    void drawRectRounded(Vec3 pos, Vec2 size, float radius) {
+        float x = pos.x, y = pos.y, z = pos.z;
+        float w = size.x, h = size.y;
+
+        // Clamp radius to half of smaller dimension
+        radius = std::min(radius, std::min(w, h) * 0.5f);
+        if (radius <= 0) {
+            drawRect(pos, size);
+            return;
+        }
+
+        auto& writer = internal::getActiveWriter();
+        int segs = std::max(2, circleResolution_ / 4);
+        int halfSegs = segs / 2;
+
+        // Pre-compute circular arc offsets for 1/8 circle (0 to 45 degrees only)
+        std::vector<Vec2> offsets(halfSegs + 1);
+        for (int i = 0; i <= halfSegs; i++) {
+            float angle = (float)i / segs * QUARTER_TAU;  // 0 to 45 degrees
+            offsets[i] = Vec2(std::cos(angle) * radius, std::sin(angle) * radius);
+        }
+
+        // Get offset for 0-90 degrees using symmetry at 45 degrees
+        auto getOffset = [&](int i) -> Vec2 {
+            if (i <= halfSegs) {
+                return offsets[i];
+            } else {
+                // Mirror: swap x,y for 45-90 degrees
+                Vec2 o = offsets[segs - i];
+                return Vec2(o.y, o.x);
+            }
+        };
+
+        // Corner centers
+        float tlX = x + radius, tlY = y + radius;
+        float trX = x + w - radius, trY = y + radius;
+        float brX = x + w - radius, brY = y + h - radius;
+        float blX = x + radius, blY = y + h - radius;
+
+        // Helper to get vertex for each corner
+        auto cornerVert = [&](int corner, int i) -> Vec2 {
+            Vec2 o = getOffset(i);
+            switch (corner) {
+                case 0: return Vec2(tlX - o.x, tlY - o.y);  // top-left
+                case 1: return Vec2(trX + o.y, trY - o.x);  // top-right
+                case 2: return Vec2(brX + o.x, brY + o.y);  // bottom-right
+                case 3: return Vec2(blX - o.y, blY + o.x);  // bottom-left
+                default: return Vec2(0, 0);
+            }
+        };
+
+        if (fillEnabled_) {
+            float cx = x + w * 0.5f, cy = y + h * 0.5f;
+            writer.begin(PrimitiveType::TriangleStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+
+            for (int corner = 0; corner < 4; corner++) {
+                for (int i = 0; i <= segs; i++) {
+                    Vec2 v = cornerVert(corner, i);
+                    writer.vertex(cx, cy, z);
+                    writer.vertex(v.x, v.y, z);
+                }
+            }
+            // Close
+            Vec2 v = cornerVert(0, 0);
+            writer.vertex(cx, cy, z);
+            writer.vertex(v.x, v.y, z);
+
+            writer.end();
+        }
+
+        if (strokeEnabled_) {
+            writer.begin(PrimitiveType::LineStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+
+            for (int corner = 0; corner < 4; corner++) {
+                for (int i = 0; i <= segs; i++) {
+                    Vec2 v = cornerVert(corner, i);
+                    writer.vertex(v.x, v.y, z);
+                }
+            }
+            // Close
+            Vec2 v = cornerVert(0, 0);
+            writer.vertex(v.x, v.y, z);
+
+            writer.end();
+        }
+    }
+
+    void drawRectRounded(float x, float y, float w, float h, float radius) {
+        drawRectRounded(Vec3(x, y, 0), Vec2(w, h), radius);
+    }
+
+    // -------------------------------------------------------------------------
+    // Squircle Rectangle (superellipse corners, curvature continuous)
+    // -------------------------------------------------------------------------
+    void drawRectSquircle(Vec3 pos, Vec2 size, float radius) {
+        float x = pos.x, y = pos.y, z = pos.z;
+        float w = size.x, h = size.y;
+
+        radius = std::min(radius, std::min(w, h) * 0.5f);
+        if (radius <= 0) {
+            drawRect(pos, size);
+            return;
+        }
+
+        auto& writer = internal::getActiveWriter();
+        int segs = std::max(2, circleResolution_ / 4);
+        int halfSegs = segs / 2;
+
+        // Pre-compute squircle offsets for 1/8 circle (0 to 45 degrees only)
+        // Superellipse n=4: offset = sqrt(|cos/sin|) * radius
+        std::vector<Vec2> offsets(halfSegs + 1);
+        for (int i = 0; i <= halfSegs; i++) {
+            float angle = (float)i / segs * QUARTER_TAU;  // 0 to 45 degrees
+            offsets[i] = Vec2(
+                std::sqrt(std::cos(angle)) * radius,
+                std::sqrt(std::sin(angle)) * radius
+            );
+        }
+
+        // Get offset for 0-90 degrees using symmetry at 45 degrees
+        auto getOffset = [&](int i) -> Vec2 {
+            if (i <= halfSegs) {
+                return offsets[i];
+            } else {
+                // Mirror: swap x,y for 45-90 degrees
+                Vec2 o = offsets[segs - i];
+                return Vec2(o.y, o.x);
+            }
+        };
+
+        // Corner centers
+        float tlX = x + radius, tlY = y + radius;
+        float trX = x + w - radius, trY = y + radius;
+        float brX = x + w - radius, brY = y + h - radius;
+        float blX = x + radius, blY = y + h - radius;
+
+        // Helper to get vertex for each corner
+        auto cornerVert = [&](int corner, int i) -> Vec2 {
+            Vec2 o = getOffset(i);
+            switch (corner) {
+                case 0: return Vec2(tlX - o.x, tlY - o.y);  // top-left
+                case 1: return Vec2(trX + o.y, trY - o.x);  // top-right
+                case 2: return Vec2(brX + o.x, brY + o.y);  // bottom-right
+                case 3: return Vec2(blX - o.y, blY + o.x);  // bottom-left
+                default: return Vec2(0, 0);
+            }
+        };
+
+        if (fillEnabled_) {
+            float cx = x + w * 0.5f, cy = y + h * 0.5f;
+            writer.begin(PrimitiveType::TriangleStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+
+            for (int corner = 0; corner < 4; corner++) {
+                for (int i = 0; i <= segs; i++) {
+                    Vec2 v = cornerVert(corner, i);
+                    writer.vertex(cx, cy, z);
+                    writer.vertex(v.x, v.y, z);
+                }
+            }
+            // Close
+            Vec2 v = cornerVert(0, 0);
+            writer.vertex(cx, cy, z);
+            writer.vertex(v.x, v.y, z);
+
+            writer.end();
+        }
+
+        if (strokeEnabled_) {
+            writer.begin(PrimitiveType::LineStrip);
+            writer.color(currentR_, currentG_, currentB_, currentA_);
+
+            for (int corner = 0; corner < 4; corner++) {
+                for (int i = 0; i <= segs; i++) {
+                    Vec2 v = cornerVert(corner, i);
+                    writer.vertex(v.x, v.y, z);
+                }
+            }
+            // Close
+            Vec2 v = cornerVert(0, 0);
+            writer.vertex(v.x, v.y, z);
+
+            writer.end();
+        }
+    }
+
+    void drawRectSquircle(float x, float y, float w, float h, float radius) {
+        drawRectSquircle(Vec3(x, y, 0), Vec2(w, h), radius);
     }
 
     // Main implementation (Vec3)

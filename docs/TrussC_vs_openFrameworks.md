@@ -280,6 +280,7 @@ Reference for oF users finding equivalent features in TrussC.
 | `ofClear / ofBackground` | `clear(gray)` |  |
 | `ofSetColor` | `setColor(gray)` | Range 0-1 instead of 0-255 |
 | `ofDrawRectangle` | `drawRect(x, y, w, h)` |  |
+| `ofDrawRectRounded` | `drawRectRounded(x, y, w, h, radius)` |  |
 | `ofDrawCircle` | `drawCircle(x, y, radius)` |  |
 | `ofDrawEllipse` | `drawEllipse(x, y, w, h)` |  |
 | `ofDrawLine` | `drawLine(x1, y1, x2, y2)` |  |
@@ -291,6 +292,7 @@ Reference for oF users finding equivalent features in TrussC.
 | `ofVertex` | `vertex(x, y)` |  |
 | `ofEndShape` | `endShape(close)` |  |
 | `ofDrawBitmapString` | `drawBitmapString(text, x, y)` |  |
+| `ofSetFrameRate` | `setFps(fps)` |  |
 | `ofFill` | `fill()` |  |
 | `ofNoFill` | `noFill()` |  |
 | `ofSetLineWidth` | `setStrokeWeight(weight)` |  |
@@ -323,6 +325,9 @@ Reference for oF users finding equivalent features in TrussC.
 | `ofDegToRad` | `deg2rad(degrees)` |  |
 | `ofRadToDeg` | `rad2deg(radians)` |  |
 | `ofSign` | `sign(x)` |  |
+| `ofWrap` | `wrap(value, min, max)` |  |
+| `ofAngleDifferenceRadians` | `angleDifference(angle1, angle2)` |  |
+| `ofAngleDifferenceDegrees` | `angleDifferenceDeg(deg1, deg2)` |  |
 | `ofDist` | `dist(x1, y1, x2, y2)` |  |
 | `ofDistSquared` | `distSquared(x1, y1, x2, y2)` |  |
 
@@ -378,6 +383,13 @@ Reference for oF users finding equivalent features in TrussC.
 |:---|:---|:---|
 | `ofLog` | `logNotice(message)` |  |
 | `ofToString` | `toString(value)` |  |
+| `ofToInt` | `toInt(str)` |  |
+| `ofToFloat` | `toFloat(str)` |  |
+| `ofSplitString` | `splitString(source, delimiter)` |  |
+| `ofJoinString` | `joinString(elements, delimiter)` |  |
+| `ofStringReplace` | `stringReplace(input, search, replace)` |  |
+| `ofToLower` | `toLower(src)` |  |
+| `ofToUpper` | `toUpper(src)` |  |
 
 ### **GUI**
 

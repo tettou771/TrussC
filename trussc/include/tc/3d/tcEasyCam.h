@@ -4,6 +4,7 @@
 // Interactive camera with mouse-controlled rotation, zoom, and pan
 
 #include <cmath>
+#include "tc/events/tcCoreEvents.h"
 
 namespace trussc {
 
@@ -17,7 +18,7 @@ public:
         , fov_(0.785398f)  // 45 degrees (radians)
         , nearClip_(0.1f)
         , farClip_(10000.0f)
-        , mouseInputEnabled_(true)
+        , mouseInputEnabled_(false)  // Call enableMouseInput() to enable
         , isDragging_(false)
         , isPanning_(false)
         , lastMouseX_(0.0f)
@@ -38,69 +39,44 @@ public:
             sgl_load_pipeline(internal::pipeline3d);
         }
 
-        // Set projection matrix
-        sgl_matrix_mode_projection();
-        sgl_load_identity();
-
         float dpiScale = sapp_dpi_scale();
         float w = (float)sapp_width() / dpiScale;
         float h = (float)sapp_height() / dpiScale;
         float aspect = w / h;
-        sgl_perspective(fov_, aspect, nearClip_, farClip_);
 
-        // Set view matrix (simulate lookAt)
-        sgl_matrix_mode_modelview();
-        sgl_load_identity();
-
-        // Calculate camera position (distance_ away from target)
+        // Calculate camera position from spherical coordinates
         float cosX = cos(rotationX_);
         float sinX = sin(rotationX_);
         float cosY = cos(rotationY_);
         float sinY = sin(rotationY_);
-
-        // Calculate camera position from spherical coordinates
-        float camX = target_.x + distance_ * sinY * cosX;
-        float camY = target_.y + distance_ * sinX;
-        float camZ = target_.z + distance_ * cosY * cosX;
-
-        // Manually construct lookAt matrix
-        Vec3 eye = {camX, camY, camZ};
-        Vec3 center = target_;
+        Vec3 eye = {
+            target_.x + distance_ * sinY * cosX,
+            target_.y + distance_ * sinX,
+            target_.z + distance_ * cosY * cosX
+        };
         Vec3 up = {0.0f, 1.0f, 0.0f};
 
-        // lookAt calculation
-        Vec3 f = {center.x - eye.x, center.y - eye.y, center.z - eye.z};
-        float fLen = sqrt(f.x*f.x + f.y*f.y + f.z*f.z);
-        f.x /= fLen; f.y /= fLen; f.z /= fLen;
+        // Create matrices using Mat4 (row-major)
+        Mat4 projection = Mat4::perspective(fov_, aspect, nearClip_, farClip_);
+        Mat4 view = Mat4::lookAt(eye, target_, up);
 
-        // Calculate s = f × up
-        Vec3 s = {
-            f.y * up.z - f.z * up.y,
-            f.z * up.x - f.x * up.z,
-            f.x * up.y - f.y * up.x
-        };
-        float sLen = sqrt(s.x*s.x + s.y*s.y + s.z*s.z);
-        s.x /= sLen; s.y /= sLen; s.z /= sLen;
+        // Save for worldToScreen/screenToWorld
+        internal::currentProjectionMatrix = projection;
+        internal::currentViewMatrix = view;
+        internal::currentViewW = w;
+        internal::currentViewH = h;
 
-        // Calculate u = s × f
-        Vec3 u = {
-            s.y * f.z - s.z * f.y,
-            s.z * f.x - s.x * f.z,
-            s.x * f.y - s.y * f.x
-        };
+        // Apply to SGL (needs column-major, so transpose)
+        Mat4 projT = projection.transposed();
+        Mat4 viewT = view.transposed();
 
-        // Construct lookAt matrix
-        float m[16] = {
-             s.x,  u.x, -f.x, 0.0f,
-             s.y,  u.y, -f.y, 0.0f,
-             s.z,  u.z, -f.z, 0.0f,
-            -s.x*eye.x - s.y*eye.y - s.z*eye.z,
-            -u.x*eye.x - u.y*eye.y - u.z*eye.z,
-             f.x*eye.x + f.y*eye.y + f.z*eye.z,
-            1.0f
-        };
+        sgl_matrix_mode_projection();
+        sgl_load_identity();
+        sgl_mult_matrix(projT.m);
 
-        sgl_load_matrix(m);
+        sgl_matrix_mode_modelview();
+        sgl_load_identity();
+        sgl_mult_matrix(viewT.m);
     }
 
     // End camera mode (return to 2D drawing mode)
@@ -182,27 +158,57 @@ public:
     }
 
     // ---------------------------------------------------------------------------
-    // Mouse input
+    // Mouse input (auto-subscribe to events)
     // ---------------------------------------------------------------------------
 
     void enableMouseInput() {
+        if (mouseInputEnabled_) return;
         mouseInputEnabled_ = true;
+
+        // Subscribe to mouse events
+        events().mousePressed.listen(listenerPressed_, [this](MouseEventArgs& e) {
+            onMousePressed(e.x, e.y, e.button);
+        });
+        events().mouseReleased.listen(listenerReleased_, [this](MouseEventArgs& e) {
+            onMouseReleased(e.x, e.y, e.button);
+        });
+        events().mouseDragged.listen(listenerDragged_, [this](MouseDragEventArgs& e) {
+            onMouseDragged(e.x, e.y, e.button);
+        });
+        events().mouseScrolled.listen(listenerScrolled_, [this](ScrollEventArgs& e) {
+            onMouseScrolled(e.scrollX, e.scrollY);
+        });
     }
 
     void disableMouseInput() {
+        if (!mouseInputEnabled_) return;
         mouseInputEnabled_ = false;
+
+        // Disconnect listeners
+        listenerPressed_.disconnect();
+        listenerReleased_.disconnect();
+        listenerDragged_.disconnect();
+        listenerScrolled_.disconnect();
+
+        isDragging_ = false;
+        isPanning_ = false;
     }
 
     bool isMouseInputEnabled() const {
         return mouseInputEnabled_;
     }
 
-    // When mouse button pressed (call from App::mousePressed)
-    void mousePressed(int x, int y, int button) {
-        if (!mouseInputEnabled_) return;
+    // Manual mouse handlers (for custom routing or override scenarios)
+    void mousePressed(int x, int y, int button) { onMousePressed((float)x, (float)y, button); }
+    void mouseReleased(int x, int y, int button) { onMouseReleased((float)x, (float)y, button); }
+    void mouseDragged(int x, int y, int button) { onMouseDragged((float)x, (float)y, button); }
+    void mouseScrolled(float dx, float dy) { onMouseScrolled(dx, dy); }
 
-        lastMouseX_ = (float)x;
-        lastMouseY_ = (float)y;
+private:
+    // Internal mouse handlers
+    void onMousePressed(float x, float y, int button) {
+        lastMouseX_ = x;
+        lastMouseY_ = y;
 
         if (button == MOUSE_BUTTON_LEFT) {
             isDragging_ = true;
@@ -211,8 +217,8 @@ public:
         }
     }
 
-    // When mouse button released (call from App::mouseReleased)
-    void mouseReleased(int x, int y, int button) {
+    void onMouseReleased(float x, float y, int button) {
+        (void)x; (void)y;
         if (button == MOUSE_BUTTON_LEFT) {
             isDragging_ = false;
         } else if (button == MOUSE_BUTTON_MIDDLE) {
@@ -220,12 +226,9 @@ public:
         }
     }
 
-    // When mouse dragged (call from App::mouseDragged)
-    void mouseDragged(int x, int y, int button) {
-        if (!mouseInputEnabled_) return;
-
-        float dx = (float)x - lastMouseX_;
-        float dy = (float)y - lastMouseY_;
+    void onMouseDragged(float x, float y, int button) {
+        float dx = x - lastMouseX_;
+        float dy = y - lastMouseY_;
 
         if (isDragging_ && button == MOUSE_BUTTON_LEFT) {
             // Rotation (Y drag for elevation, X drag for azimuth)
@@ -254,18 +257,18 @@ public:
             target_.y += panY;
         }
 
-        lastMouseX_ = (float)x;
-        lastMouseY_ = (float)y;
+        lastMouseX_ = x;
+        lastMouseY_ = y;
     }
 
-    // When scrolled (call from App::mouseScrolled)
-    void mouseScrolled(float dx, float dy) {
-        if (!mouseInputEnabled_) return;
-
+    void onMouseScrolled(float dx, float dy) {
+        (void)dx;
         // Zoom (change distance)
         distance_ -= dy * zoomSensitivity_;
         if (distance_ < 0.1f) distance_ = 0.1f;
     }
+
+public:
 
     // ---------------------------------------------------------------------------
     // Camera info
@@ -304,6 +307,12 @@ private:
     float sensitivity_;       // Rotation sensitivity
     float zoomSensitivity_;   // Zoom sensitivity
     float panSensitivity_;    // Pan sensitivity
+
+    // Event listeners (RAII - auto disconnect on destruction)
+    EventListener listenerPressed_;
+    EventListener listenerReleased_;
+    EventListener listenerDragged_;
+    EventListener listenerScrolled_;
 };
 
 } // namespace trussc

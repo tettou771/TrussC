@@ -886,6 +886,19 @@ struct Mat4 {
             0, 0, -1, 0
         );
     }
+
+    // Frustum projection (asymmetric perspective)
+    static Mat4 frustum(float left, float right, float bottom, float top, float nearPlane, float farPlane) {
+        float w = right - left;
+        float h = top - bottom;
+        float d = farPlane - nearPlane;
+        return Mat4(
+            2.0f * nearPlane / w, 0, (right + left) / w, 0,
+            0, 2.0f * nearPlane / h, (top + bottom) / h, 0,
+            0, 0, -(farPlane + nearPlane) / d, -2.0f * farPlane * nearPlane / d,
+            0, 0, -1, 0
+        );
+    }
 };
 
 // =============================================================================
@@ -958,6 +971,40 @@ inline float distSquared(const Vec2& a, const Vec2& b) { return a.distanceSquare
 // Distance (Vec3)
 inline float dist(const Vec3& a, const Vec3& b) { return a.distance(b); }
 inline float distSquared(const Vec3& a, const Vec3& b) { return a.distanceSquared(b); }
+
+// =============================================================================
+// Wrap and angle utilities
+// =============================================================================
+
+/// Wrap value within range [min, max) (modulo-like behavior)
+/// Unlike clamp, wraps around when exceeding bounds
+/// Example: wrap(370, 0, 360) -> 10, wrap(-30, 0, 360) -> 330
+inline float wrap(float value, float min, float max) {
+    float range = max - min;
+    if (range <= 0) return min;
+    float result = std::fmod(value - min, range);
+    if (result < 0) result += range;
+    return result + min;
+}
+
+/// Calculate shortest angle difference between two angles (radians)
+/// Returns value in range [-TAU/2, TAU/2] (= [-PI, PI])
+/// Example: angleDifference(TAU*0.9, TAU*0.1) returns -TAU*0.2 (not TAU*0.8)
+inline float angleDifference(float angle1, float angle2) {
+    float diff = std::fmod(angle2 - angle1, TAU);
+    if (diff > HALF_TAU) diff -= TAU;
+    else if (diff < -HALF_TAU) diff += TAU;
+    return diff;
+}
+
+/// Calculate shortest angle difference between two angles (degrees)
+/// Returns value in range [-180, 180]
+inline float angleDifferenceDeg(float deg1, float deg2) {
+    float diff = std::fmod(deg2 - deg1, 360.0f);
+    if (diff > 180.0f) diff -= 360.0f;
+    else if (diff < -180.0f) diff += 360.0f;
+    return diff;
+}
 
 // =============================================================================
 // Random numbers

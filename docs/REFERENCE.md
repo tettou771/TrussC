@@ -43,6 +43,10 @@ void setColorOKLab(float L, float a, float b) // Set color from OKLab
 void drawRect(float x, float y, float w, float h) // Draw rectangle
 void drawRect(Vec3 pos, float w, float h) // Draw rectangle
 void drawRect(Vec3 pos, Vec2 size)       // Draw rectangle
+void drawRectRounded(float x, float y, float w, float h, float radius) // Draw rounded rectangle (circular arc corners)
+void drawRectRounded(Vec3 pos, Vec2 size, float radius) // Draw rounded rectangle (circular arc corners)
+void drawRectSquircle(float x, float y, float w, float h, float radius) // Draw squircle rectangle (curvature-continuous corners, iOS-style)
+void drawRectSquircle(Vec3 pos, Vec2 size, float radius) // Draw squircle rectangle (curvature-continuous corners, iOS-style)
 void drawCircle(float x, float y, float radius) // Draw circle
 void drawCircle(Vec3 center, float radius) // Draw circle
 void drawEllipse(float x, float y, float w, float h) // Draw ellipse
@@ -85,6 +89,7 @@ float getBitmapFontHeight()              // Get bitmap font height
 float getBitmapStringWidth(const string& text) // Get text width
 float getBitmapStringHeight(const string& text) // Get text height
 Rect getBitmapStringBBox(const string& text, float x, float y) // Get text bounding box
+void setFps(float fps)                   // Set target frame rate (VSYNC = -1.0)
 ```
 
 ## Graphics - Style
@@ -104,6 +109,7 @@ void setCircleResolution(int resolution) // Set circle segment count
 int getCircleResolution()                // Get circle segment count
 void pushStyle()                         // Save current style state (color, stroke, fill)
 void popStyle()                          // Restore previous style state
+void resetStyle()                        // Reset style to default values (white color, fill enabled, stroke disabled)
 Color getColor()                         // Get current fill color
 ```
 
@@ -170,6 +176,7 @@ void resetElapsedTimeCounter()           // Reset elapsed time
 ```cpp
 uint64_t getSystemTimeMillis()           // Unix time in milliseconds
 uint64_t getSystemTimeMicros()           // Unix time in microseconds
+uint64_t getUnixTime()                   // Current Unix timestamp in seconds
 string getTimestampString()              // Formatted timestamp
 string getTimestampString(const string& format) // Formatted timestamp
 ```
@@ -245,6 +252,9 @@ float round(float x)                     // Round to nearest
 float fmod(float x, float y)             // Floating-point modulo
 float sign(float x)                      // Sign (-1, 0, 1)
 float fract(float x)                     // Fractional part
+float wrap(float value, float min, float max) // Wrap value within range [min, max)
+float angleDifference(float angle1, float angle2) // Shortest angle difference in radians [-TAU/2, TAU/2]
+float angleDifferenceDeg(float deg1, float deg2) // Shortest angle difference in degrees [-180, 180]
 ```
 
 ## Math - Geometry
@@ -271,6 +281,30 @@ void logNotice(const string& message)    // Print to console
 string toString(value)                   // Convert to string
 void beep()                              // Play a beep sound
 void beep(float frequency)               // Play a beep sound
+int toInt(const string& str)             // Convert string to int
+float toFloat(const string& str)         // Convert string to float
+vector<string> splitString(const string& source, const string& delimiter) // Split string by delimiter
+string joinString(const vector<string>& elements, const string& delimiter) // Join strings with delimiter
+void stringReplace(string& input, const string& searchStr, const string& replaceStr) // Replace substring in place
+string toLower(const string& src)        // Convert to lower case
+string toUpper(const string& src)        // Convert to upper case
+```
+
+## File
+
+```cpp
+string getDataPath(const string& path)   // Get full path relative to data directory
+string getAbsolutePath(const string& path) // Get absolute path
+string getFileName(const string& path)   // Get filename from path
+string getBaseName(const string& path)   // Get filename without extension
+string getFileExtension(const string& path) // Get file extension without dot
+string getParentDirectory(const string& path) // Get parent directory
+string joinPath(const string& dir, const string& file) // Join directory and filename
+bool fileExists(const string& path)      // Check if file exists
+bool directoryExists(const string& path) // Check if directory exists
+vector<string> listDirectory(const string& path) // List files in directory
+FileWriter@ createFileWriter()           // Create a file writer (TrussSketch factory)
+FileReader@ createFileReader()           // Create a file reader (TrussSketch factory)
 ```
 
 ## Sound

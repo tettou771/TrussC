@@ -7,6 +7,7 @@ void tcApp::setup() {
     // Camera initial settings
     cam.setDistance(600);
     cam.setTarget(0, 0, 0);
+    cam.enableMouseInput();  // Auto-subscribe to mouse events
 
     // Generate meshes
     boxMesh = createBox(100);
@@ -172,18 +173,3 @@ void tcApp::keyPressed(int key) {
     }
 }
 
-void tcApp::mousePressed(Vec2 pos, int button) {
-    cam.mousePressed(pos.x, pos.y, button);
-}
-
-void tcApp::mouseReleased(Vec2 pos, int button) {
-    cam.mouseReleased(pos.x, pos.y, button);
-}
-
-void tcApp::mouseDragged(Vec2 pos, int button) {
-    cam.mouseDragged(pos.x, pos.y, button);
-}
-
-void tcApp::mouseScrolled(Vec2 delta) {
-    cam.mouseScrolled(delta.x, delta.y);
-}
