@@ -171,6 +171,12 @@ namespace internal {
 
 } // namespace trussc (temporarily closed)
 
+// Forward declarations for FBO pipeline switching (used in tcRenderContext.h)
+namespace trussc { namespace internal {
+    inline bool inFboPass = false;
+    inline sgl_pipeline currentFboBlendPipeline = {};
+}}
+
 // VertexWriter abstraction (for shader integration)
 #include "tc/graphics/tcVertexWriter.h"
 
@@ -252,12 +258,10 @@ namespace internal {
     // Pass state (for suspending swapchain pass for FBO)
     inline bool inSwapchainPass = false;
 
-    // FBO pass state (for detecting when clear() is called inside FBO)
-    inline bool inFboPass = false;
+    // inFboPass and currentFboBlendPipeline are declared earlier (before tcRenderContext.h)
 
     // Current active FBO pipeline (used from clear())
     inline sgl_pipeline currentFboClearPipeline = {};
-    inline sgl_pipeline currentFboBlendPipeline = {};
 
     // FBO clearColor function pointer (set in tcFbo.h)
     inline void (*fboClearColorFunc)(float, float, float, float) = nullptr;
@@ -1393,12 +1397,12 @@ inline void drawBitmapStringHighlight(const std::string& text, float x, float y,
     sgl_load_identity();
 
     // Draw background rect (before text, same ortho coordinate system)
-    sgl_load_pipeline(internal::fontPipeline);
+    sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
     setColor(background);
     drawRect(worldX - paddingH, worldY, textWidth + paddingH * 2, exactHeight);
 
     // Draw text in foreground color
-    sgl_load_pipeline(internal::fontPipeline);
+    sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
     sgl_enable_texture();
     sgl_texture(internal::fontView, internal::fontSampler);
 

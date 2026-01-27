@@ -673,7 +673,7 @@ public:
             sgl_load_identity();
             sgl_translate(worldX, worldY, 0.0f);
 
-            sgl_load_pipeline(internal::fontPipeline);
+            sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
             sgl_enable_texture();
             sgl_texture(internal::fontView, internal::fontSampler);
 
@@ -716,7 +716,7 @@ public:
             pushMatrix();
             translate(x + offset.x, y + offset.y);
 
-            sgl_load_pipeline(internal::fontPipeline);
+            sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
             sgl_enable_texture();
             sgl_texture(internal::fontView, internal::fontSampler);
 
@@ -774,7 +774,7 @@ public:
         resetMatrix();
         translate(worldX, worldY);
 
-        sgl_load_pipeline(internal::fontPipeline);
+        sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
         sgl_enable_texture();
         sgl_texture(internal::fontView, internal::fontSampler);
 
@@ -857,7 +857,7 @@ public:
             translate(x + offset.x, y + offset.y);
         }
 
-        sgl_load_pipeline(internal::fontPipeline);
+        sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
         sgl_enable_texture();
         sgl_texture(internal::fontView, internal::fontSampler);
 

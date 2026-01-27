@@ -385,8 +385,12 @@ private:
 
     void drawInternal(float x, float y, float w, float h,
                       float u0, float v0, float u1, float v1) const {
-        // Use alpha blend pipeline
-        sgl_load_pipeline(internal::fontPipeline);
+        // Use appropriate alpha blend pipeline (FBO or main swapchain)
+        if (internal::inFboPass && internal::currentFboBlendPipeline.id != 0) {
+            sgl_load_pipeline(internal::currentFboBlendPipeline);
+        } else {
+            sgl_load_pipeline(internal::fontPipeline);
+        }
         sgl_enable_texture();
         sgl_texture(view_, sampler_);
 

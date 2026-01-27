@@ -13,8 +13,7 @@ void tcApp::setup() {
     testFbo.allocate(600, 400);
     
     // Draw something into the FBO
-    testFbo.begin();
-    clear(0.0f, 0.0f, 0.0f, 1.0f); // Clear to black
+    testFbo.begin(0.0f, 0.0f, 0.0f, 1.0f); // Clear to black
 
     pushStyle();
 
