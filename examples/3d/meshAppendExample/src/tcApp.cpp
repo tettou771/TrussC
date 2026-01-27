@@ -99,8 +99,3 @@ void tcApp::draw() {
 
     popMatrix();
 }
-
-void tcApp::keyPressed(int key) {
-    logNotice() << "keyPressed: " << key;
-    requestQuit();
-}

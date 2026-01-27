@@ -250,7 +250,7 @@ bool TlsClient::connect(const std::string& host, int port) {
             tlsReceiveThread_ = std::thread(&TlsClient::tlsReceiveThreadFunc, this);
         } else {
             // Register update listener for async connect/handshake/recv
-            events().update.listen(updateListener_, this, &TlsClient::processNetwork);
+            updateListener_ = events().update.listen(this, &TlsClient::processNetwork);
         }
     }
 
