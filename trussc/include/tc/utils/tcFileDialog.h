@@ -4,13 +4,17 @@
 // File dialog
 // Display OS-native file selection dialog
 // =============================================================================
+// All dialog functions follow unified parameter order:
+//   (title, message, ..., callback for async)
+// =============================================================================
 
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace trussc {
 
-// Dialog result
+// Dialog result for load/save dialogs
 struct FileDialogResult {
     std::string filePath;   // Full path
     std::string fileName;   // Filename only
@@ -18,44 +22,55 @@ struct FileDialogResult {
 };
 
 // -----------------------------------------------------------------------------
-// File open dialog
-// windowTitle: Dialog title (defaults to "Open" if empty)
-// folderSelection: true for folder selection mode
-// defaultPath: Initial display path (defaults to home if empty)
+// Alert dialog
+// title: Bold header text
+// message: Body text
 // -----------------------------------------------------------------------------
-FileDialogResult loadDialog(
-    const std::string& windowTitle = "",
-    bool folderSelection = false,
-    const std::string& defaultPath = ""
-);
+void alertDialog(const std::string& title, const std::string& message);
+
+void alertDialogAsync(const std::string& title,
+                      const std::string& message,
+                      std::function<void()> callback = nullptr);
+
+// -----------------------------------------------------------------------------
+// Confirm dialog (Yes/No)
+// Returns true if user clicked Yes
+// -----------------------------------------------------------------------------
+bool confirmDialog(const std::string& title, const std::string& message);
+
+void confirmDialogAsync(const std::string& title,
+                        const std::string& message,
+                        std::function<void(bool)> callback);
+
+// -----------------------------------------------------------------------------
+// File open dialog
+// folderSelection: true for folder selection mode
+// -----------------------------------------------------------------------------
+FileDialogResult loadDialog(const std::string& title = "",
+                            const std::string& message = "",
+                            const std::string& defaultPath = "",
+                            bool folderSelection = false);
+
+void loadDialogAsync(const std::string& title,
+                     const std::string& message,
+                     const std::string& defaultPath,
+                     bool folderSelection,
+                     std::function<void(const FileDialogResult&)> callback);
 
 // -----------------------------------------------------------------------------
 // File save dialog
 // defaultName: Initial filename
-// message: Message to display in dialog
 // -----------------------------------------------------------------------------
-FileDialogResult saveDialog(
-    const std::string& defaultName = "",
-    const std::string& message = ""
-);
+FileDialogResult saveDialog(const std::string& title = "",
+                            const std::string& message = "",
+                            const std::string& defaultPath = "",
+                            const std::string& defaultName = "");
 
-// -----------------------------------------------------------------------------
-// Alert dialog (message display)
-// -----------------------------------------------------------------------------
-void alertDialog(const std::string& message);
-
-// -----------------------------------------------------------------------------
-// Version with extended filters (for future use)
-// -----------------------------------------------------------------------------
-// struct FileFilter {
-//     std::string name;        // "Image Files"
-//     std::vector<std::string> extensions;  // {"png", "jpg", "gif"}
-// };
-// FileDialogResult loadDialogWithFilter(
-//     const std::string& windowTitle,
-//     const std::vector<FileFilter>& filters,
-//     const std::string& defaultPath = ""
-// );
+void saveDialogAsync(const std::string& title,
+                     const std::string& message,
+                     const std::string& defaultPath,
+                     const std::string& defaultName,
+                     std::function<void(const FileDialogResult&)> callback);
 
 } // namespace trussc
 

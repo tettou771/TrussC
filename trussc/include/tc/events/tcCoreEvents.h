@@ -20,6 +20,9 @@ public:
     Event<void> draw;             // Before draw each frame
     Event<void> exit;             // On app exit
 
+    // Exit request (can be cancelled)
+    Event<ExitRequestEventArgs> exitRequested;  // Set args.cancel = true to cancel
+
     // Keyboard
     Event<KeyEventArgs> keyPressed;
     Event<KeyEventArgs> keyReleased;

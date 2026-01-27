@@ -1,5 +1,5 @@
 // =============================================================================
-// Windows ファイルダイアログ実装
+// Windows file dialog implementation
 // =============================================================================
 
 #include "tc/utils/tcFileDialog.h"
@@ -15,7 +15,7 @@
 
 namespace {
 
-// UTF-8 から Wide文字列への変換
+// UTF-8 to Wide string conversion
 std::wstring toWide(const std::string& str) {
     if (str.empty()) return std::wstring();
     int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.length(), nullptr, 0);
@@ -24,7 +24,7 @@ std::wstring toWide(const std::string& str) {
     return result;
 }
 
-// Wide文字列から UTF-8 への変換
+// Wide string to UTF-8 conversion
 std::string toUtf8(const wchar_t* wstr) {
     if (!wstr || *wstr == L'\0') return std::string();
     int size = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
@@ -33,14 +33,14 @@ std::string toUtf8(const wchar_t* wstr) {
     return result;
 }
 
-// パスからファイル名を抽出
+// Extract filename from path
 std::string extractFileName(const std::string& path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) return path;
     return path.substr(pos + 1);
 }
 
-// フォルダ選択ダイアログのコールバック
+// Folder selection dialog callback
 static int CALLBACK browseCallback(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData) {
     if (uMsg == BFFM_INITIALIZED && lpData != 0) {
         std::wstring* defaultPath = reinterpret_cast<std::wstring*>(lpData);
@@ -56,22 +56,55 @@ static int CALLBACK browseCallback(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM l
 namespace trussc {
 
 // -----------------------------------------------------------------------------
-// ファイル選択（開く）ダイアログ
+// Alert dialog
 // -----------------------------------------------------------------------------
-FileDialogResult loadDialog(
-    const std::string& windowTitle,
-    bool folderSelection,
-    const std::string& defaultPath
-) {
+void alertDialog(const std::string& title, const std::string& message) {
+    std::wstring titleW = toWide(title);
+    std::wstring messageW = toWide(message);
+    MessageBoxW(GetActiveWindow(), messageW.c_str(), titleW.c_str(), MB_OK | MB_ICONINFORMATION);
+}
+
+void alertDialogAsync(const std::string& title,
+                      const std::string& message,
+                      std::function<void()> callback) {
+    alertDialog(title, message);
+    if (callback) callback();
+}
+
+// -----------------------------------------------------------------------------
+// Confirm dialog
+// -----------------------------------------------------------------------------
+bool confirmDialog(const std::string& title, const std::string& message) {
+    std::wstring titleW = toWide(title);
+    std::wstring messageW = toWide(message);
+    int result = MessageBoxW(GetActiveWindow(), messageW.c_str(), titleW.c_str(),
+                             MB_YESNO | MB_ICONQUESTION);
+    return result == IDYES;
+}
+
+void confirmDialogAsync(const std::string& title,
+                        const std::string& message,
+                        std::function<void(bool)> callback) {
+    bool result = confirmDialog(title, message);
+    if (callback) callback(result);
+}
+
+// -----------------------------------------------------------------------------
+// Load dialog
+// -----------------------------------------------------------------------------
+FileDialogResult loadDialog(const std::string& title,
+                            const std::string& message,
+                            const std::string& defaultPath,
+                            bool folderSelection) {
     FileDialogResult result;
+    (void)message;  // Windows file dialog doesn't support message
 
     if (!folderSelection) {
-        // ファイル選択ダイアログ
+        // File selection dialog
         OPENFILENAMEW ofn;
         ZeroMemory(&ofn, sizeof(ofn));
 
         wchar_t szFileName[MAX_PATH] = L"";
-        wchar_t szDir[MAX_PATH] = L"";
 
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = GetActiveWindow();
@@ -81,14 +114,12 @@ FileDialogResult loadDialog(
         ofn.nFilterIndex = 1;
         ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 
-        // タイトル設定
         std::wstring titleW;
-        if (!windowTitle.empty()) {
-            titleW = toWide(windowTitle);
+        if (!title.empty()) {
+            titleW = toWide(title);
             ofn.lpstrTitle = titleW.c_str();
         }
 
-        // 初期ディレクトリ設定
         std::wstring dirW;
         if (!defaultPath.empty()) {
             dirW = toWide(defaultPath);
@@ -101,7 +132,7 @@ FileDialogResult loadDialog(
             result.fileName = extractFileName(result.filePath);
         }
     } else {
-        // フォルダ選択ダイアログ
+        // Folder selection dialog
         BROWSEINFOW bi;
         ZeroMemory(&bi, sizeof(bi));
 
@@ -111,16 +142,14 @@ FileDialogResult loadDialog(
         bi.pszDisplayName = szDisplayName;
         bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_USENEWUI;
 
-        // タイトル設定
         std::wstring titleW;
-        if (!windowTitle.empty()) {
-            titleW = toWide(windowTitle);
+        if (!title.empty()) {
+            titleW = toWide(title);
         } else {
             titleW = L"Select Folder";
         }
         bi.lpszTitle = titleW.c_str();
 
-        // 初期パス設定
         std::wstring defaultPathW;
         if (!defaultPath.empty()) {
             defaultPathW = toWide(defaultPath);
@@ -143,21 +172,30 @@ FileDialogResult loadDialog(
     return result;
 }
 
+void loadDialogAsync(const std::string& title,
+                     const std::string& message,
+                     const std::string& defaultPath,
+                     bool folderSelection,
+                     std::function<void(const FileDialogResult&)> callback) {
+    FileDialogResult result = loadDialog(title, message, defaultPath, folderSelection);
+    if (callback) callback(result);
+}
+
 // -----------------------------------------------------------------------------
-// ファイル保存ダイアログ
+// Save dialog
 // -----------------------------------------------------------------------------
-FileDialogResult saveDialog(
-    const std::string& defaultName,
-    const std::string& message
-) {
+FileDialogResult saveDialog(const std::string& title,
+                            const std::string& message,
+                            const std::string& defaultPath,
+                            const std::string& defaultName) {
     FileDialogResult result;
+    (void)message;  // Windows file dialog doesn't support message
 
     OPENFILENAMEW ofn;
     ZeroMemory(&ofn, sizeof(ofn));
 
     wchar_t szFileName[MAX_PATH] = L"";
 
-    // 初期ファイル名を設定
     if (!defaultName.empty()) {
         std::wstring nameW = toWide(defaultName);
         wcsncpy_s(szFileName, MAX_PATH, nameW.c_str(), _TRUNCATE);
@@ -171,14 +209,19 @@ FileDialogResult saveDialog(
     ofn.nFilterIndex = 1;
     ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY;
 
-    // タイトル（メッセージ）設定
     std::wstring titleW;
-    if (!message.empty()) {
-        titleW = toWide(message);
+    if (!title.empty()) {
+        titleW = toWide(title);
     } else {
         titleW = L"Save File";
     }
     ofn.lpstrTitle = titleW.c_str();
+
+    std::wstring dirW;
+    if (!defaultPath.empty()) {
+        dirW = toWide(defaultPath);
+        ofn.lpstrInitialDir = dirW.c_str();
+    }
 
     if (GetSaveFileNameW(&ofn)) {
         result.success = true;
@@ -189,12 +232,13 @@ FileDialogResult saveDialog(
     return result;
 }
 
-// -----------------------------------------------------------------------------
-// アラートダイアログ
-// -----------------------------------------------------------------------------
-void alertDialog(const std::string& message) {
-    std::wstring messageW = toWide(message);
-    MessageBoxW(GetActiveWindow(), messageW.c_str(), L"Alert", MB_OK | MB_ICONINFORMATION);
+void saveDialogAsync(const std::string& title,
+                     const std::string& message,
+                     const std::string& defaultPath,
+                     const std::string& defaultName,
+                     std::function<void(const FileDialogResult&)> callback) {
+    FileDialogResult result = saveDialog(title, message, defaultPath, defaultName);
+    if (callback) callback(result);
 }
 
 } // namespace trussc

@@ -911,6 +911,100 @@ categories:
         sketch: true
         snippet: "getWindowSize()"
 
+      - name: requestExitApp
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Request application exit. Can be cancelled by listening to events().exitRequested and setting args.cancel = true"
+        description_ja: "アプリケーション終了を要求。events().exitRequestedをリッスンしてargs.cancel = trueでキャンセル可能"
+        of_equivalent: "ofExit"
+        sketch: false
+
+      - name: exitApp
+        return: "void"
+        signatures:
+          - params: ""
+            params_simple: ""
+        description: "Immediately exit the application (cannot be cancelled)"
+        description_ja: "アプリケーションを即座に終了（キャンセル不可）"
+        sketch: false
+
+      - name: loadDialog
+        return: "FileDialogResult"
+        signatures:
+          - params: "const string& title = \"\", const string& message = \"\", const string& defaultPath = \"\", bool folderSelection = false"
+            params_simple: "title, message, defaultPath, folderSelection"
+        description: "Show file open dialog. Returns FileDialogResult with filePath, fileName, success"
+        description_ja: "ファイル選択ダイアログを表示。FileDialogResult（filePath, fileName, success）を返す"
+        of_equivalent: "ofSystemLoadDialog"
+        sketch: false
+
+      - name: saveDialog
+        return: "FileDialogResult"
+        signatures:
+          - params: "const string& title = \"\", const string& message = \"\", const string& defaultPath = \"\", const string& defaultName = \"\""
+            params_simple: "title, message, defaultPath, defaultName"
+        description: "Show file save dialog. Returns FileDialogResult with filePath, fileName, success"
+        description_ja: "ファイル保存ダイアログを表示。FileDialogResult（filePath, fileName, success）を返す"
+        of_equivalent: "ofSystemSaveDialog"
+        sketch: false
+
+      - name: alertDialog
+        return: "void"
+        signatures:
+          - params: "const string& title, const string& message"
+            params_simple: "title, message"
+        description: "Show alert dialog with OK button"
+        description_ja: "OKボタン付きのアラートダイアログを表示"
+        of_equivalent: "ofSystemAlertDialog"
+        sketch: false
+
+      - name: confirmDialog
+        return: "bool"
+        signatures:
+          - params: "const string& title, const string& message"
+            params_simple: "title, message"
+        description: "Show Yes/No confirmation dialog. Returns true if Yes clicked"
+        description_ja: "Yes/No確認ダイアログを表示。Yesが押されたらtrueを返す"
+        sketch: false
+
+      - name: loadDialogAsync
+        return: "void"
+        signatures:
+          - params: "const string& title, const string& message, const string& defaultPath, bool folderSelection, function<void(const FileDialogResult&)> callback"
+            params_simple: "title, message, defaultPath, folderSelection, callback"
+        description: "Show file open dialog asynchronously. Callback receives FileDialogResult"
+        description_ja: "ファイル選択ダイアログを非同期で表示。コールバックにFileDialogResultが渡される"
+        sketch: false
+
+      - name: saveDialogAsync
+        return: "void"
+        signatures:
+          - params: "const string& title, const string& message, const string& defaultPath, const string& defaultName, function<void(const FileDialogResult&)> callback"
+            params_simple: "title, message, defaultPath, defaultName, callback"
+        description: "Show file save dialog asynchronously. Callback receives FileDialogResult"
+        description_ja: "ファイル保存ダイアログを非同期で表示。コールバックにFileDialogResultが渡される"
+        sketch: false
+
+      - name: alertDialogAsync
+        return: "void"
+        signatures:
+          - params: "const string& title, const string& message, function<void()> callback = nullptr"
+            params_simple: "title, message, callback"
+        description: "Show alert dialog asynchronously. Callback is called when dismissed"
+        description_ja: "アラートダイアログを非同期で表示。閉じた時にコールバックが呼ばれる"
+        sketch: false
+
+      - name: confirmDialogAsync
+        return: "void"
+        signatures:
+          - params: "const string& title, const string& message, function<void(bool)> callback"
+            params_simple: "title, message, callback"
+        description: "Show Yes/No dialog asynchronously. Callback receives true if Yes clicked"
+        description_ja: "Yes/No確認ダイアログを非同期で表示。Yesが押されたらコールバックにtrueが渡される"
+        sketch: false
+
       - name: getMouseX
         return: "float"
         signatures:

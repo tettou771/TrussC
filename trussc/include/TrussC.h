@@ -1759,10 +1759,16 @@ inline void redraw(int count = 1) {
     }
 }
 
-// Request application exit
-// Called in order: exit() -> cleanup() -> destructor
-inline void exitApp() {
+// Request application exit (can be cancelled via exitRequested event)
+// If events().exitRequested is listened and args.cancel is set to true, exit is cancelled
+inline void requestExitApp() {
     sapp_request_quit();
+}
+
+// Immediately exit the application (cannot be cancelled)
+// Use this for forced exit, e.g., after user confirms exit in a dialog
+inline void exitApp() {
+    sapp_quit();
 }
 
 // ---------------------------------------------------------------------------
@@ -2219,6 +2225,15 @@ namespace internal {
                 events().filesDropped.notify(args);
 
                 if (appFilesDroppedFunc) appFilesDroppedFunc(args.files);
+                break;
+            }
+            case SAPP_EVENTTYPE_QUIT_REQUESTED: {
+                // Notify exitRequested event - listeners can cancel by setting args.cancel = true
+                ExitRequestEventArgs args;
+                events().exitRequested.notify(args);
+                if (args.cancel) {
+                    sapp_cancel_quit();
+                }
                 break;
             }
             default:

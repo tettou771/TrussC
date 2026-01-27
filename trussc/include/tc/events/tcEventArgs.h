@@ -98,4 +98,11 @@ struct ConsoleEventArgs {
     std::vector<std::string> args; // Parsed by whitespace (e.g., ["tcdebug", "screenshot", "/tmp/a.png"])
 };
 
+// ---------------------------------------------------------------------------
+// Exit request event arguments
+// ---------------------------------------------------------------------------
+struct ExitRequestEventArgs {
+    bool cancel = false;           // Set to true to cancel the exit
+};
+
 } // namespace trussc
