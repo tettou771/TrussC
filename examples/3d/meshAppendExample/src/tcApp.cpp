@@ -23,55 +23,55 @@ void tcApp::setup() {
     // Build a space station by combining primitives
 
     // Central core (sphere)
-    Mesh core = createSphere(0.35f, 16);
+    Mesh core = createSphere(52.5f, 16);
     spaceStation.append(core);
 
     // Habitat ring (torus)
-    Mesh ring = createTorus(1.2f, 0.15f, 16, 24);
+    Mesh ring = createTorus(180.0f, 22.5f, 16, 24);
     spaceStation.append(ring);
 
     // Connection spokes (4 cylinders from core to ring, 2x thicker than solar panel arms)
     for (int i = 0; i < 4; i++) {
-        Mesh spoke = createCylinder(0.08f, 0.85f, 8);  // 0.08 = 0.04 * 2
+        Mesh spoke = createCylinder(12.0f, 127.5f, 8);
         spoke.rotateX(HALF_TAU / 2);
-        spoke.translate(0, 0, 0.6f);  // Center between core and ring
-        spoke.rotateY(i * TAU / 4);   // Rotate around Y
+        spoke.translate(0, 0, 90.0f);  // Center between core and ring
+        spoke.rotateY(i * TAU / 4);    // Rotate around Y
         spaceStation.append(spoke);
     }
 
     // Solar panels (flat boxes on each end)
     for (int side = -1; side <= 1; side += 2) {
         // Panel arm (spans from core to panels)
-        Mesh arm = createCylinder(0.04f, 1.4f, 6);
-        arm.translate(0, side * 0.7f, 0);  // Center the arm between core and panels
+        Mesh arm = createCylinder(6.0f, 210.0f, 6);
+        arm.translate(0, side * 105.0f, 0);  // Center the arm between core and panels
         spaceStation.append(arm);
 
         // Solar panel (flat box)
-        Mesh panel = createBox(1.5f, 0.02f, 0.4f);
-        panel.translate(0, side * 1.4f, 0);
+        Mesh panel = createBox(225.0f, 3.0f, 60.0f);
+        panel.translate(0, side * 210.0f, 0);
         spaceStation.append(panel);
 
         // Second panel
-        Mesh panel2 = createBox(1.5f, 0.02f, 0.4f);
-        panel2.translate(0, side * 1.4f, 0.5f);
+        Mesh panel2 = createBox(225.0f, 3.0f, 60.0f);
+        panel2.translate(0, side * 210.0f, 75.0f);
         spaceStation.append(panel2);
 
-        Mesh panel3 = createBox(1.5f, 0.02f, 0.4f);
-        panel3.translate(0, side * 1.4f, -0.5f);
+        Mesh panel3 = createBox(225.0f, 3.0f, 60.0f);
+        panel3.translate(0, side * 210.0f, -75.0f);
         spaceStation.append(panel3);
     }
 
     // Docking modules (small cylinders at ends of core)
     for (int side = -1; side <= 1; side += 2) {
-        Mesh dock = createCylinder(0.2f, 0.3f, 8);
+        Mesh dock = createCylinder(30.0f, 45.0f, 8);
         dock.rotateX(HALF_TAU / 2);
-        dock.translate(side * 1.2f, 0, 0);
+        dock.translate(side * 180.0f, 0, 0);
         spaceStation.append(dock);
 
         // Docking cone
-        Mesh cone = createCone(0.12f, 0.15f, 8);
+        Mesh cone = createCone(18.0f, 22.5f, 8);
         cone.rotateZ(side * HALF_TAU / 2);
-        cone.translate(side * 1.4f, 0, 0);
+        cone.translate(side * 210.0f, 0, 0);
         spaceStation.append(cone);
     }
 }
@@ -84,11 +84,8 @@ void tcApp::update() {
 void tcApp::draw() {
     clear(0.05f);
 
-    // Setup 3D view
-    enable3DPerspective(deg2rad(50.0f), 0.1f, 100.0f);
-
     pushMatrix();
-    translate(0, 0, -5);
+    translate(getWidth() / 2, getHeight() / 2, 0);
     rotateX(rotationX);
     rotateY(rotationY);
 
@@ -101,7 +98,9 @@ void tcApp::draw() {
     spaceStation.drawWireframe();
 
     popMatrix();
+}
 
-    // Return to 2D mode
-    disable3D();
+void tcApp::keyPressed(int key) {
+    logNotice() << "keyPressed: " << key;
+    requestQuit();
 }
