@@ -761,18 +761,12 @@ public:
     void drawBitmapString(const std::string& text, float x, float y, float scale) {
         if (text.empty() || !internal::fontInitialized) return;
 
-        // Calculate offset based on current alignment settings (with scale)
+        // Calculate offset based on current alignment settings
         Vec2 offset = calcBitmapAlignOffset(text, textAlignH_, textAlignV_);
-        offset.x *= scale;
-        offset.y *= scale;
-
-        Mat4 currentMat = getCurrentMatrix();
-        float worldX = currentMat.m[0]*(x + offset.x) + currentMat.m[1]*(y + offset.y) + currentMat.m[3];
-        float worldY = currentMat.m[4]*(x + offset.x) + currentMat.m[5]*(y + offset.y) + currentMat.m[7];
 
         pushMatrix();
-        resetMatrix();
-        translate(worldX, worldY);
+        translate(x + offset.x * scale, y + offset.y * scale);
+        sgl_scale(scale, scale, 1.0f);
 
         sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
         sgl_enable_texture();
@@ -781,8 +775,8 @@ public:
         sgl_begin_quads();
         sgl_c4f(currentR_, currentG_, currentB_, currentA_);
 
-        const float charW = bitmapfont::CHAR_TEX_WIDTH * scale;
-        const float charH = bitmapfont::CHAR_TEX_HEIGHT * scale;
+        const float charW = bitmapfont::CHAR_TEX_WIDTH;
+        const float charH = bitmapfont::CHAR_TEX_HEIGHT;
         float cursorX = 0;
         float cursorY = 0;  // Top-aligned
 
@@ -816,7 +810,7 @@ public:
 
         sgl_end();
         sgl_disable_texture();
-        if (internal::blendPipelinesInitialized) sgl_load_pipeline(internal::blendPipelines[static_cast<int>(internal::currentBlendMode)]);
+        sgl_load_default_pipeline();
 
         popMatrix();
     }
@@ -845,63 +839,105 @@ public:
         // Calculate offset
         Vec2 offset = calcBitmapAlignOffset(text, h, v);
 
-        pushMatrix();
-
         if (screenFixed) {
+            // Transform local position to world coordinates using current matrix
             Mat4 currentMat = getCurrentMatrix();
-            float worldX = currentMat.m[0]*(x + offset.x) + currentMat.m[1]*(y + offset.y) + currentMat.m[3];
-            float worldY = currentMat.m[4]*(x + offset.x) + currentMat.m[5]*(y + offset.y) + currentMat.m[7];
-            resetMatrix();
-            translate(worldX, worldY);
+            float localX = x + offset.x;
+            float localY = y + offset.y;
+            float worldX = currentMat.m[0]*localX + currentMat.m[1]*localY + currentMat.m[3];
+            float worldY = currentMat.m[4]*localX + currentMat.m[5]*localY + currentMat.m[7];
+
+            // Switch to ortho projection for screen-fixed 2D drawing
+            sgl_matrix_mode_projection();
+            sgl_push_matrix();
+            sgl_load_identity();
+            sgl_ortho(0.0f, internal::currentViewW, internal::currentViewH, 0.0f, -10000.0f, 10000.0f);
+
+            sgl_matrix_mode_modelview();
+            sgl_push_matrix();
+            sgl_load_identity();
+            sgl_translate(worldX, worldY, 0.0f);
+
+            sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
+            sgl_enable_texture();
+            sgl_texture(internal::fontView, internal::fontSampler);
+
+            sgl_begin_quads();
+            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
+
+            const float charW = bitmapfont::CHAR_TEX_WIDTH;
+            const float charH = bitmapfont::CHAR_TEX_HEIGHT;
+            float cursorX = 0;
+            float cursorY = 0;
+
+            for (char c : text) {
+                if (c == '\n') { cursorX = 0; cursorY += charH; continue; }
+                if (c == '\t') { cursorX += charW * 8; continue; }
+                if (c < 32) continue;
+
+                float u, v_;
+                bitmapfont::getCharTexCoord(c, u, v_);
+                float u2 = u + bitmapfont::TEX_CHAR_WIDTH;
+                float v2 = v_ + bitmapfont::TEX_CHAR_HEIGHT;
+
+                sgl_v2f_t2f(cursorX, cursorY, u, v_);
+                sgl_v2f_t2f(cursorX + charW, cursorY, u2, v_);
+                sgl_v2f_t2f(cursorX + charW, cursorY + charH, u2, v2);
+                sgl_v2f_t2f(cursorX, cursorY + charH, u, v2);
+
+                cursorX += charW;
+            }
+
+            sgl_end();
+            sgl_disable_texture();
+            sgl_load_default_pipeline();
+
+            // Restore matrices
+            sgl_pop_matrix();  // modelview
+            sgl_matrix_mode_projection();
+            sgl_pop_matrix();
+            sgl_matrix_mode_modelview();
         } else {
+            // Non-screenFixed: use current transformation
+            pushMatrix();
             translate(x + offset.x, y + offset.y);
-        }
 
-        sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
-        sgl_enable_texture();
-        sgl_texture(internal::fontView, internal::fontSampler);
+            sgl_load_pipeline((internal::inFboPass && internal::currentFboBlendPipeline.id != 0) ? internal::currentFboBlendPipeline : internal::fontPipeline);
+            sgl_enable_texture();
+            sgl_texture(internal::fontView, internal::fontSampler);
 
-        sgl_begin_quads();
-        sgl_c4f(currentR_, currentG_, currentB_, currentA_);
+            sgl_begin_quads();
+            sgl_c4f(currentR_, currentG_, currentB_, currentA_);
 
-        const float charW = bitmapfont::CHAR_TEX_WIDTH;
-        const float charH = bitmapfont::CHAR_TEX_HEIGHT;
-        float cursorX = 0;
-        float cursorY = 0;  // Top-aligned (specified coordinate is top of text)
+            const float charW = bitmapfont::CHAR_TEX_WIDTH;
+            const float charH = bitmapfont::CHAR_TEX_HEIGHT;
+            float cursorX = 0;
+            float cursorY = 0;
 
-        for (char c : text) {
-            if (c == '\n') {
-                cursorX = 0;
-                cursorY += charH;
-                continue;
+            for (char c : text) {
+                if (c == '\n') { cursorX = 0; cursorY += charH; continue; }
+                if (c == '\t') { cursorX += charW * 8; continue; }
+                if (c < 32) continue;
+
+                float u, v_;
+                bitmapfont::getCharTexCoord(c, u, v_);
+                float u2 = u + bitmapfont::TEX_CHAR_WIDTH;
+                float v2 = v_ + bitmapfont::TEX_CHAR_HEIGHT;
+
+                sgl_v2f_t2f(cursorX, cursorY, u, v_);
+                sgl_v2f_t2f(cursorX + charW, cursorY, u2, v_);
+                sgl_v2f_t2f(cursorX + charW, cursorY + charH, u2, v2);
+                sgl_v2f_t2f(cursorX, cursorY + charH, u, v2);
+
+                cursorX += charW;
             }
-            if (c == '\t') {
-                cursorX += charW * 8;
-                continue;
-            }
-            if (c < 32) continue;
 
-            float u, v_;
-            bitmapfont::getCharTexCoord(c, u, v_);
-            float u2 = u + bitmapfont::TEX_CHAR_WIDTH;
-            float v2 = v_ + bitmapfont::TEX_CHAR_HEIGHT;
+            sgl_end();
+            sgl_disable_texture();
+            sgl_load_default_pipeline();
 
-            float px = cursorX;
-            float py = cursorY;
-
-            sgl_v2f_t2f(px, py, u, v_);
-            sgl_v2f_t2f(px + charW, py, u2, v_);
-            sgl_v2f_t2f(px + charW, py + charH, u2, v2);
-            sgl_v2f_t2f(px, py + charH, u, v2);
-
-            cursorX += charW;
+            popMatrix();
         }
-
-        sgl_end();
-        sgl_disable_texture();
-        if (internal::blendPipelinesInitialized) sgl_load_pipeline(internal::blendPipelines[static_cast<int>(internal::currentBlendMode)]);
-
-        popMatrix();
     }
 
     void drawBitmapString(const std::string& text, Vec3 pos,
