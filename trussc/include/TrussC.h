@@ -659,6 +659,8 @@ inline void setMatrix(const Mat4& mat) {
 // Alpha channel is additive in all modes (to prevent transparency when drawing to FBO)
 inline void setBlendMode(BlendMode mode) {
     if (!internal::blendPipelinesInitialized) return;
+    // Skip in FBO - FBO uses its own pipeline
+    if (internal::inFboPass) return;
     internal::currentBlendMode = mode;
     sgl_load_pipeline(internal::blendPipelines[static_cast<int>(mode)]);
 }
@@ -745,8 +747,8 @@ namespace internal {
         if (fovDeg <= 0.0f) {
             // Orthographic projection (2D mode)
             sgl_defaults();
-            // Load alpha blend pipeline for 2D
-            if (blendPipelinesInitialized) {
+            // Load alpha blend pipeline for 2D (skip in FBO - FBO loads its own pipeline)
+            if (blendPipelinesInitialized && !inFboPass) {
                 sgl_load_pipeline(blendPipelines[static_cast<int>(BlendMode::Alpha)]);
             }
             sgl_matrix_mode_projection();
@@ -769,7 +771,8 @@ namespace internal {
             );
         } else {
             // Perspective projection (3D mode)
-            if (pipeline3dInitialized) {
+            // Skip pipeline loading in FBO - FBO loads its own pipeline
+            if (pipeline3dInitialized && !inFboPass) {
                 sgl_load_pipeline(pipeline3d);
             }
 
@@ -1575,6 +1578,10 @@ inline void exitApp() {
 // Save screenshot (uses OS window capture feature)
 // Supported formats: .png, .jpg/.jpeg, .tiff/.tif, .bmp
 inline bool saveScreenshot(const std::filesystem::path& path) {
+    // Convert relative paths to data path
+    if (path.is_relative()) {
+        return platform::saveScreenshot(getDataPath(path.string()));
+    }
     return platform::saveScreenshot(path);
 }
 

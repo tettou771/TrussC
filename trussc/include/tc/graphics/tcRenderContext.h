@@ -260,7 +260,11 @@ public:
 
     void resetMatrix() {
         currentMatrix_ = Mat4::identity();
-        sgl_load_identity();
+        // Restore default view matrix (camera lookat) set by setupScreenFovWithSize
+        // This works correctly both in main screen and FBO contexts
+        // Note: Mat4 is row-major, sokol_gl expects column-major, so transpose
+        Mat4 t = internal::currentViewMatrix.transposed();
+        sgl_load_matrix(t.m);
     }
 
     // Apply transformation matrix (multiplies with current matrix, like translate/rotate)

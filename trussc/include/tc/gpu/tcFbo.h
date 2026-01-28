@@ -115,6 +115,7 @@ public:
         {
             sg_pipeline_desc pip_desc = {};
             pip_desc.sample_count = sampleCount_;  // Match MSAA sample count
+            pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;  // Match depth attachment
             pip_desc.colors[0].blend.enabled = true;
             pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
             pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
@@ -127,7 +128,9 @@ public:
         {
             sg_pipeline_desc pip_desc = {};
             pip_desc.sample_count = sampleCount_;
+            pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;  // Match depth attachment
             pip_desc.colors[0].blend.enabled = false;  // No blend = overwrite
+            pip_desc.colors[0].write_mask = SG_COLORMASK_RGBA;  // Ensure alpha is written
             pipelineClear_ = sgl_context_make_pipeline(context_, &pip_desc);
         }
 
@@ -347,13 +350,14 @@ private:
         // Setup screen projection using defaultScreenFov (like main screen)
         internal::setupScreenFovWithSize(internal::defaultScreenFov, (float)width_, (float)height_, 0.0f, 0.0f);
 
-        // Use FBO pipeline (alpha blend enabled) - override after setupScreenFov
-        sgl_load_pipeline(pipelineBlend_);
+        // Use FBO pipeline (no blend = overwrite, ensures alpha is written correctly)
+        // Note: This means shapes overwrite each other rather than blending
+        sgl_load_pipeline(pipelineClear_);
 
         active_ = true;
         internal::inFboPass = true;
         internal::currentFboClearPipeline = pipelineClear_;
-        internal::currentFboBlendPipeline = pipelineBlend_;
+        internal::currentFboBlendPipeline = pipelineClear_;  // Use overwrite for all drawing
         internal::currentFbo = this;
         internal::fboClearColorFunc = _fboClearColorHelper;
     }

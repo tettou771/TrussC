@@ -184,27 +184,8 @@ public:
         return true;
     }
 
-    // Save to file
-    bool save(const fs::path& path) const {
-        if (!allocated_ || !data_) return false;
-
-        auto ext = path.extension().string();
-        auto pathStr = path.string();
-        int result = 0;
-
-        if (ext == ".png" || ext == ".PNG") {
-            result = stbi_write_png(pathStr.c_str(), width_, height_, channels_, data_, width_ * channels_);
-        } else if (ext == ".jpg" || ext == ".jpeg" || ext == ".JPG" || ext == ".JPEG") {
-            result = stbi_write_jpg(pathStr.c_str(), width_, height_, channels_, data_, 90);
-        } else if (ext == ".bmp" || ext == ".BMP") {
-            result = stbi_write_bmp(pathStr.c_str(), width_, height_, channels_, data_);
-        } else {
-            // Default is PNG
-            result = stbi_write_png(pathStr.c_str(), width_, height_, channels_, data_, width_ * channels_);
-        }
-
-        return result != 0;
-    }
+    // Save to file (implemented in tcPixels.cpp for dataPath support)
+    bool save(const fs::path& path) const;
 
 private:
     unsigned char* data_ = nullptr;
