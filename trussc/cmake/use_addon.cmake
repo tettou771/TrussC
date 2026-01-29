@@ -39,8 +39,8 @@ macro(use_addon TARGET_NAME)
         # まだ追加されていないアドオンのみ処理
         list(FIND _TC_LOADED_ADDONS ${_ADDON_NAME} _ADDON_INDEX)
         if(_ADDON_INDEX EQUAL -1)
-            # アドオンのパスを解決（TC_ROOT を使用）
-            set(_ADDON_PATH "${TC_ROOT}/addons/${_ADDON_NAME}")
+            # アドオンのパスを解決（TRUSSC_DIR から相対パス）
+            get_filename_component(_ADDON_PATH "${TRUSSC_DIR}/../addons/${_ADDON_NAME}" ABSOLUTE)
 
             if(NOT EXISTS "${_ADDON_PATH}")
                 message(FATAL_ERROR "TrussC addon not found: ${_ADDON_NAME}\n  Looked in: ${_ADDON_PATH}")
