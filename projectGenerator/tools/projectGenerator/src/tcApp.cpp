@@ -71,12 +71,9 @@ void tcApp::setup() {
     }
     strncpy(projectDirBuf, projectDir.c_str(), sizeof(projectDirBuf) - 1);
 
-    // Auto-switch to Update mode if previous project folder exists
-    if (!projectDir.empty() && !projectName.empty()) {
-        string lastProjectPath = projectDir + "/" + projectName;
-        if (fs::is_directory(lastProjectPath)) {
-            importProject(lastProjectPath);
-        }
+    // Auto-import if previous imported path exists
+    if (!importedProjectPath.empty() && fs::is_directory(importedProjectPath)) {
+        importProject(importedProjectPath);
     }
 
     // Detect installed Visual Studio versions (Windows only)
@@ -222,79 +219,99 @@ void tcApp::draw() {
                  ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
 
-    // Project name
-    ImGui::Text("Project Name");
-    ImGui::SetNextItemWidth(-80);
-    if (isImportedProject) {
-        ImGui::BeginDisabled();
-    }
-    ImGui::InputText("##projectName", projectNameBuf, sizeof(projectNameBuf));
-    // Auto-switch to Update mode when input is deactivated (Enter or focus lost)
-    if (ImGui::IsItemDeactivatedAfterEdit()) {
-        if (!isImportedProject && strlen(projectNameBuf) > 0 && strlen(projectDirBuf) > 0) {
-            string checkPath = string(projectDirBuf) + "/" + string(projectNameBuf);
-            if (fs::is_directory(checkPath)) {
-                pendingImportPath = checkPath;
+    // Mode selection buttons (Import / New)
+    {
+        float buttonWidth = (ImGui::GetContentRegionAvail().x - 8) / 2;
+        float buttonHeight = 32;
+
+        // Import button
+        bool isImportMode = (mode == ProjectMode::Import);
+        if (isImportMode) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.5f, 0.8f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.55f, 0.85f, 1.0f));
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.25f, 0.28f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.3f, 0.35f, 1.0f));
+        }
+        if (ImGui::Button("Import Existing", ImVec2(buttonWidth, buttonHeight))) {
+            mode = ProjectMode::Import;
+            // Restore hasImportedProject if path is still valid
+            if (!importedProjectPath.empty() && fs::is_directory(importedProjectPath)) {
+                hasImportedProject = true;
             }
+            setStatus("");
         }
-    }
-    if (isImportedProject) {
-        ImGui::EndDisabled();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Import")) {
-        auto result = loadDialog("Select existing project", "", "", true);
-        if (result.success) {
-            importProject(result.filePath);
+        ImGui::PopStyleColor(2);
+
+        ImGui::SameLine();
+
+        // New button
+        bool isNewMode = (mode == ProjectMode::New);
+        if (isNewMode) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.5f, 0.8f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.55f, 0.85f, 1.0f));
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.25f, 0.28f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.3f, 0.35f, 1.0f));
         }
-        // Draw twice: UI changes may not reflect until the next frame
-        redraw(2);
+        if (ImGui::Button("Create New", ImVec2(buttonWidth, buttonHeight))) {
+            mode = ProjectMode::New;
+            hasImportedProject = false;
+            setStatus("");
+        }
+        ImGui::PopStyleColor(2);
     }
 
     ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 
-    // Save location
-    ImGui::Text("Location");
-    ImGui::SetNextItemWidth(-80);
-    if (isImportedProject) {
+    // Mode-specific UI
+    if (mode == ProjectMode::Import) {
+        // Import mode: show project path
+        ImGui::Text("Project");
+        ImGui::SetNextItemWidth(-80);
+        // Show full path (read-only display)
+        char importPathBuf[512] = "";
+        strncpy(importPathBuf, importedProjectPath.c_str(), sizeof(importPathBuf) - 1);
         ImGui::BeginDisabled();
-    }
-    ImGui::InputText("##projectDir", projectDirBuf, sizeof(projectDirBuf));
-    // Auto-switch to Update mode when input is deactivated (Enter or focus lost)
-    if (ImGui::IsItemDeactivatedAfterEdit()) {
-        if (!isImportedProject && strlen(projectNameBuf) > 0 && strlen(projectDirBuf) > 0) {
-            string checkPath = string(projectDirBuf) + "/" + string(projectNameBuf);
-            if (fs::is_directory(checkPath)) {
-                pendingImportPath = checkPath;
-            }
-        }
-    }
-    if (isImportedProject) {
+        ImGui::InputText("##importPath", importPathBuf, sizeof(importPathBuf));
         ImGui::EndDisabled();
-    }
-    ImGui::SameLine();
-    if (isImportedProject) {
-        if (ImGui::Button("New")) {
-            resetToNewProject();
+        ImGui::SameLine();
+        if (ImGui::Button("Browse##import")) {
+            auto result = loadDialog("Select existing project", "", "", true);
+            if (result.success) {
+                importProject(result.filePath);
+            }
+            redraw(2);
+        }
+
+        // Show project name if imported
+        if (hasImportedProject) {
+            ImGui::Spacing();
+            ImGui::TextDisabled("Project Name: %s", projectName.c_str());
         }
     } else {
+        // New mode: show location + name
+        ImGui::Text("Location");
+        ImGui::SetNextItemWidth(-80);
+        ImGui::InputText("##projectDir", projectDirBuf, sizeof(projectDirBuf));
+        ImGui::SameLine();
         if (ImGui::Button("Browse##dir")) {
             auto result = loadDialog("Select project location", "", "", true);
             if (result.success) {
                 strncpy(projectDirBuf, result.filePath.c_str(), sizeof(projectDirBuf) - 1);
                 projectDir = projectDirBuf;
                 saveConfig();
-                // Auto-switch to Update mode if project folder exists (deferred to next frame)
-                if (strlen(projectNameBuf) > 0) {
-                    string checkPath = string(projectDirBuf) + "/" + string(projectNameBuf);
-                    if (fs::is_directory(checkPath)) {
-                        pendingImportPath = checkPath;
-                    }
-                }
             }
-            // Draw twice: UI changes may not reflect until the next frame
             redraw(2);
         }
+
+        ImGui::Spacing();
+
+        ImGui::Text("Project Name");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##projectName", projectNameBuf, sizeof(projectNameBuf));
     }
 
     ImGui::Spacing();
@@ -403,8 +420,8 @@ void tcApp::draw() {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f, 0.4f, 0.8f, pulse));
         ImGui::Button("Generating...", ImVec2(-1, 40));
         ImGui::PopStyleColor(3);
-    } else if (isImportedProject) {
-        // Arrange Update and Open in IDE side by side
+    } else if (mode == ProjectMode::Import && hasImportedProject) {
+        // Import mode with project loaded: Update and Open in IDE
         float buttonWidth = (ImGui::GetContentRegionAvail().x - 8) / 2;
         if (ImGui::Button("Update Project", ImVec2(buttonWidth, 40))) {
             startUpdate();
@@ -416,12 +433,25 @@ void tcApp::draw() {
                 setStatus(err, true);
             }
         }
-    } else {
+    } else if (mode == ProjectMode::New) {
+        // New mode: Generate button
         if (ImGui::Button("Generate Project", ImVec2(-1, 40))) {
             projectName = projectNameBuf;
             projectDir = projectDirBuf;
-            startGenerate();
+
+            // Check if folder already exists
+            string destPath = projectDir + "/" + projectName;
+            if (fs::is_directory(destPath)) {
+                setStatus("Folder already exists. Use 'Import Existing' to update.", true);
+            } else {
+                startGenerate();
+            }
         }
+    } else {
+        // Import mode but no project selected
+        ImGui::BeginDisabled();
+        ImGui::Button("Select a project to update", ImVec2(-1, 40));
+        ImGui::EndDisabled();
     }
 
     // Generation log display (clickable to copy)
@@ -531,6 +561,9 @@ void tcApp::loadConfig() {
     if (config.contains("generate_web_build")) {
         generateWebBuild = config["generate_web_build"].get<bool>();
     }
+    if (config.contains("last_imported_path")) {
+        importedProjectPath = config["last_imported_path"].get<string>();
+    }
     logNotice("tcApp") << "loadConfig: projectDir = " << projectDir << ", projectName = " << projectName;
 }
 
@@ -547,6 +580,7 @@ void tcApp::saveConfig() {
     config["last_project_name"] = projectName;
     config["ide_type"] = static_cast<int>(ideType);
     config["generate_web_build"] = generateWebBuild;
+    config["last_imported_path"] = importedProjectPath;
     saveJson(config, configPath);
 }
 
@@ -670,15 +704,16 @@ void tcApp::importProject(const string& path) {
     }
 
     // Set import state
-    isImportedProject = true;
+    mode = ProjectMode::Import;
+    hasImportedProject = true;
     importedProjectPath = path;
     setStatus("Project imported: " + projectName);
 }
 
 void tcApp::resetToNewProject() {
-    isImportedProject = false;
-    importedProjectPath = "";
-    // Keep previous projectName value (don't reset)
+    mode = ProjectMode::New;
+    hasImportedProject = false;
+    // Keep projectName and projectDir (don't reset)
 
     // Reset addon selection
     for (size_t i = 0; i < addonSelected.size(); i++) {
@@ -767,8 +802,9 @@ void tcApp::doGenerateProject() {
 
     saveConfig();
 
-    // Auto-switch to Import state after generation
-    isImportedProject = true;
+    // Auto-switch to Import mode after generation
+    mode = ProjectMode::Import;
+    hasImportedProject = true;
     importedProjectPath = generator.getDestPath();
 
     setStatus("Project created successfully!");
@@ -776,7 +812,7 @@ void tcApp::doGenerateProject() {
 }
 
 void tcApp::doUpdateProject() {
-    if (!isImportedProject || importedProjectPath.empty()) {
+    if (!hasImportedProject || importedProjectPath.empty()) {
         lock_guard<mutex> lock(logMutex);
         generatingLog += "Error: No project imported\n";
         setStatus("No project imported", true);

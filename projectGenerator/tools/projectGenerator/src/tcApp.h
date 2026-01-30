@@ -7,6 +7,12 @@
 using namespace std;
 using namespace tc;
 
+// Project mode
+enum class ProjectMode {
+    Import,  // Import existing project
+    New      // Create new project
+};
+
 class tcApp : public App {
 public:
     void setup() override;
@@ -32,7 +38,8 @@ private:
     // Settings
     string tcRoot;                      // TC_ROOT (path to tc_vX.Y.Z folder)
     string projectName = "myProject";   // Project name
-    string projectDir;                  // Save location
+    string projectDir;                  // Save location (parent directory for New mode)
+    string importedProjectPath;         // Full path for Import mode
     vector<string> addons;              // Available addons
     vector<int> addonSelected;          // Addon selection state (0/1)
     IdeType ideType = IdeType::VSCode;  // Default is VSCode
@@ -46,8 +53,8 @@ private:
     bool showSetupDialog = false;       // TC_ROOT setup dialog
     string statusMessage;               // Status message
     bool statusIsError = false;
-    bool isImportedProject = false;     // Whether this is an imported project
-    string importedProjectPath;         // Path of imported project
+    ProjectMode mode = ProjectMode::New; // Current mode (Import or New)
+    bool hasImportedProject = false;    // Whether a project is loaded in Import mode
     string pendingImportPath;           // Deferred import (to avoid crash during InputText edit)
 
     // Copied popup

@@ -259,6 +259,6 @@ int main(int argc, char* argv[]) {
     WindowSettings settings;
     settings.title = "TrussC Project Generator";
     settings.width = 500;
-    settings.height = 520;
+    settings.height = 560;
     return runApp<tcApp>(settings);
 }
