@@ -74,7 +74,7 @@ public:
 
     void updateFromContainer() {
         if (!container_) {
-            isActive = false;
+            setActive(false);
             return;
         }
 
@@ -101,15 +101,15 @@ protected:
     void updateVertical() {
         float maxScroll = container_->getMaxScrollY();
         if (maxScroll <= 0) {
-            isActive = false;
+            setActive(false);
             return;
         }
-        isActive = true;
+        setActive(true);
 
         // Calculate bar height based on visible ratio
         auto* content = container_->getContentRect();
         if (!content) {
-            isActive = false;
+            setActive(false);
             return;
         }
 
@@ -135,14 +135,14 @@ protected:
     void updateHorizontal() {
         float maxScroll = container_->getMaxScrollX();
         if (maxScroll <= 0) {
-            isActive = false;
+            setActive(false);
             return;
         }
-        isActive = true;
+        setActive(true);
 
         auto* content = container_->getContentRect();
         if (!content) {
-            isActive = false;
+            setActive(false);
             return;
         }
 

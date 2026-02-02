@@ -168,8 +168,29 @@ public:
     // State
     // -------------------------------------------------------------------------
 
-    bool isActive = true;    // false: update/draw are skipped
-    bool isVisible = true;   // false: only draw is skipped
+    // Active state (false: update/draw are skipped)
+    bool getActive() const { return isActive_; }
+    void setActive(bool active) {
+        if (isActive_ != active) {
+            isActive_ = active;
+            onActiveChanged(active);
+        }
+    }
+
+    // Visible state (false: only draw is skipped)
+    bool getVisible() const { return isVisible_; }
+    void setVisible(bool visible) {
+        if (isVisible_ != visible) {
+            isVisible_ = visible;
+            onVisibleChanged(visible);
+        }
+    }
+
+    // Legacy public access (deprecated, use setActive/setVisible)
+    [[deprecated("Use setActive() instead")]]
+    void setIsActive(bool active) { setActive(active); }
+    [[deprecated("Use setVisible() instead")]]
+    void setIsVisible(bool visible) { setVisible(visible); }
 
     // Event enabling (only nodes that called enableEvents() are hit test targets)
     void enableEvents() { eventsEnabled_ = true; }
@@ -384,7 +405,7 @@ private:
 
     // Recursively update self and child nodes
     void updateTree() {
-        if (!isActive) return;
+        if (!isActive_) return;
 
         // Call setup() once on first update/draw
         if (!setupCalled_) {
@@ -413,7 +434,7 @@ private:
 
     // Recursively draw self and child nodes
     void drawTree() {
-        if (!isActive) return;
+        if (!isActive_) return;
 
         // Call setup() once on first update/draw
         if (!setupCalled_) {
@@ -440,7 +461,7 @@ private:
         beginDraw();
 
         // User drawing
-        if (isVisible) {
+        if (isVisible_) {
             draw();
         }
 
@@ -592,7 +613,7 @@ private:
 
     // Recursive dispatch of key events
     bool dispatchKeyPressRecursive(int key) {
-        if (!isActive) return false;
+        if (!isActive_) return false;
 
         // Process self
         if (onKeyPress(key)) {
@@ -610,7 +631,7 @@ private:
     }
 
     bool dispatchKeyReleaseRecursive(int key) {
-        if (!isActive) return false;
+        if (!isActive_) return false;
 
         if (onKeyRelease(key)) {
             return true;
@@ -628,7 +649,7 @@ private:
 
     // Recursive hit test (traversed in reverse draw order)
     HitResult findHitNodeRecursive(const Ray& globalRay, const Mat4& parentInverseMatrix) {
-        if (!isActive || !isVisible) return HitResult{};
+        if (!isActive_ || !isVisible_) return HitResult{};
 
         // Calculate inverse matrix for this node
         Mat4 localInverse = getLocalMatrix().inverted();
@@ -754,6 +775,10 @@ protected:
     virtual void onMouseEnter() {}
     virtual void onMouseLeave() {}
 
+    // State change callbacks
+    virtual void onActiveChanged(bool active) { (void)active; }
+    virtual void onVisibleChanged(bool visible) { (void)visible; }
+
     // -------------------------------------------------------------------------
     // Timers
     // -------------------------------------------------------------------------
@@ -793,6 +818,8 @@ private:
     WeakPtr parent_;
     std::vector<Ptr> children_;
     bool eventsEnabled_ = false;  // Enabled via enableEvents()
+    bool isActive_ = true;        // false: update/draw are skipped
+    bool isVisible_ = true;       // false: only draw is skipped
 
     // Mod system
     std::unordered_map<std::type_index, std::unique_ptr<Mod>> mods_;
