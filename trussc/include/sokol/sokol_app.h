@@ -4970,7 +4970,8 @@ _SOKOL_PRIVATE void _sapp_macos_mtl_init(void) {
     _sapp.macos.view.preferredFramesPerSecond = max_fps / _sapp.swap_interval;
     _sapp.macos.view.device = _sapp.macos.mtl_device;
     // Modified by tettou771 for TrussC: use 10-bit color output (RGB10A2) for reduced banding
-    _sapp.macos.view.colorPixelFormat = MTLPixelFormatBGR10A2Unorm;
+    // NOTE: must use RGB10A2 (not BGR10A2) to match sokol_gfx's SG_PIXELFORMAT_RGB10A2 mapping
+    _sapp.macos.view.colorPixelFormat = MTLPixelFormatRGB10A2Unorm;
     _sapp.macos.view.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     _sapp.macos.view.sampleCount = (NSUInteger) _sapp.sample_count;
     _sapp.macos.view.autoResizeDrawable = false;
@@ -6088,7 +6089,8 @@ _SOKOL_PRIVATE void _sapp_ios_mtl_init(void) {
     _sapp.ios.view.preferredFramesPerSecond = max_fps / _sapp.swap_interval;
     _sapp.ios.view.device = _sapp.ios.mtl_device;
     // Modified by tettou771 for TrussC: use 10-bit color output (RGB10A2) for reduced banding
-    _sapp.ios.view.colorPixelFormat = MTLPixelFormatBGR10A2Unorm;
+    // NOTE: must use RGB10A2 (not BGR10A2) to match sokol_gfx's SG_PIXELFORMAT_RGB10A2 mapping
+    _sapp.ios.view.colorPixelFormat = MTLPixelFormatRGB10A2Unorm;
     _sapp.ios.view.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
     _sapp.ios.view.sampleCount = (NSUInteger)_sapp.sample_count;
     /* NOTE: iOS MTKView seems to ignore thew view's contentScaleFactor
