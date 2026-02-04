@@ -93,13 +93,16 @@ public:
     }
 
     // Allocate texture from Pixels (auto-detects F32 → RGBA32F)
-    void allocate(const Pixels& pixels, TextureUsage usage = TextureUsage::Immutable) {
+    // mipmaps: generate mip chain for smooth downscaling (Immutable only)
+    void allocate(const Pixels& pixels, TextureUsage usage = TextureUsage::Immutable,
+                  bool mipmaps = false) {
         clear();
 
         width_ = pixels.getWidth();
         height_ = pixels.getHeight();
         channels_ = pixels.getChannels();
         usage_ = usage;
+        mipmapped_ = (mipmaps && usage == TextureUsage::Immutable);
 
         if (pixels.isFloat()) {
             pixelFormat_ = SG_PIXELFORMAT_RGBA32F;
@@ -126,6 +129,7 @@ public:
         width_ = 0;
         height_ = 0;
         channels_ = 0;
+        mipmapped_ = false;
         pixelFormat_ = SG_PIXELFORMAT_NONE;
         image_ = {};
         view_ = {};
@@ -292,6 +296,7 @@ private:
     int channels_ = 0;
     int sampleCount_ = 1;
     bool allocated_ = false;
+    bool mipmapped_ = false;
     TextureUsage usage_ = TextureUsage::Immutable;
     uint64_t lastUpdateFrame_ = UINT64_MAX;  // Last updated frame
     sg_pixel_format pixelFormat_ = SG_PIXELFORMAT_NONE;  // For compressed textures
@@ -336,16 +341,44 @@ private:
         }
 
         // Compute data size (RGBA32F = 4 bytes per component)
+        bool isFloat = (pixelFormat_ == SG_PIXELFORMAT_RGBA32F);
         size_t dataSize = (size_t)width_ * height_ * channels_;
-        if (pixelFormat_ == SG_PIXELFORMAT_RGBA32F) {
+        if (isFloat) {
             dataSize *= sizeof(float);
         }
+
+        // Storage for mip chain data (kept alive until sg_make_image copies them)
+        std::vector<std::vector<uint8_t>> mipStorage;
 
         switch (usage_) {
             case TextureUsage::Immutable:
                 if (initialData) {
                     img_desc.data.mip_levels[0].ptr = initialData;
                     img_desc.data.mip_levels[0].size = dataSize;
+
+                    // Generate mip chain
+                    if (mipmapped_ && channels_ == 4) {
+                        int numLevels = 1 + (int)std::floor(std::log2((float)std::max(width_, height_)));
+                        if (numLevels > SG_MAX_MIPMAPS) numLevels = SG_MAX_MIPMAPS;
+                        img_desc.num_mipmaps = numLevels;
+
+                        const void* prevData = initialData;
+                        int mipW = width_;
+                        int mipH = height_;
+                        mipStorage.resize(numLevels - 1);
+
+                        for (int level = 1; level < numLevels; level++) {
+                            mipStorage[level - 1] = generateMipLevel(prevData, mipW, mipH, channels_, isFloat);
+                            mipW = std::max(mipW / 2, 1);
+                            mipH = std::max(mipH / 2, 1);
+
+                            size_t mipSize = mipStorage[level - 1].size();
+                            img_desc.data.mip_levels[level].ptr = mipStorage[level - 1].data();
+                            img_desc.data.mip_levels[level].size = mipSize;
+
+                            prevData = mipStorage[level - 1].data();
+                        }
+                    }
                 }
                 break;
             case TextureUsage::Dynamic:
@@ -387,6 +420,11 @@ private:
         // Filter settings
         smp_desc.min_filter = (minFilter_ == TextureFilter::Nearest) ? SG_FILTER_NEAREST : SG_FILTER_LINEAR;
         smp_desc.mag_filter = (magFilter_ == TextureFilter::Nearest) ? SG_FILTER_NEAREST : SG_FILTER_LINEAR;
+
+        // Trilinear filtering for mipmapped textures
+        if (mipmapped_) {
+            smp_desc.mipmap_filter = SG_FILTER_LINEAR;
+        }
 
         // Wrap mode settings
         auto toSgWrap = [](TextureWrap wrap) -> sg_wrap {
@@ -435,6 +473,50 @@ private:
         sgl_load_default_pipeline();
     }
 
+    // Box filter: downsample by 2x in each dimension
+    // Supports RGBA8 (isFloat=false) and RGBA32F (isFloat=true)
+    static std::vector<uint8_t> generateMipLevel(
+            const void* src, int srcW, int srcH, int channels, bool isFloat) {
+        int dstW = std::max(srcW / 2, 1);
+        int dstH = std::max(srcH / 2, 1);
+        size_t bytesPerPixel = channels * (isFloat ? sizeof(float) : 1);
+        std::vector<uint8_t> dst(dstW * dstH * bytesPerPixel);
+
+        for (int y = 0; y < dstH; y++) {
+            for (int x = 0; x < dstW; x++) {
+                int sx = x * 2;
+                int sy = y * 2;
+                // Clamp to source bounds for odd dimensions
+                int sx1 = std::min(sx + 1, srcW - 1);
+                int sy1 = std::min(sy + 1, srcH - 1);
+
+                if (isFloat) {
+                    const float* s = static_cast<const float*>(src);
+                    float* d = reinterpret_cast<float*>(dst.data());
+                    int dIdx = (y * dstW + x) * channels;
+                    for (int c = 0; c < channels; c++) {
+                        float v00 = s[(sy  * srcW + sx ) * channels + c];
+                        float v10 = s[(sy  * srcW + sx1) * channels + c];
+                        float v01 = s[(sy1 * srcW + sx ) * channels + c];
+                        float v11 = s[(sy1 * srcW + sx1) * channels + c];
+                        d[dIdx + c] = (v00 + v10 + v01 + v11) * 0.25f;
+                    }
+                } else {
+                    const uint8_t* s = static_cast<const uint8_t*>(src);
+                    int dIdx = (y * dstW + x) * channels;
+                    for (int c = 0; c < channels; c++) {
+                        int v00 = s[(sy  * srcW + sx ) * channels + c];
+                        int v10 = s[(sy  * srcW + sx1) * channels + c];
+                        int v01 = s[(sy1 * srcW + sx ) * channels + c];
+                        int v11 = s[(sy1 * srcW + sx1) * channels + c];
+                        dst[dIdx + c] = (uint8_t)((v00 + v10 + v01 + v11 + 2) / 4);
+                    }
+                }
+            }
+        }
+        return dst;
+    }
+
     void moveFrom(Texture&& other) {
         image_ = other.image_;
         view_ = other.view_;
@@ -445,6 +527,7 @@ private:
         channels_ = other.channels_;
         sampleCount_ = other.sampleCount_;
         allocated_ = other.allocated_;
+        mipmapped_ = other.mipmapped_;
         usage_ = other.usage_;
         lastUpdateFrame_ = other.lastUpdateFrame_;
         pixelFormat_ = other.pixelFormat_;
@@ -462,6 +545,7 @@ private:
         other.channels_ = 0;
         other.sampleCount_ = 1;
         other.allocated_ = false;
+        other.mipmapped_ = false;
         other.pixelFormat_ = SG_PIXELFORMAT_NONE;
     }
 };
