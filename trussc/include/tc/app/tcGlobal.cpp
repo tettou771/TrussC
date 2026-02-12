@@ -15,11 +15,13 @@ void setup() {
     sg_desc sgdesc = {};
     sgdesc.environment = sglue_environment();
     sgdesc.logger.func = slog_func;
+    sgdesc.pipeline_pool_size = 256;  // default 64 is too small when FBOs are used
     sg_setup(&sgdesc);
 
     // Initialize sokol_gl
     sgl_desc_t sgldesc = {};
     sgldesc.logger.func = slog_func;
+    sgldesc.pipeline_pool_size = 256;
     sgl_setup(&sgldesc);
 
     // Initialize bitmap font texture
