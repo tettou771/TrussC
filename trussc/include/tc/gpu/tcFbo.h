@@ -104,35 +104,8 @@ public:
         depth_att_desc.depth_stencil_attachment.image = depthImage_;
         depthAttView_ = sg_make_view(&depth_att_desc);
 
-        // Create sokol_gl context for FBO
-        sgl_context_desc_t ctx_desc = {};
-        ctx_desc.color_format = SG_PIXELFORMAT_RGBA8;
-        ctx_desc.depth_format = SG_PIXELFORMAT_DEPTH_STENCIL;
-        ctx_desc.sample_count = sampleCount_;
-        context_ = sgl_make_context(&ctx_desc);
-
-        // FBO pipeline (alpha blend) - tied to context
-        {
-            sg_pipeline_desc pip_desc = {};
-            pip_desc.sample_count = sampleCount_;  // Match MSAA sample count
-            pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;  // Match depth attachment
-            pip_desc.colors[0].blend.enabled = true;
-            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
-            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
-            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
-            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ZERO;
-            pipelineBlend_ = sgl_context_make_pipeline(context_, &pip_desc);
-        }
-
-        // FBO pipeline (for clear, no blend)
-        {
-            sg_pipeline_desc pip_desc = {};
-            pip_desc.sample_count = sampleCount_;
-            pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;  // Match depth attachment
-            pip_desc.colors[0].blend.enabled = false;  // No blend = overwrite
-            pip_desc.colors[0].write_mask = SG_COLORMASK_RGBA;  // Ensure alpha is written
-            pipelineClear_ = sgl_context_make_pipeline(context_, &pip_desc);
-        }
+        // Ensure shared rendering resources exist for this sample count
+        ensureShared(sampleCount_);
 
         allocated_ = true;
     }
@@ -140,9 +113,7 @@ public:
     // Release resources
     void clear() {
         if (allocated_) {
-            sgl_destroy_pipeline(pipelineClear_);
-            sgl_destroy_pipeline(pipelineBlend_);
-            sgl_destroy_context(context_);
+            // Shared context/pipelines are NOT destroyed here (shared across FBOs)
             sg_destroy_view(depthAttView_);
             sg_destroy_image(depthImage_);
 
@@ -185,8 +156,10 @@ public:
     void clearColor(float r, float g, float b, float a) {
         if (!active_) return;
 
+        auto& shared = getShared(sampleCount_);
+
         // End current pass
-        sgl_context_draw(context_);
+        sgl_context_draw(shared.context);
         sg_end_pass();
 
         // Restart pass with new clear color
@@ -206,7 +179,7 @@ public:
 
         // Reset sokol_gl state
         sgl_defaults();
-        sgl_load_pipeline(pipelineBlend_);
+        sgl_load_pipeline(shared.pipelineBlend);
         sgl_matrix_mode_projection();
         sgl_ortho(0.0f, (float)width_, (float)height_, 0.0f, -10000.0f, 10000.0f);
         sgl_matrix_mode_modelview();
@@ -217,8 +190,10 @@ public:
     void end() {
         if (!active_) return;
 
+        auto& shared = getShared(sampleCount_);
+
         // Draw FBO context contents
-        sgl_context_draw(context_);
+        sgl_context_draw(shared.context);
         sg_end_pass();
 
         // Switch back to default context
@@ -309,12 +284,83 @@ private:
     // Common resources
     sg_image depthImage_ = {};
     sg_view depthAttView_ = {};
-    sgl_context context_ = {};
-    sgl_pipeline pipelineBlend_ = {};
-    sgl_pipeline pipelineClear_ = {};  // For clear() (no blend)
+
+    // =========================================================================
+    // Shared rendering resources (sgl_context + pipelines)
+    // One set per sample count, shared across all FBOs.
+    // Nested FBO begin/end is NOT supported (sokol doesn't support nested passes).
+    // =========================================================================
+
+    struct SharedResources {
+        sgl_context context = {};
+        sgl_pipeline pipelineBlend = {};
+        sgl_pipeline pipelineClear = {};
+        bool initialized = false;
+    };
+
+    // Map sampleCount to index: 1->0, 2->1, 4->2, 8->3
+    static int sharedIndex(int sc) {
+        switch (sc) {
+            case 2: return 1;
+            case 4: return 2;
+            case 8: return 3;
+            default: return 0;
+        }
+    }
+
+    static SharedResources& getShared(int sampleCount) {
+        static SharedResources resources[4];
+        return resources[sharedIndex(sampleCount)];
+    }
+
+    static void ensureShared(int sampleCount) {
+        auto& s = getShared(sampleCount);
+        if (s.initialized) return;
+
+        // Create sgl context
+        sgl_context_desc_t ctx_desc = {};
+        ctx_desc.color_format = SG_PIXELFORMAT_RGBA8;
+        ctx_desc.depth_format = SG_PIXELFORMAT_DEPTH_STENCIL;
+        ctx_desc.sample_count = sampleCount;
+        s.context = sgl_make_context(&ctx_desc);
+
+        // Alpha blend pipeline
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.sample_count = sampleCount;
+            pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;
+            pip_desc.colors[0].blend.enabled = true;
+            pip_desc.colors[0].blend.src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA;
+            pip_desc.colors[0].blend.dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            pip_desc.colors[0].blend.src_factor_alpha = SG_BLENDFACTOR_ONE;
+            pip_desc.colors[0].blend.dst_factor_alpha = SG_BLENDFACTOR_ZERO;
+            s.pipelineBlend = sgl_context_make_pipeline(s.context, &pip_desc);
+        }
+
+        // Overwrite pipeline (no blend, for clear drawing)
+        {
+            sg_pipeline_desc pip_desc = {};
+            pip_desc.sample_count = sampleCount;
+            pip_desc.depth.pixel_format = SG_PIXELFORMAT_DEPTH_STENCIL;
+            pip_desc.colors[0].blend.enabled = false;
+            pip_desc.colors[0].write_mask = SG_COLORMASK_RGBA;
+            s.pipelineClear = sgl_context_make_pipeline(s.context, &pip_desc);
+        }
+
+        s.initialized = true;
+    }
 
     void beginInternal(float r, float g, float b, float a) {
         if (!allocated_) return;
+
+        // Guard: nested FBO begin is not supported
+        if (internal::inFboPass) {
+            logWarning("Fbo") << "Nested fbo.begin() is not supported. "
+                              << "Call end() on the current FBO first.";
+            return;
+        }
+
+        auto& shared = getShared(sampleCount_);
 
         // Suspend if in swapchain pass
         wasInSwapchainPass_ = isInSwapchainPass();
@@ -343,8 +389,8 @@ private:
         // For MSAA, resolve is automatic (store_action defaults to STORE)
         sg_begin_pass(&pass);
 
-        // Switch to FBO's sokol_gl context
-        sgl_set_context(context_);
+        // Switch to shared FBO context
+        sgl_set_context(shared.context);
         sgl_defaults();
 
         // Setup screen projection using defaultScreenFov (like main screen)
@@ -352,12 +398,12 @@ private:
 
         // Use FBO pipeline (no blend = overwrite, ensures alpha is written correctly)
         // Note: This means shapes overwrite each other rather than blending
-        sgl_load_pipeline(pipelineClear_);
+        sgl_load_pipeline(shared.pipelineClear);
 
         active_ = true;
         internal::inFboPass = true;
-        internal::currentFboClearPipeline = pipelineClear_;
-        internal::currentFboBlendPipeline = pipelineClear_;  // Use overwrite for all drawing
+        internal::currentFboClearPipeline = shared.pipelineClear;
+        internal::currentFboBlendPipeline = shared.pipelineClear;  // Use overwrite for all drawing
         internal::currentFbo = this;
         internal::fboClearColorFunc = _fboClearColorHelper;
     }
@@ -377,9 +423,6 @@ private:
         resolveAttView_ = other.resolveAttView_;
         depthImage_ = other.depthImage_;
         depthAttView_ = other.depthAttView_;
-        context_ = other.context_;
-        pipelineBlend_ = other.pipelineBlend_;
-        pipelineClear_ = other.pipelineClear_;
 
         other.allocated_ = false;
         other.active_ = false;
@@ -392,9 +435,6 @@ private:
         other.resolveAttView_ = {};
         other.depthImage_ = {};
         other.depthAttView_ = {};
-        other.context_ = {};
-        other.pipelineBlend_ = {};
-        other.pipelineClear_ = {};
     }
 
     // Platform-specific pixel reading (implemented in tcFbo_platform.h)
