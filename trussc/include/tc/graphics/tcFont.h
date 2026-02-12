@@ -825,8 +825,47 @@ protected:
         // Update textures
         atlasManager_->ensureTexturesUpdated();
 
-        // Calculate alignment offset
-        Vec2 offset = calcAlignOffset(text, h, v);
+        // Pre-compute per-line widths for horizontal alignment
+        std::vector<float> lineWidths;
+        {
+            float w = 0;
+            for (size_t i = 0; i < text.size(); ) {
+                uint32_t cp = decodeUTF8(text, i);
+                if (cp == '\n') {
+                    lineWidths.push_back(w);
+                    w = 0;
+                } else if (cp == '\t') {
+                    w += atlasManager_->getSpaceAdvance() * 4;
+                } else {
+                    const GlyphInfo* g = atlasManager_->getOrLoadGlyph(cp);
+                    if (g && g->isValid()) w += g->getAdvance();
+                }
+            }
+            lineWidths.push_back(w);
+        }
+
+        // Per-line horizontal offset
+        auto lineOffsetX = [&](int lineIdx) -> float {
+            float lw = (lineIdx < (int)lineWidths.size()) ? lineWidths[lineIdx] : 0;
+            switch (h) {
+                case Direction::Center: return -lw / 2;
+                case Direction::Right:  return -lw;
+                default: return 0;
+            }
+        };
+
+        // Vertical offset (multi-line aware)
+        float offsetY = 0;
+        float totalTextH = getLineHeight() * lineWidths.size();
+        float ascent = atlasManager_->getAscent();
+
+        switch (v) {
+            case Direction::Top:      offsetY = 0; break;
+            case Direction::Baseline: offsetY = -ascent; break;
+            case Direction::Center:   offsetY = -totalTextH / 2; break;
+            case Direction::Bottom:   offsetY = -totalTextH; break;
+            default: break;
+        }
 
         // Draw per atlas
         size_t atlasCount = atlasManager_->getAtlasCount();
@@ -838,20 +877,21 @@ protected:
             sgl_enable_texture();
             sgl_texture(atlas.getView(), sampler_);
 
-            // Get and set current draw color
             Color col = getDefaultContext().getColor();
             sgl_c4f(col.r, col.g, col.b, col.a);
 
             sgl_begin_quads();
 
-            float cursorX = x + offset.x;
-            float cursorY = y + offset.y + atlasManager_->getAscent();
+            int currentLine = 0;
+            float cursorX = x + lineOffsetX(0);
+            float cursorY = y + offsetY + ascent;
 
             for (size_t i = 0; i < text.size(); ) {
                 uint32_t codepoint = decodeUTF8(text, i);
 
                 if (codepoint == '\n') {
-                    cursorX = x;
+                    currentLine++;
+                    cursorX = x + lineOffsetX(currentLine);
                     cursorY += getLineHeight();
                     continue;
                 }
