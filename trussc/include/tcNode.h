@@ -63,6 +63,10 @@ public:
     void addChild(Ptr child, bool keepGlobalPosition = false) {
         if (!child || child.get() == this) return;
 
+        // Catch accidental addChild() in constructor where weak_from_this() is empty
+        assert(!weak_from_this().expired() &&
+            "addChild() called before shared_ptr is ready — move to setup()");
+
         // If preserving global position, record position before move
         float globalX = 0, globalY = 0;
         if (keepGlobalPosition) {
@@ -91,6 +95,10 @@ public:
     // Insert child node at specific index
     void insertChild(size_t index, Ptr child, bool keepGlobalPosition = false) {
         if (!child || child.get() == this) return;
+
+        // Catch accidental insertChild() in constructor where weak_from_this() is empty
+        assert(!weak_from_this().expired() &&
+            "insertChild() called before shared_ptr is ready — move to setup()");
 
         // If preserving global position, record position before move
         float globalX = 0, globalY = 0;
