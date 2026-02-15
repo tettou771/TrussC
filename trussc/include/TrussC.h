@@ -31,6 +31,7 @@
 #include <chrono>
 #include <atomic>
 #include <fstream>
+#include <unordered_set>
 
 // Headless mode state (must be included early for graphics skip checks)
 #include "tc/app/tcHeadlessState.h"
@@ -256,6 +257,9 @@ namespace internal {
     inline float pmouseY = 0.0f;
     inline int mouseButton = -1;  // Currently pressed button (-1 = none)
     inline bool mousePressed = false;
+
+    // Keyboard state
+    inline std::unordered_set<int> keysPressed;
 
     // Frame rate measurement (10-frame moving average)
     inline double frameTimeBuffer[10] = {};
@@ -1437,6 +1441,11 @@ inline int getMouseButton() {
     return internal::mouseButton;
 }
 
+// Is specific key currently pressed
+inline bool isKeyPressed(int key) {
+    return internal::keysPressed.count(key) > 0;
+}
+
 // Alias for getGlobalMouseX/Y (for tcDebugInput)
 inline float getMouseX() { return internal::mouseX; }
 inline float getMouseY() { return internal::mouseY; }
@@ -1925,6 +1934,11 @@ namespace internal {
                 args.super = hasModSuper;
                 events().keyPressed.notify(args);
 
+                // Track key state
+                if (!ev->key_repeat) {
+                    keysPressed.insert(ev->key_code);
+                }
+
                 // Legacy callback (for compatibility)
                 if (!ev->key_repeat && appKeyPressedFunc) {
                     appKeyPressedFunc(ev->key_code);
@@ -1940,6 +1954,9 @@ namespace internal {
                 args.alt = hasModAlt;
                 args.super = hasModSuper;
                 events().keyReleased.notify(args);
+
+                // Track key state
+                keysPressed.erase(ev->key_code);
 
                 if (appKeyReleasedFunc) appKeyReleasedFunc(ev->key_code);
                 break;
