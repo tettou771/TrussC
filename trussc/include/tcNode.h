@@ -200,6 +200,14 @@ public:
     [[deprecated("Use setVisible() instead")]]
     void setIsVisible(bool visible) { setVisible(visible); }
 
+    // Destroy node (marks as dead, removed from tree on next update cycle)
+    // Safe to call during update() — actual removal is deferred
+    void destroy() {
+        if (dead_) return;
+        dead_ = true;
+    }
+    bool isDead() const { return dead_; }
+
     // Event enabling (only nodes that called enableEvents() are hit test targets)
     void enableEvents() { eventsEnabled_ = true; }
     void disableEvents() { eventsEnabled_ = false; }
@@ -415,6 +423,9 @@ private:
     void updateTree() {
         if (!isActive_) return;
 
+        // Remove dead children before processing
+        sweepDeadChildren();
+
         // Call setup() once on first update/draw
         if (!setupCalled_) {
             setupCalled_ = true;
@@ -438,6 +449,40 @@ private:
         for (auto& child : children_) {
             child->updateTree();
         }
+    }
+
+    // Remove dead children and call cleanup on their subtrees
+    void sweepDeadChildren() {
+        auto it = std::remove_if(children_.begin(), children_.end(),
+            [this](const Ptr& child) {
+                if (child->isDead()) {
+                    child->cleanupTree();
+                    onChildRemoved(child);
+                    child->parent_.reset();
+                    return true;
+                }
+                return false;
+            });
+        children_.erase(it, children_.end());
+    }
+
+    // Recursively call cleanup() on this node and all descendants
+    void cleanupTree() {
+        // Cleanup children first (depth-first, like destructors)
+        for (auto& child : children_) {
+            child->cleanupTree();
+        }
+
+        // Clear global references to this node (prevent dangling pointers)
+        if (internal::hoveredNode == this) internal::hoveredNode = nullptr;
+        if (internal::prevHoveredNode == this) internal::prevHoveredNode = nullptr;
+        if (internal::grabbedNode == this) {
+            internal::grabbedNode = nullptr;
+            internal::grabbedButton = -1;
+        }
+
+        dead_ = true;
+        cleanup();
     }
 
     // Recursively draw self and child nodes
@@ -823,6 +868,7 @@ protected:
 
 private:
     bool setupCalled_ = false;    // Ensures setup() is called only once
+    bool dead_ = false;           // Marked for removal by destroy()
     WeakPtr parent_;
     std::vector<Ptr> children_;
     bool eventsEnabled_ = false;  // Enabled via enableEvents()
