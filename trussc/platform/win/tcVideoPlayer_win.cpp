@@ -1004,6 +1004,13 @@ std::vector<uint8_t> VideoPlayer::getAudioDataPlatform() const {
     return {};
 }
 
+bool VideoPlayer::extractFramePlatform(const std::string& path, Pixels& outPixels,
+                                       float timeSec, float* outDuration) {
+    // TODO: implement frame extraction on Windows
+    (void)path; (void)outPixels; (void)timeSec; (void)outDuration;
+    return false;
+}
+
 } // namespace trussc
 
 #endif // _WIN32

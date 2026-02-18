@@ -819,4 +819,67 @@ std::vector<uint8_t> VideoPlayer::getAudioDataPlatform() const {
     return result;
 }
 
+// =============================================================================
+// Static frame extraction (thread-safe, no GPU)
+// =============================================================================
+
+bool VideoPlayer::extractFramePlatform(const std::string& path, Pixels& outPixels,
+                                       float timeSec, float* outDuration) {
+    @autoreleasepool {
+        NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path.c_str()]];
+        if (!url) return false;
+
+        AVURLAsset* asset = [AVURLAsset URLAssetWithURL:url options:@{
+            AVURLAssetPreferPreciseDurationAndTimingKey: @(YES)
+        }];
+        if (!asset) return false;
+
+        // Get duration
+        float duration = (float)CMTimeGetSeconds(asset.duration);
+        if (outDuration) *outDuration = duration;
+
+        // Clamp requested time to valid range
+        if (timeSec > duration) timeSec = duration * 0.1f;
+        if (timeSec < 0) timeSec = 0;
+
+        // Check video track exists
+        NSArray* videoTracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+        if (videoTracks.count == 0) return false;
+
+        AVAssetImageGenerator* generator = [AVAssetImageGenerator assetImageGeneratorWithAsset:asset];
+        generator.appliesPreferredTrackTransform = YES;
+        generator.requestedTimeToleranceBefore = kCMTimeZero;
+        generator.requestedTimeToleranceAfter  = kCMTimeZero;
+
+        CMTime requestTime = CMTimeMakeWithSeconds(timeSec, NSEC_PER_SEC);
+        NSError* error = nil;
+        CGImageRef cgImage = [generator copyCGImageAtTime:requestTime actualTime:NULL error:&error];
+        if (!cgImage) {
+            if (error) {
+                NSLog(@"TCVideoPlayer::extractFrame error: %@", error);
+            }
+            return false;
+        }
+
+        int w = (int)CGImageGetWidth(cgImage);
+        int h = (int)CGImageGetHeight(cgImage);
+
+        // Draw into RGBA bitmap context
+        outPixels.allocate(w, h, 4);
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(
+            outPixels.getData(), w, h, 8, w * 4,
+            colorSpace,
+            kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+
+        CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), cgImage);
+
+        CGContextRelease(ctx);
+        CGColorSpaceRelease(colorSpace);
+        CGImageRelease(cgImage);
+
+        return true;
+    }
+}
+
 } // namespace trussc

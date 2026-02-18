@@ -742,6 +742,13 @@ int VideoPlayer::getAudioChannelsPlatform() const {
     return 0;
 }
 
+bool VideoPlayer::extractFramePlatform(const std::string& path, Pixels& outPixels,
+                                       float timeSec, float* outDuration) {
+    // TODO: implement frame extraction on Linux
+    (void)path; (void)outPixels; (void)timeSec; (void)outDuration;
+    return false;
+}
+
 } // namespace trussc
 
 #endif // __linux__

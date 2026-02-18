@@ -21,6 +21,7 @@
 // =============================================================================
 
 #include "tcVideoPlayerBase.h"
+#include "tc/graphics/tcPixels.h"
 
 namespace trussc {
 
@@ -316,6 +317,25 @@ private:
     std::vector<uint8_t> getAudioDataPlatform() const;
     int getAudioSampleRatePlatform() const;
     int getAudioChannelsPlatform() const;
+
+    // =========================================================================
+    // Static utility — frame extraction (thread-safe, no GPU required)
+    // =========================================================================
+public:
+    /// Extract a single frame as RGBA pixels from a video file.
+    /// @param path      Video file path
+    /// @param outPixels Receives the extracted frame (RGBA U8)
+    /// @param timeSec   Time in seconds to extract from (default 1.0)
+    /// @param outDuration If non-null, receives video duration in seconds
+    /// @return true on success
+    static bool extractFrame(const std::string& path, Pixels& outPixels,
+                             float timeSec = 1.0f, float* outDuration = nullptr) {
+        return extractFramePlatform(path, outPixels, timeSec, outDuration);
+    }
+
+private:
+    static bool extractFramePlatform(const std::string& path, Pixels& outPixels,
+                                     float timeSec, float* outDuration);
 
     // Allow platform implementations to access internals
     friend class VideoPlayerPlatformAccess;
