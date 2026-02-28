@@ -100,8 +100,8 @@ categories:
         signatures:
           - params: "int key"
             params_simple: "key"
-        description: "Key pressed"
-        description_ja: "キーが押された"
+        description: "Key pressed. Use KEY_* constants for special keys, or uppercase char literals for printable keys (e.g. key == 'A', key == '1')"
+        description_ja: "キーが押された。特殊キーはKEY_*定数、印字可能キーは大文字リテラル（例: key == 'A', key == '1'）で比較"
         sketch: true
         snippet: "void keyPressed(int key) {\n\t$0\n}"
 
@@ -4908,6 +4908,117 @@ constants:
     value: "14"
     description: "Custom cursor slot 3"
     description_ja: "カスタムカーソルスロット3"
+    sketch: true
+
+  # Key constants (for keyPressed/keyReleased)
+  # For printable characters, you can also use uppercase char literals: key == 'A', key == '1'
+  # (sokol keycodes match ASCII uppercase values)
+  - name: KEY_SPACE
+    value: "32"
+    description: "Space key"
+    description_ja: "スペースキー"
+    sketch: true
+  - name: KEY_ESCAPE
+    value: "256"
+    description: "Escape key"
+    description_ja: "Escキー"
+    sketch: true
+  - name: KEY_ENTER
+    value: "257"
+    description: "Enter/Return key"
+    description_ja: "Enter/Returnキー"
+    sketch: true
+  - name: KEY_TAB
+    value: "258"
+    description: "Tab key"
+    description_ja: "Tabキー"
+    sketch: true
+  - name: KEY_BACKSPACE
+    value: "259"
+    description: "Backspace key"
+    description_ja: "Backspaceキー"
+    sketch: true
+  - name: KEY_DELETE
+    value: "261"
+    description: "Delete key"
+    description_ja: "Deleteキー"
+    sketch: true
+  - name: KEY_RIGHT
+    value: "262"
+    description: "Right arrow key"
+    description_ja: "右矢印キー"
+    sketch: true
+  - name: KEY_LEFT
+    value: "263"
+    description: "Left arrow key"
+    description_ja: "左矢印キー"
+    sketch: true
+  - name: KEY_DOWN
+    value: "264"
+    description: "Down arrow key"
+    description_ja: "下矢印キー"
+    sketch: true
+  - name: KEY_UP
+    value: "265"
+    description: "Up arrow key"
+    description_ja: "上矢印キー"
+    sketch: true
+  - name: KEY_LEFT_SHIFT
+    value: "340"
+    description: "Left Shift key"
+    description_ja: "左Shiftキー"
+    sketch: true
+  - name: KEY_RIGHT_SHIFT
+    value: "344"
+    description: "Right Shift key"
+    description_ja: "右Shiftキー"
+    sketch: true
+  - name: KEY_LEFT_CONTROL
+    value: "341"
+    description: "Left Control key"
+    description_ja: "左Controlキー"
+    sketch: true
+  - name: KEY_RIGHT_CONTROL
+    value: "345"
+    description: "Right Control key"
+    description_ja: "右Controlキー"
+    sketch: true
+  - name: KEY_LEFT_ALT
+    value: "342"
+    description: "Left Alt/Option key"
+    description_ja: "左Alt/Optionキー"
+    sketch: true
+  - name: KEY_RIGHT_ALT
+    value: "346"
+    description: "Right Alt/Option key"
+    description_ja: "右Alt/Optionキー"
+    sketch: true
+  - name: KEY_LEFT_SUPER
+    value: "343"
+    description: "Left Super/Command key"
+    description_ja: "左Super/Commandキー"
+    sketch: true
+  - name: KEY_RIGHT_SUPER
+    value: "347"
+    description: "Right Super/Command key"
+    description_ja: "右Super/Commandキー"
+    sketch: true
+
+  # Mouse button constants
+  - name: MOUSE_BUTTON_LEFT
+    value: "0"
+    description: "Left mouse button"
+    description_ja: "左マウスボタン"
+    sketch: true
+  - name: MOUSE_BUTTON_RIGHT
+    value: "1"
+    description: "Right mouse button"
+    description_ja: "右マウスボタン"
+    sketch: true
+  - name: MOUSE_BUTTON_MIDDLE
+    value: "2"
+    description: "Middle mouse button"
+    description_ja: "中央マウスボタン"
     sketch: true
 
 # ==========================================================================
