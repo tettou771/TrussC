@@ -126,22 +126,6 @@ public:
     float getScrollSpeed() const { return scrollSpeed_; }
     void setScrollSpeed(float speed) { scrollSpeed_ = speed; }
 
-    // -------------------------------------------------------------------------
-    // Drawing
-    // -------------------------------------------------------------------------
-
-    void draw() override {
-        // Background
-        setColor(0.1f, 0.1f, 0.12f);
-        fill();
-        drawRect(0, 0, getWidth(), getHeight());
-
-        // Border
-        noFill();
-        setColor(0.3f, 0.3f, 0.35f);
-        drawRect(0, 0, getWidth(), getHeight());
-    }
-
 protected:
     // -------------------------------------------------------------------------
     // Size change callback
